@@ -1,32 +1,38 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+
 # ***************************************************************************
 # *                                                                         *
 # *   Copyright (c) 2023 Yorik van Havre <yorik@uncreated.net>              *
 # *                                                                         *
-# *   This program is free software; you can redistribute it and/or modify  *
-# *   it under the terms of the GNU General Public License (GPL)            *
-# *   as published by the Free Software Foundation; either version 3 of     *
-# *   the License, or (at your option) any later version.                   *
-# *   for detail see the LICENCE text file.                                 *
+# *   This file is part of FreeCAD.                                         *
 # *                                                                         *
-# *   This program is distributed in the hope that it will be useful,       *
-# *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
-# *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
-# *   GNU General Public License for more details.                          *
+# *   FreeCAD is free software: you can redistribute it and/or modify it    *
+# *   under the terms of the GNU Lesser General Public License as           *
+# *   published by the Free Software Foundation, either version 2.1 of the  *
+# *   License, or (at your option) any later version.                       *
 # *                                                                         *
-# *   You should have received a copy of the GNU Library General Public     *
-# *   License along with this program; if not, write to the Free Software   *
-# *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  *
-# *   USA                                                                   *
+# *   FreeCAD is distributed in the hope that it will be useful, but        *
+# *   WITHOUT ANY WARRANTY; without even the implied warranty of            *
+# *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU      *
+# *   Lesser General Public License for more details.                       *
+# *                                                                         *
+# *   You should have received a copy of the GNU Lesser General Public      *
+# *   License along with FreeCAD. If not, see                               *
+# *   <https://www.gnu.org/licenses/>.                                      *
 # *                                                                         *
 # ***************************************************************************
 
 """Diffing tool for NativeIFC project objects"""
 
 import difflib
+
+import ifcopenshell
+
 import FreeCAD
 import FreeCADGui
-import ifcopenshell
 import Arch_rc
+
+from . import ifc_tools
 
 translate = FreeCAD.Qt.translate
 
@@ -36,12 +42,18 @@ def get_diff(proj):
 
     if not getattr(proj, "IfcFilePath", None):
         old = []
+        return 1
     else:
         # cannot use open() here as it gives different encoding
         # than ifcopenshell and diff does not work
         f = ifcopenshell.open(proj.IfcFilePath)
         old = f.wrapped_data.to_string().split("\n")
-    new = proj.Proxy.ifcfile.wrapped_data.to_string().split("\n")
+    if not old:
+        return ""
+    ifcfile = ifc_tools.get_ifcfile(proj)
+    if not ifcfile:
+        return ""
+    new = ifcfile.wrapped_data.to_string().split("\n")
     # diff = difflib.HtmlDiff().make_file(old,new) # UGLY
     res = [l for l in difflib.unified_diff(old, new, lineterm="")]
     res = [l for l in res if l.startswith("+") or l.startswith("-")]
@@ -53,7 +65,11 @@ def htmlize(diff):
     """Returns an HTML version of a diff list"""
 
     html = "<html><body>\n"
-    if diff:
+    if diff == 1:
+        html += translate("BIM", "The IFC file is not saved. Save once"
+        " to have an existing IFC file to compare with."
+        " Then, run this command again.") + "<br/>\n"
+    elif diff:
         diff = diff.split("\n")
         for l in diff:
             if l.startswith("+"):

@@ -23,8 +23,8 @@
 #include "PreCompiled.h"
 
 #ifndef _PreComp_
-# include <cfloat>
 
+# include <limits>
 
 # include <Inventor/nodes/SoAnnotation.h>
 # include <Inventor/nodes/SoBaseColor.h>
@@ -41,9 +41,13 @@
 #include <Base/Console.h>
 #include <Base/Parameter.h>
 #include <Base/Reader.h>
-#include <Gui/SoFCBoundingBox.h>
+#include <Gui/Inventor/SoFCBoundingBox.h>
 
 #include "ViewProvider2DObject.h"
+
+#include <Inventor/nodes/SoFaceSet.h>
+#include <Inventor/nodes/SoShapeHints.h>
+#include <Inventor/nodes/SoSwitch.h>
 
 
 using namespace PartGui;
@@ -53,20 +57,21 @@ using namespace std;
 // Construction/Destruction
 
 const char* ViewProvider2DObjectGrid::GridStyleEnums[]= {"Dashed","Light",nullptr};
-App::PropertyQuantityConstraint::Constraints ViewProvider2DObjectGrid::GridSizeRange = {0.001,DBL_MAX,1.0};
+App::PropertyQuantityConstraint::Constraints ViewProvider2DObjectGrid::GridSizeRange = {
+    0.001, std::numeric_limits<double>::max(), 1.0};
 
 PROPERTY_SOURCE(PartGui::ViewProvider2DObjectGrid, PartGui::ViewProvider2DObject)
 
 ViewProvider2DObjectGrid::ViewProvider2DObjectGrid()
 {
-    ADD_PROPERTY_TYPE(ShowGrid,(false),"Grid",(App::PropertyType)(App::Prop_None),"Switch the grid on/off");
+    ADD_PROPERTY_TYPE(ShowGrid,(false),"Grid",(App::PropertyType)(App::Prop_None),"Toggle grid visibility");
     ADD_PROPERTY_TYPE(ShowOnlyInEditMode,(true),"Grid",(App::PropertyType)(App::Prop_None),"Show only while in edit mode");
     ADD_PROPERTY_TYPE(GridSize,(10.0),"Grid",(App::PropertyType)(App::Prop_None),"Gap size of the grid");
     ADD_PROPERTY_TYPE(GridStyle,(0L),"Grid",(App::PropertyType)(App::Prop_None),"Appearance style of the grid");
-    ADD_PROPERTY_TYPE(TightGrid,(true),"Grid",(App::PropertyType)(App::Prop_None),"Switch the tight grid mode on/off");
-    ADD_PROPERTY_TYPE(GridSnap,(false),"Grid",(App::PropertyType)(App::Prop_None),"Switch the grid snap on/off");
-    ADD_PROPERTY_TYPE(GridAutoSize,(true),"Grid",(App::PropertyType)(App::Prop_Hidden),"Autosize grid based on shape boundbox");
-    ADD_PROPERTY_TYPE(maxNumberOfLines,(10000),"Grid",(App::PropertyType)(App::Prop_None),"Maximum Number of Lines in grid");
+    ADD_PROPERTY_TYPE(TightGrid,(true),"Grid",(App::PropertyType)(App::Prop_None),"Toggle tight grid mode");
+    ADD_PROPERTY_TYPE(GridSnap,(false),"Grid",(App::PropertyType)(App::Prop_None),"Toggle grid snapping");
+    ADD_PROPERTY_TYPE(GridAutoSize,(true),"Grid",(App::PropertyType)(App::Prop_Hidden),"Auto-size grid based on shape boundary box");
+    ADD_PROPERTY_TYPE(maxNumberOfLines,(10000),"Grid",(App::PropertyType)(App::Prop_None),"Maximum number of lines in grid");
 
     GridRoot = new SoAnnotation();
     GridRoot->ref();
@@ -102,10 +107,11 @@ SoSeparator* ViewProvider2DObjectGrid::createGrid()
     else {
         // make sure that nine of the numbers are exactly zero because log(0)
         // is not defined
-        float xMin = std::abs(MinX) < FLT_EPSILON ? 0.01f : MinX;
-        float xMax = std::abs(MaxX) < FLT_EPSILON ? 0.01f : MaxX;
-        float yMin = std::abs(MinY) < FLT_EPSILON ? 0.01f : MinY;
-        float yMax = std::abs(MaxY) < FLT_EPSILON ? 0.01f : MaxY;
+        constexpr float floatEpsilon = std::numeric_limits<float>::epsilon();
+        float xMin = std::abs(MinX) < floatEpsilon ? 0.01f : MinX;
+        float xMax = std::abs(MaxX) < floatEpsilon ? 0.01f : MaxX;
+        float yMin = std::abs(MinY) < floatEpsilon ? 0.01f : MinY;
+        float yMax = std::abs(MaxY) < floatEpsilon ? 0.01f : MaxY;
         MiX = -exp(ceil(log(std::abs(xMin))));
         MiX = std::min<float>(MiX,(float)-exp(ceil(log(std::abs(0.1f*xMax)))));
         MaX = exp(ceil(log(std::abs(xMax))));
@@ -166,7 +172,7 @@ SoSeparator* ViewProvider2DObjectGrid::createGrid()
     int lines = vlines + hlines;
 
     if (lines > maxNumberOfLines.getValue()) {
-        Base::Console().Warning("Grid Disabled: Requested number of lines %d is larger than the maximum configured of %d\n."
+        Base::Console().warning("Grid disabled: requested number of lines %d is larger than the maximum configured of %d\n."
                                 "Either increase the 'GridSize' property to a more reasonable value (recommended) or increase the 'maxNumberOfLines' property.\n", lines, maxNumberOfLines.getValue());
         parent->addChild(vts);
         parent->addChild(grid);
@@ -317,9 +323,44 @@ void ViewProvider2DObjectGrid::updateGridExtent(float minx, float maxx, float mi
 
 PROPERTY_SOURCE(PartGui::ViewProvider2DObject, PartGui::ViewProviderPart)
 
-ViewProvider2DObject::ViewProvider2DObject() = default;
+ViewProvider2DObject::ViewProvider2DObject()
+    : plane(new SoSwitch)
+{
+    ADD_PROPERTY_TYPE(ShowPlane,
+                      (false),
+                      "Display Options",
+                      (App::PropertyType)(App::Prop_None),
+                      "If true, plane related with object is additionally rendered");
+}
 
 ViewProvider2DObject::~ViewProvider2DObject() = default;
+
+void ViewProvider2DObject::attach(App::DocumentObject* documentObject)
+{
+    ViewProviderPart::attach(documentObject);
+
+    getAnnotation()->addChild(plane);
+
+    updatePlane();
+}
+
+void ViewProvider2DObject::updateData(const App::Property* property)
+{
+    ViewProviderPart::updateData(property);
+
+    if (dynamic_cast<const Part::PropertyPartShape*>(property)) {
+        updatePlane();
+    }
+}
+
+void ViewProvider2DObject::onChanged(const App::Property* property)
+{
+    ViewProviderPart::onChanged(property);
+
+    if (property == &ShowPlane) {
+        plane->whichChild = ShowPlane.getValue() ? SO_SWITCH_ALL : SO_SWITCH_NONE;
+    }
+}
 
 std::vector<std::string> ViewProvider2DObject::getDisplayModes() const
 {
@@ -340,11 +381,94 @@ const char* ViewProvider2DObject::getDefaultDisplayMode() const
     return "Wireframe";
 }
 
+void ViewProvider2DObject::updatePlane()
+{
+    plane->whichChild = ShowPlane.getValue() ? SO_SWITCH_ALL : SO_SWITCH_NONE;
+
+    Gui::coinRemoveAllChildren(plane);
+
+    auto shapeProperty = getObject()->getPropertyByName<Part::PropertyPartShape>("Shape");
+
+    if (!shapeProperty) {
+        return;
+    }
+
+    auto bbox = shapeProperty->getBoundingBox();
+    Base::Placement place = shapeProperty->getComplexData()->getPlacement();
+    Base::ViewOrthoProjMatrix proj(place.inverse().toMatrix());
+    Base::BoundBox2d bb = bbox.ProjectBox(&proj);
+
+    // when projection of invalid it often results in infinite shapes
+    // if that happens we simply use some small bounding box to mark plane
+    if (bb.IsInfinite() || !bb.IsValid()) {
+        bb = Base::BoundBox2d(-1, -1, 1, 1);
+    }
+
+    SbVec3f verts[4] = {
+        SbVec3f(bb.MinX - horizontalPlanePadding, bb.MinY - verticalPlanePadding, 0),
+        SbVec3f(bb.MinX - horizontalPlanePadding, bb.MaxY + verticalPlanePadding, 0),
+        SbVec3f(bb.MaxX + horizontalPlanePadding, bb.MaxY + verticalPlanePadding, 0),
+        SbVec3f(bb.MaxX + horizontalPlanePadding, bb.MinY - verticalPlanePadding, 0),
+    };
+
+    static const int32_t lines[6] = { 0, 1, 2, 3, 0, -1 };
+
+    auto pCoords = new SoCoordinate3();
+    pCoords->point.setNum(4);
+    pCoords->point.setValues(0, 4, verts);
+    plane->addChild(pCoords);
+
+    auto pLines = new SoIndexedLineSet();
+    pLines->coordIndex.setNum(6);
+    pLines->coordIndex.setValues(0, 6, lines);
+    plane->addChild(pLines);
+
+    // add semi transparent face
+    auto faceSeparator = new SoSeparator();
+    plane->addChild(faceSeparator);
+
+    auto material = new SoMaterial();
+    SbColor color(1.0f, 1.0f, 0.0f);
+    material->transparency.setValue(0.85f);
+    material->ambientColor.setValue(color);
+    material->diffuseColor.setValue(color);
+    faceSeparator->addChild(material);
+
+    // disable backface culling and render with two-sided lighting
+    auto shapeHints = new SoShapeHints();
+    shapeHints->vertexOrdering = SoShapeHints::COUNTERCLOCKWISE;
+    shapeHints->shapeType = SoShapeHints::UNKNOWN_SHAPE_TYPE;
+    faceSeparator->addChild(shapeHints);
+
+    auto pickStyle = new SoPickStyle();
+    pickStyle->style = SoPickStyle::UNPICKABLE;
+    faceSeparator->addChild(pickStyle);
+
+    auto faceSet = new SoFaceSet();
+    auto vertexProperty = new SoVertexProperty();
+    vertexProperty->vertex.setValues(0, 4, verts);
+    faceSet->vertexProperty.setValue(vertexProperty);
+    faceSeparator->addChild(faceSet);
+
+    auto ps = new SoPickStyle();
+    ps->style.setValue(SoPickStyle::BOUNDING_BOX);
+
+    auto dashed = new SoDrawStyle();
+    dashed->linePattern = 0xF0F0;
+
+    auto annotation = new SoAnnotation();
+    annotation->addChild(dashed);
+    annotation->addChild(pLines);
+
+    plane->addChild(annotation);
+    plane->addChild(ps);
+}
+
 namespace Gui {
 /// @cond DOXERR
 PROPERTY_SOURCE_TEMPLATE(PartGui::ViewProvider2DObjectPython, PartGui::ViewProvider2DObject)
 /// @endcond
 
 // explicit template instantiation
-template class PartGuiExport ViewProviderPythonFeatureT<PartGui::ViewProvider2DObject>;
+template class PartGuiExport ViewProviderFeaturePythonT<PartGui::ViewProvider2DObject>;
 }

@@ -86,7 +86,7 @@ Part::Feature *DressUp::getBaseObject(bool silent) const
     const char* err = nullptr;
     App::DocumentObject* base = Base.getValue();
     if (base) {
-        if(base->isDerivedFrom(Part::Feature::getClassTypeId())) {
+        if(base->isDerivedFrom<Part::Feature>()) {
             rv = static_cast<Part::Feature*>(base);
         } else {
             err = "Linked object is not a Part object";
@@ -158,7 +158,7 @@ void DressUp::getContinuousEdges(Part::TopoShape TopShape, std::vector< std::str
                 buf << "Edge";
                 buf << id;
 
-                if(std::find(SubNames.begin(),SubNames.end(),buf.str()) == SubNames.end())
+                if (std::ranges::find(SubNames, buf.str()) == SubNames.end())
                 {
                     SubNames.push_back(buf.str());
                 }
@@ -203,7 +203,7 @@ std::vector<TopoShape> DressUp::getContinuousEdges(const TopoShape& shape)
 
     for (const auto& v : Base.getShadowSubs()) {
         TopoDS_Shape subshape;
-        const auto& ref = v.first.size() ? v.first : v.second;
+        const auto& ref = v.newName.size() ? v.newName : v.oldName;
         subshape = shape.getSubShape(ref.c_str(), true);
         if (subshape.IsNull()) {
             FC_THROWM(Base::CADKernelError, "Invalid edge link: " << ref);
@@ -236,7 +236,7 @@ std::vector<TopoShape> DressUp::getFaces(const TopoShape& shape)
             continue;
         }
         auto& sub = subs[i++];
-        auto& ref = sub.first.size() ? sub.first : val;
+        auto& ref = sub.newName.size() ? sub.newName : val;
         TopoShape subshape;
         try {
             subshape = shape.getSubTopoShape(ref.c_str());
@@ -293,108 +293,139 @@ void DressUp::onChanged(const App::Property* prop)
     Feature::onChanged(prop);
 }
 
-void DressUp::getAddSubShape(Part::TopoShape &addShape, Part::TopoShape &subShape)
+void DressUp::getAddSubShape(Part::TopoShape& addShape, Part::TopoShape& subShape)
 {
     Part::TopoShape res = AddSubShape.getShape();
 
-    if(res.isNull()) {
+    if (res.isNull()) {
         try {
             std::vector<Part::TopoShape> shapes;
             Part::TopoShape shape = Shape.getShape();
             shape.setPlacement(Base::Placement());
 
-            FeatureAddSub *base = nullptr;
-            if(SupportTransform.getValue()) {
+            FeatureAddSub* base = nullptr;
+            if (SupportTransform.getValue()) {
                 // SupportTransform means transform the support together with
                 // the dressing. So we need to find the previous support
                 // feature (which must be of type FeatureAddSub), and skipping
                 // any consecutive DressUp in-between.
-                for(Feature *current=this; ;current=static_cast<DressUp*>(base)) {
-                    base = Base::freecad_dynamic_cast<FeatureAddSub>(current->getBaseObject(true));
-                    if(!base)
+                for (Feature* current = this;; current = static_cast<DressUp*>(base)) {
+                    base = freecad_cast<FeatureAddSub*>(current->getBaseObject(true));
+                    if (!base) {
                         FC_THROWM(Base::CADKernelError,
-                                "Cannot find additive or subtractive support for " << getFullName());
-                    if(!base->isDerivedFrom(DressUp::getClassTypeId()))
+                                  "Cannot find additive or subtractive support for "
+                                      << getFullName());
+                    }
+                    if (!base->isDerivedFrom<DressUp>()) {
                         break;
+                    }
                 }
             }
 
             Part::TopoShape baseShape;
-            if(base) {
+            if (base) {
                 baseShape = base->getBaseTopoShape(true);
                 baseShape.move(base->getLocation().Inverted());
                 if (base->getAddSubType() == Additive) {
-                    if(!baseShape.isNull() && baseShape.hasSubShape(TopAbs_SOLID))
-#ifdef FC_USE_TNP_FIX
+                    if (!baseShape.isNull() && baseShape.hasSubShape(TopAbs_SOLID)) {
                         shapes.emplace_back(shape.makeElementCut(baseShape.getShape()));
-#else
-                        shapes.emplace_back(shape.cut(baseShape.getShape()));
-#endif
-                    else
+                    }
+                    else {
                         shapes.push_back(shape);
-                } else {
+                    }
+                }
+                else {
                     BRep_Builder builder;
                     TopoDS_Compound comp;
                     builder.MakeCompound(comp);
                     // push an empty compound to indicate null additive shape
                     shapes.emplace_back(comp);
-                    if(!baseShape.isNull() && baseShape.hasSubShape(TopAbs_SOLID))
-#ifdef FC_USE_TNP_FIX
+                    if (!baseShape.isNull() && baseShape.hasSubShape(TopAbs_SOLID)) {
                         shapes.emplace_back(baseShape.makeElementCut(shape.getShape()));
-#else
-                        shapes.emplace_back(baseShape.cut(shape.getShape()));
-#endif
-                    else
+                    }
+                    else {
                         shapes.push_back(shape);
+                    }
                 }
-            } else {
+            }
+            else {
                 baseShape = getBaseTopoShape();
                 baseShape.move(getLocation().Inverted());
-#ifdef FC_USE_TNP_FIX
                 shapes.emplace_back(shape.makeElementCut(baseShape.getShape()));
                 shapes.emplace_back(baseShape.makeElementCut(shape.getShape()));
-#else
-                shapes.emplace_back(shape.cut(baseShape.getShape()));
-                shapes.emplace_back(baseShape.cut(shape.getShape()));
-#endif
             }
 
             // Make a compound to contain both additive and subtractive shape,
             // bceause a dressing (e.g. a fillet) can either be additive or
             // subtractive. And the dressup feature can contain mixture of both.
-#ifdef FC_USE_TNP_FIX
             AddSubShape.setValue(Part::TopoShape().makeElementCompound(shapes));
-
-#else
-            AddSubShape.setValue(Part::TopoShape().makeCompound(shapes));
-#endif
-        } catch (Standard_Failure &e) {
-            FC_THROWM(Base::CADKernelError, "Failed to calculate AddSub shape: "
-                    << e.GetMessageString());
+        }
+        catch (Standard_Failure& e) {
+            FC_THROWM(Base::CADKernelError,
+                      "Failed to calculate AddSub shape: " << e.GetMessageString());
         }
         res = AddSubShape.getShape();
     }
 
-    if(res.isNull())
+    if (res.isNull()) {
         throw Part::NullShapeException("Null AddSub shape");
+    }
 
-    if(res.getShape().ShapeType() != TopAbs_COMPOUND) {
+    if (res.getShape().ShapeType() != TopAbs_COMPOUND) {
         addShape = res;
-    } else {
+    }
+    else {
         int count = res.countSubShapes(TopAbs_SHAPE);
-        if(!count)
+        if (!count) {
             throw Part::NullShapeException("Null AddSub shape");
-        if(count) {
-            Part::TopoShape s = res.getSubTopoShape(TopAbs_SHAPE, 1);
-            if(!s.isNull() && s.hasSubShape(TopAbs_SOLID))
-                addShape = s;
         }
-        if(count > 1) {
+        if (count) {
+            Part::TopoShape s = res.getSubTopoShape(TopAbs_SHAPE, 1);
+            if (!s.isNull() && s.hasSubShape(TopAbs_SOLID)) {
+                addShape = s;
+            }
+        }
+        if (count > 1) {
             Part::TopoShape s = res.getSubTopoShape(TopAbs_SHAPE, 2);
-            if(!s.isNull() && s.hasSubShape(TopAbs_SOLID))
+            if (!s.isNull() && s.hasSubShape(TopAbs_SOLID)) {
                 subShape = s;
+            }
         }
     }
 }
 
+void DressUp::updatePreviewShape()
+{
+    auto shape = Shape.getShape();
+    auto baseFeature = freecad_cast<Feature*>(BaseFeature.getValue());
+
+    if (!baseFeature || baseFeature->Shape.getShape().isNull()) {
+        PreviewShape.setValue(Shape.getShape());
+        return;
+    }
+
+    std::vector<int> faces, edges, vertices;
+    getGeneratedShapes(faces, edges, vertices);
+
+    if (faces.empty()) {
+        PreviewShape.setValue(TopoDS_Shape());
+        return;
+    }
+
+    shape.setPlacement(Base::Placement());
+
+    BRep_Builder builder;
+    TopoDS_Compound comp;
+    builder.MakeCompound(comp);
+
+    for (int faceId : faces) {
+        builder.Add(comp, shape.getSubShape(TopAbs_FACE, faceId));
+    }
+
+    Part::TopoShape preview(comp);
+    preview.mapSubElement(shape);
+
+    PreviewShape.setValue(preview);
 }
+
+}  // namespace PartDesign

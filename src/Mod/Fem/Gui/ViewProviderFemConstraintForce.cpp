@@ -66,7 +66,7 @@ bool ViewProviderFemConstraintForce::setEdit(int ModNum)
 
 void ViewProviderFemConstraintForce::updateData(const App::Property* prop)
 {
-    auto pcConstraint = static_cast<Fem::ConstraintForce*>(this->getObject());
+    auto pcConstraint = this->getObject<Fem::ConstraintForce>();
 
     if (prop == &pcConstraint->Reversed || prop == &pcConstraint->DirectionVector) {
         updateSymbol();
@@ -80,7 +80,7 @@ void ViewProviderFemConstraintForce::transformSymbol(const Base::Vector3d& point
                                                      const Base::Vector3d& normal,
                                                      SbMatrix& mat) const
 {
-    auto obj = static_cast<const Fem::ConstraintForce*>(this->getObject());
+    auto obj = this->getObject<const Fem::ConstraintForce>();
     bool rev = obj->Reversed.getValue();
     float s = obj->getScaleFactor();
     // Symbol length from .iv file
@@ -88,7 +88,7 @@ void ViewProviderFemConstraintForce::transformSymbol(const Base::Vector3d& point
     // Place each symbol outside the boundary
     Base::Vector3d dir = (rev ? -1.0 : 1.0) * obj->DirectionVector.getValue();
     float symTraY = dir.Dot(normal) < 0 ? -1 * symLen : 0.0f;
-    float rotAngle = rev ? F_PI : 0.0f;
+    float rotAngle = rev ? std::numbers::pi_v<float> : 0.0f;
     SbMatrix mat0, mat1;
     mat0.setTransform(SbVec3f(0, symTraY, 0),
                       SbRotation(SbVec3f(0, 0, 1), rotAngle),

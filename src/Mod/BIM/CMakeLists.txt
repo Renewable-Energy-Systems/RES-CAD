@@ -26,7 +26,6 @@ SET(Arch_SRCS
     ArchStairs.py
     ArchSpace.py
     ArchRebar.py
-    TestArch.py
     ArchFrame.py
     ArchPanel.py
     ArchEquipment.py
@@ -45,7 +44,9 @@ SET(Arch_SRCS
     ArchCurtainWall.py
     ArchSketchObject.py
     BimSelect.py
-    BimStatusBar.py
+    BimStatus.py
+    TestArch.py
+    TestArchGui.py
 )
 
 SET(importers_SRCS
@@ -59,12 +60,14 @@ SET(importers_SRCS
     importers/importWebGL.py
     importers/importJSON.py
     importers/importSH3D.py
+    importers/importSH3DHelper.py
     importers/import3DS.py
     importers/importSHP.py
     importers/importGBXML.py
     importers/exportIFCStructuralTools.py
     importers/exportIFC.py
     importers/exportIFCHelper.py
+    importers/samples/Sample.sh3d
 )
 
 SET(Dice3DS_SRCS
@@ -76,12 +79,14 @@ SET(Dice3DS_SRCS
 SET(Arch_presets
     Presets/profiles.csv
     Presets/pset_definitions.csv
+    Presets/qto_definitions.csv
     Presets/ifc_products_IFC2X3.json
     Presets/ifc_products_IFC4.json
     Presets/ifc_types_IFC2X3.json
     Presets/ifc_types_IFC4.json
     Presets/ifc_contexts_IFC2X3.json
     Presets/ifc_contexts_IFC4.json
+    Presets/properties_conversion.csv
 )
 
 SET(bimcommands_SRCS
@@ -105,6 +110,7 @@ SET(bimcommands_SRCS
     bimcommands/BimDiff.py
     bimcommands/BimDimensions.py
     bimcommands/BimDoor.py
+    bimcommands/BimDrawingView.py
     bimcommands/BimEmptyTrash.py
     bimcommands/BimEquipment.py
     bimcommands/BimExamples.py
@@ -167,6 +173,10 @@ SET(bimcommands_SRCS
     bimcommands/__init__.py
 )
 
+SET(BIM_templates
+    Resources/templates/webgl_export_template.html
+)
+
 SET(nativeifc_SRCS
     nativeifc/ifc_commands.py
     nativeifc/ifc_diff.py
@@ -186,12 +196,49 @@ SET(nativeifc_SRCS
     nativeifc/ifc_viewproviders.py
     nativeifc/__init__.py
     nativeifc/ifc_openshell.py
+    nativeifc/ifc_types.py
+    nativeifc/ifc_export.py
+    nativeifc/ifc_classification.py
+)
+
+SET(bimtests_SRCS
+    bimtests/TestArch.py
+    bimtests/TestArchAxis.py
+    bimtests/TestArchBase.py
+    bimtests/TestArchComponent.py
+    bimtests/TestArchBuildingPart.py
+    bimtests/TestArchRoof.py
+    bimtests/TestArchSpace.py
+    bimtests/TestArchWall.py
+    bimtests/TestArchMaterial.py
+    bimtests/TestArchPanel.py
+    bimtests/TestArchWindow.py
+    bimtests/TestArchStairs.py
+    bimtests/TestArchPipe.py
+    bimtests/TestArchCurtainWall.py
+    bimtests/TestArchProfile.py
+    bimtests/TestArchProject.py
+    bimtests/TestArchSectionPlane.py
+    bimtests/TestArchRebar.py
+    bimtests/TestArchGrid.py
+    bimtests/TestArchFence.py
+    bimtests/TestArchEquipment.py
+    bimtests/TestArchFrame.py
+    bimtests/TestArchReference.py
+    bimtests/TestArchSchedule.py
+    bimtests/TestArchTruss.py
+    bimtests/TestWebGLExport.py
+    bimtests/TestWebGLExportGui.py
 )
 
 SOURCE_GROUP("" FILES ${Arch_SRCS})
 
 SET(BIMGuiIcon_SVG
     Resources/icons/BIMWorkbench.svg
+)
+
+SET(ImportersSample_Files
+    importers/samples/Sample.sh3d
 )
 
 ADD_CUSTOM_TARGET(BIM ALL
@@ -202,14 +249,21 @@ ADD_CUSTOM_TARGET(BIM ALL
             ${ArchGuiIcon_SVG}
             ${importers_SRCS}
             ${bimcommands_SRCS}
+            ${bimtests_SRCS}
             ${nativeifc_SRCS}
             ${BIMGuiIcon_SVG}
+            ${BIM_templates}
+)
+
+ADD_CUSTOM_TARGET(ImporterPythonTestData ALL
+    SOURCES ${ImportersSample_Files}
 )
 
 fc_copy_sources(BIM "${CMAKE_BINARY_DIR}/Mod/BIM" ${Arch_SRCS})
 fc_copy_sources(BIM "${CMAKE_BINARY_DIR}/Mod/BIM" ${Dice3DS_SRCS})
 fc_copy_sources(BIM "${CMAKE_BINARY_DIR}/Mod/BIM" ${importers_SRCS})
 fc_copy_sources(BIM "${CMAKE_BINARY_DIR}/Mod/BIM" ${bimcommands_SRCS})
+fc_copy_sources(BIM "${CMAKE_BINARY_DIR}/Mod/BIM" ${bimtests_SRCS})
 fc_copy_sources(BIM "${CMAKE_BINARY_DIR}/Mod/BIM" ${nativeifc_SRCS})
 fc_copy_sources(BIM "${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_DATADIR}/Mod/BIM" ${BIMGuiIcon_SVG})
 
@@ -218,6 +272,18 @@ fc_target_copy_resource(BIM
     ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_DATADIR}/Mod/BIM
     ${Arch_presets}
 )
+
+fc_target_copy_resource(BIM
+    ${CMAKE_SOURCE_DIR}/src/Mod/BIM
+    ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_DATADIR}/Mod/BIM
+    ${BIM_templates}
+)
+
+fc_target_copy_resource(ImporterPythonTestData
+    ${CMAKE_SOURCE_DIR}/src/Mod/BIM
+    ${CMAKE_BINARY_DIR}/Mod/BIM
+    ${ImportersSample_Files})
+
 
 IF (BUILD_GUI)
     fc_target_copy_resource(BIM
@@ -253,6 +319,12 @@ INSTALL(
 
 INSTALL(
     FILES
+        ${bimtests_SRCS}
+    DESTINATION Mod/BIM/bimtests
+)
+
+INSTALL(
+    FILES
         ${nativeifc_SRCS}
     DESTINATION Mod/BIM/nativeifc
 )
@@ -271,3 +343,9 @@ INSTALL(
        "${CMAKE_INSTALL_DATADIR}/Mod/BIM/Resources/icons"
 )
 
+INSTALL(
+    FILES
+        ${BIM_templates}
+    DESTINATION
+        "${CMAKE_INSTALL_DATADIR}/Mod/BIM/Resources/templates"
+    )

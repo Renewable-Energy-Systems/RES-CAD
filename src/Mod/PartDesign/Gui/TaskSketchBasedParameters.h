@@ -25,7 +25,7 @@
 #ifndef GUI_TASKVIEW_TaskSketchBasedParameters_H
 #define GUI_TASKVIEW_TaskSketchBasedParameters_H
 
-#include <Gui/Selection.h>
+#include <Gui/Selection/Selection.h>
 #include "ViewProvider.h"
 
 #include "TaskFeatureParameters.h"
@@ -56,7 +56,7 @@ protected:
     virtual void finishReferenceSelection(App::DocumentObject* profile, App::DocumentObject* base);
     /*!
      * \brief onSelectReference
-     * Start reference selection mode to allow to select objects of the type defined
+     * Start reference selection mode to allow one to select objects of the type defined
      * with \a AllowSelectionFlags.
      * If AllowSelection::NONE is passed the selection mode is finished.
      */
@@ -72,6 +72,9 @@ protected:
     /// or the subelement's name if the object is a solid.
     QString make2DLabel(const App::DocumentObject* section,
                         const std::vector<std::string>& subValues);
+
+private:
+    Gui::ViewProvider* previouslyVisibleViewProvider {nullptr};
 };
 
 class TaskDlgSketchBasedParameters : public PartDesignGui::TaskDlgFeatureParameters

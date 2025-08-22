@@ -32,6 +32,7 @@
 # include <QImageReader>
 # include <QPainter>
 # include <QPalette>
+# include <QScreen>
 # include <QString>
 # include <QSvgRenderer>
 # include <QStyleOption>
@@ -52,8 +53,9 @@ namespace Gui {
 class BitmapFactoryInstP
 {
 public:
-    QMap<std::string, const char**> xpmMap;
     QMap<std::string, QPixmap> xpmCache;
+
+    bool useIconTheme;
 };
 }
 
@@ -74,8 +76,8 @@ BitmapFactoryInst& BitmapFactoryInst::instance()
             }
             _pcSingleton->addPath(path);
         }
-        _pcSingleton->addPath(QString::fromLatin1("%1/icons").arg(QString::fromStdString(App::Application::getHomePath())));
-        _pcSingleton->addPath(QString::fromLatin1("%1/icons").arg(QString::fromStdString(App::Application::getUserAppDataDir())));
+        _pcSingleton->addPath(QStringLiteral("%1/icons").arg(QString::fromStdString(App::Application::getHomePath())));
+        _pcSingleton->addPath(QStringLiteral("%1/icons").arg(QString::fromStdString(App::Application::getUserAppDataDir())));
         _pcSingleton->addPath(QLatin1String(":/icons/"));
         _pcSingleton->addPath(QLatin1String(":/Icons/"));
     }
@@ -93,7 +95,9 @@ void BitmapFactoryInst::destruct ()
 BitmapFactoryInst::BitmapFactoryInst()
 {
     d = new BitmapFactoryInstP;
+
     restoreCustomPaths();
+    configureUseIconTheme();
 }
 
 BitmapFactoryInst::~BitmapFactoryInst()
@@ -111,24 +115,32 @@ void BitmapFactoryInst::restoreCustomPaths()
     }
 }
 
+void Gui::BitmapFactoryInst::configureUseIconTheme()
+{
+    Base::Reference<ParameterGrp> group = App::GetApplication().GetParameterGroupByPath
+        ("User parameter:BaseApp/Preferences/Bitmaps/Theme");
+
+    d->useIconTheme = group->GetBool("UseIconTheme", group->GetBool("ThemeSearchPaths", false));
+}
+
 void BitmapFactoryInst::addPath(const QString& path)
 {
-    QDir::addSearchPath(QString::fromLatin1("icons"), path);
+    QDir::addSearchPath(QStringLiteral("icons"), path);
 }
 
 void BitmapFactoryInst::removePath(const QString& path)
 {
-    QStringList iconPaths = QDir::searchPaths(QString::fromLatin1("icons"));
+    QStringList iconPaths = QDir::searchPaths(QStringLiteral("icons"));
     int pos = iconPaths.indexOf(path);
     if (pos != -1) {
         iconPaths.removeAt(pos);
-        QDir::setSearchPaths(QString::fromLatin1("icons"), iconPaths);
+        QDir::setSearchPaths(QStringLiteral("icons"), iconPaths);
     }
 }
 
 QStringList BitmapFactoryInst::getPaths() const
 {
-    return QDir::searchPaths(QString::fromLatin1("icons"));
+    return QDir::searchPaths(QStringLiteral("icons"));
 }
 
 QStringList BitmapFactoryInst::findIconFiles() const
@@ -136,9 +148,9 @@ QStringList BitmapFactoryInst::findIconFiles() const
     QStringList files, filters;
     QList<QByteArray> formats = QImageReader::supportedImageFormats();
     for (QList<QByteArray>::iterator it = formats.begin(); it != formats.end(); ++it)
-        filters << QString::fromLatin1("*.%1").arg(QString::fromLatin1(*it).toLower());
+        filters << QStringLiteral("*.%1").arg(QString::fromLatin1(*it).toLower());
 
-    QStringList paths = QDir::searchPaths(QString::fromLatin1("icons"));
+    QStringList paths = QDir::searchPaths(QStringLiteral("icons"));
     paths.removeDuplicates();
     for (QStringList::Iterator pt = paths.begin(); pt != paths.end(); ++pt) {
         QDir d(*pt);
@@ -150,11 +162,6 @@ QStringList BitmapFactoryInst::findIconFiles() const
 
     files.removeDuplicates();
     return files;
-}
-
-void BitmapFactoryInst::addXPM(const char* name, const char** pXPM)
-{
-    d->xpmMap[name] = pXPM;
 }
 
 void BitmapFactoryInst::addPixmapToCache(const char* name, const QPixmap& icon)
@@ -174,6 +181,10 @@ bool BitmapFactoryInst::findPixmapInCache(const char* name, QPixmap& px) const
 
 QIcon BitmapFactoryInst::iconFromTheme(const char* name, const QIcon& fallback)
 {
+    if (!d->useIconTheme) {
+        return iconFromDefaultTheme(name, fallback);
+    }
+
     QString iconName = QString::fromUtf8(name);
     QIcon icon = QIcon::fromTheme(iconName, fallback);
     if (icon.isNull()) {
@@ -206,6 +217,21 @@ bool BitmapFactoryInst::loadPixmap(const QString& filename, QPixmap& icon) const
     return !icon.isNull();
 }
 
+QIcon Gui::BitmapFactoryInst::iconFromDefaultTheme(const char* name, const QIcon& fallback)
+{
+    QIcon icon;
+    QPixmap px = pixmap(name);
+
+    if (!px.isNull()) {
+        icon.addPixmap(px);
+        return icon;
+    } else {
+        return fallback;
+    }
+
+    return icon;
+}
+
 QPixmap BitmapFactoryInst::pixmap(const char* name) const
 {
     if (!name || *name == '\0')
@@ -216,27 +242,22 @@ QPixmap BitmapFactoryInst::pixmap(const char* name) const
     if (it != d->xpmCache.end())
         return it.value();
 
-    // now try to find it in the built-in XPM
     QPixmap icon;
-    QMap<std::string,const char**>::Iterator It = d->xpmMap.find(name);
-    if (It != d->xpmMap.end())
-        icon = QPixmap(It.value());
 
     // Try whether an absolute path is given
     QString fn = QString::fromUtf8(name);
-    if (icon.isNull())
-        loadPixmap(fn, icon);
+    loadPixmap(fn, icon);
 
     // try to find it in the 'icons' search paths
     if (icon.isNull()) {
         QList<QByteArray> formats = QImageReader::supportedImageFormats();
         formats.prepend("SVG"); // check first for SVG to use special import mechanism
 
-        QString fileName = QString::fromLatin1("icons:") + fn;
+        QString fileName = QStringLiteral("icons:") + fn;
         if (!loadPixmap(fileName, icon)) {
             // Go through supported file formats
             for (QList<QByteArray>::iterator fm = formats.begin(); fm != formats.end(); ++fm) {
-                QString path = QString::fromLatin1("%1.%2").arg(fileName,
+                QString path = QStringLiteral("%1.%2").arg(fileName,
                     QString::fromLatin1((*fm).toLower().constData()));
                 if (loadPixmap(path, icon)) {
                     break;
@@ -250,13 +271,15 @@ QPixmap BitmapFactoryInst::pixmap(const char* name) const
         return icon;
     }
 
-    Base::Console().Warning("Cannot find icon: %s\n", name);
+    Base::Console().warning("Cannot find icon: %s\n", name);
     return QPixmap(Gui::BitmapFactory().pixmapFromSvg("help-browser", QSize(16, 16)));
 }
 
 QPixmap BitmapFactoryInst::pixmapFromSvg(const char* name, const QSizeF& size,
                                          const ColorMap& colorMapping) const
 {
+    static qreal dpr = getMaximumDPR();
+    
     // If an absolute path is given
     QPixmap icon;
     QString iconPath;
@@ -266,7 +289,7 @@ QPixmap BitmapFactoryInst::pixmapFromSvg(const char* name, const QSizeF& size,
 
     // try to find it in the 'icons' search paths
     if (iconPath.isEmpty()) {
-        QString fileName = QString::fromLatin1("icons:") + fn;
+        QString fileName = QStringLiteral("icons:") + fn;
         QFileInfo fi(fileName);
         if (fi.exists()) {
             iconPath = fi.filePath();
@@ -284,21 +307,15 @@ QPixmap BitmapFactoryInst::pixmapFromSvg(const char* name, const QSizeF& size,
         QFile file(iconPath);
         if (file.open(QFile::ReadOnly | QFile::Text)) {
             QByteArray content = file.readAll();
-            icon = pixmapFromSvg(content, size, colorMapping);
+            icon = pixmapFromSvg(content, size * dpr, colorMapping);
         }
     }
 
-    return icon;
-}
+    if (!icon.isNull()) {
+        icon.setDevicePixelRatio(dpr);
+    }
 
-QPixmap BitmapFactoryInst::pixmapFromSvg(const char* name, const QSizeF& size, qreal dpr,
-                                         const ColorMap& colorMapping) const
-{
-    qreal width = size.width() * dpr;
-    qreal height = size.height() * dpr;
-    QPixmap px(pixmapFromSvg(name, QSizeF(width, height), colorMapping));
-    px.setDevicePixelRatio(dpr);
-    return px;
+    return icon;
 }
 
 QPixmap BitmapFactoryInst::pixmapFromSvg(const QByteArray& originalContents, const QSizeF& size,
@@ -308,8 +325,8 @@ QPixmap BitmapFactoryInst::pixmapFromSvg(const QByteArray& originalContents, con
     for ( const auto &colorToColor : colorMapping ) {
         ulong fromColor = colorToColor.first;
         ulong toColor = colorToColor.second;
-        QString fromColorString = QString::fromLatin1(":#%1;").arg(fromColor, 6, 16,  QChar::fromLatin1('0'));
-        QString toColorString = QString::fromLatin1(":#%1;").arg(toColor, 6, 16,  QChar::fromLatin1('0'));
+        QString fromColorString = QStringLiteral("#%1").arg(fromColor, 6, 16,  QChar::fromLatin1('0'));
+        QString toColorString = QStringLiteral("#%1").arg(toColor, 6, 16,  QChar::fromLatin1('0'));
         stringContents = stringContents.replace(fromColorString, toColorString);
     }
     QByteArray contents = stringContents.toUtf8();
@@ -333,8 +350,6 @@ QPixmap BitmapFactoryInst::pixmapFromSvg(const QByteArray& originalContents, con
 QStringList BitmapFactoryInst::pixmapNames() const
 {
     QStringList names;
-    for (QMap<std::string,const char**>::Iterator It = d->xpmMap.begin(); It != d->xpmMap.end(); ++It)
-        names << QString::fromUtf8(It.key().c_str());
     for (QMap<std::string, QPixmap>::Iterator It = d->xpmCache.begin(); It != d->xpmCache.end(); ++It) {
         QString item = QString::fromUtf8(It.key().c_str());
         if (!names.contains(item))
@@ -506,73 +521,105 @@ QPixmap BitmapFactoryInst::disabled(const QPixmap& p) const
     return QApplication::style()->generatedIconPixmap(QIcon::Disabled, p, &opt);
 }
 
+QPixmap BitmapFactoryInst::empty(QSize size) const
+{
+    qreal dpr = getMaximumDPR();
+
+    QPixmap res(size * dpr);
+    res.fill(Qt::transparent);
+    res.setDevicePixelRatio(dpr);
+
+    return res;
+}
+
 void BitmapFactoryInst::convert(const QImage& p, SoSFImage& img) const
 {
     SbVec2s size;
     size[0] = p.width();
     size[1] = p.height();
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 10, 0)
     int buffersize = static_cast<int>(p.sizeInBytes());
-#else
-    int buffersize = p.byteCount();
-#endif
+
     int numcomponents = 0;
     QVector<QRgb> table = p.colorTable();
     if (!table.isEmpty()) {
         if (p.hasAlphaChannel()) {
-            if (p.allGray())
+            if (p.allGray()) {
                 numcomponents = 2;
-            else
+            }
+            else {
                 numcomponents = 4;
+            }
         }
         else {
-            if (p.allGray())
+            if (p.allGray()) {
                 numcomponents = 1;
-            else
+            }
+            else {
                 numcomponents = 3;
+            }
         }
     }
     else {
         numcomponents = buffersize / (size[0] * size[1]);
     }
 
+    int depth = numcomponents;
+
+    // Coin3D only supports up to 32-bit images
+    if (numcomponents == 8) {
+        numcomponents = 4;
+    }
+
     // allocate image data
     img.setValue(size, numcomponents, nullptr);
 
-    unsigned char * bytes = img.startEditing(size, numcomponents);
+    unsigned char* bytes = img.startEditing(size, numcomponents);
 
-    int width  = (int)size[0];
+    int width = (int)size[0];
     int height = (int)size[1];
 
-    for (int y = 0; y < height; y++)
-    {
-        unsigned char * line = &bytes[width*numcomponents*(height-(y+1))];
-        for (int x = 0; x < width; x++)
-        {
-            QRgb rgb = p.pixel(x,y);
-            switch (numcomponents)
-            {
-            default:
-                break;
-            case 1:
-                line[0] = qGray( rgb );
-                break;
-            case 2:
-                line[0] = qGray( rgb );
-                line[1] = qAlpha( rgb );
-                break;
-            case 3:
-                line[0] = qRed( rgb );
-                line[1] = qGreen( rgb );
-                line[2] = qBlue( rgb );
-                break;
-            case 4:
-                line[0] = qRed( rgb );
-                line[1] = qGreen( rgb );
-                line[2] = qBlue( rgb );
-                line[3] = qAlpha( rgb );
-                break;
+    for (int y = 0; y < height; y++) {
+        unsigned char* line = &bytes[width * numcomponents * (height - (y + 1))];
+        for (int x = 0; x < width; x++) {
+            QColor col = p.pixelColor(x,y);
+            switch (depth) {
+                default:
+                    break;
+                case 1:
+                {
+                    QRgb rgb = col.rgb();
+                    line[0] = qGray(rgb);
+                }   break;
+                case 2:
+                {
+                    QRgb rgb = col.rgba();
+                    line[0] = qGray(rgb);
+                    line[1] = qAlpha(rgb);
+                }   break;
+                case 3:
+                {
+                    QRgb rgb = col.rgb();
+                    line[0] = qRed(rgb);
+                    line[1] = qGreen(rgb);
+                    line[2] = qBlue(rgb);
+                }   break;
+                case 4:
+                {
+                    QRgb rgb = col.rgba();
+                    line[0] = qRed(rgb);
+                    line[1] = qGreen(rgb);
+                    line[2] = qBlue(rgb);
+                    line[3] = qAlpha(rgb);
+                }   break;
+                case 8:
+                {
+                    QRgba64 rgb = col.rgba64();
+                    line[0] = qRed(rgb);
+                    line[1] = qGreen(rgb);
+                    line[2] = qBlue(rgb);
+                    line[3] = qAlpha(rgb);
+                }   break;
             }
 
             line += numcomponents;
@@ -637,4 +684,15 @@ QIcon BitmapFactoryInst::mergePixmap (const QIcon &base, const QPixmap &px, Gui:
                                                        px,position), QIcon::Normal, QIcon::Off);
 
     return overlayedIcon;
+}
+
+qreal BitmapFactoryInst::getMaximumDPR()
+{
+    qreal dpr = 1.0F;
+
+    for (QScreen* screen: QGuiApplication::screens()) {
+        dpr = std::max(screen->devicePixelRatio(), dpr);
+    }
+
+    return dpr;
 }

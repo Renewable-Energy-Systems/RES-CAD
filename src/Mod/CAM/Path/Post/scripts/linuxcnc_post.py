@@ -27,6 +27,7 @@ import Path
 import argparse
 import datetime
 import shlex
+import Path.Base.Util as PathUtil
 import Path.Post.Utils as PostUtils
 import PathScripts.PathUtils as PathUtils
 from builtins import open as pyopen
@@ -46,27 +47,21 @@ now = datetime.datetime.now()
 
 parser = argparse.ArgumentParser(prog="linuxcnc", add_help=False)
 parser.add_argument("--no-header", action="store_true", help="suppress header output")
-parser.add_argument(
-    "--no-comments", action="store_true", help="suppress comment output"
-)
-parser.add_argument(
-    "--line-numbers", action="store_true", help="prefix with line numbers"
-)
+parser.add_argument("--no-comments", action="store_true", help="suppress comment output")
+parser.add_argument("--line-numbers", action="store_true", help="prefix with line numbers")
 parser.add_argument(
     "--no-show-editor",
     action="store_true",
     help="don't pop up editor before writing output",
 )
-parser.add_argument(
-    "--precision", default="3", help="number of digits of precision, default=3"
-)
+parser.add_argument("--precision", default="3", help="number of digits of precision, default=3")
 parser.add_argument(
     "--preamble",
-    help='set commands to be issued before the first command, default="G17\nG90"',
+    help='set commands to be issued before the first command, default="G17 G54 G40 G49 G80 G90\\n"',
 )
 parser.add_argument(
     "--postamble",
-    help='set commands to be issued after the last command, default="M05\nG17 G90\nM2"',
+    help='set commands to be issued after the last command, default="M05\\nG17 G54 G90 G80 G40\\nM2\\n"',
 )
 parser.add_argument(
     "--inches", action="store_true", help="Convert output for US imperial mode (G20)"
@@ -76,9 +71,7 @@ parser.add_argument(
     action="store_true",
     help="Output the Same G-command Name USE NonModal Mode",
 )
-parser.add_argument(
-    "--axis-modal", action="store_true", help="Output the Same Axis Value Mode"
-)
+parser.add_argument("--axis-modal", action="store_true", help="Output the Same Axis Value Mode")
 parser.add_argument(
     "--no-tlo",
     action="store_true",
@@ -94,9 +87,7 @@ OUTPUT_LINE_NUMBERS = False
 SHOW_EDITOR = True
 MODAL = False  # if true commands are suppressed if the same as previous line.
 USE_TLO = True  # if true G43 will be output following tool changes
-OUTPUT_DOUBLES = (
-    True  # if false duplicate axis values are suppressed if the same as previous line.
-)
+OUTPUT_DOUBLES = True  # if false duplicate axis values are suppressed if the same as previous line.
 COMMAND_SPACE = " "
 LINENR = 100  # line number starting value
 
@@ -130,8 +121,6 @@ POST_OPERATION = """"""
 TOOL_CHANGE = """"""
 
 
-
-
 def processArguments(argstring):
     global OUTPUT_HEADER
     global OUTPUT_COMMENTS
@@ -160,9 +149,9 @@ def processArguments(argstring):
         print("Show editor = %d" % SHOW_EDITOR)
         PRECISION = args.precision
         if args.preamble is not None:
-            PREAMBLE = args.preamble
+            PREAMBLE = args.preamble.replace("\\n", "\n")
         if args.postamble is not None:
-            POSTAMBLE = args.postamble
+            POSTAMBLE = args.postamble.replace("\\n", "\n")
         if args.inches:
             UNITS = "G20"
             UNIT_SPEED_FORMAT = "in/min"
@@ -192,9 +181,7 @@ def export(objectslist, filename, argstring):
     for obj in objectslist:
         if not hasattr(obj, "Path"):
             print(
-                "the object "
-                + obj.Name
-                + " is not a path. Please select only path and Compounds."
+                "the object " + obj.Name + " is not a path. Please select only path and Compounds."
             )
             return None
 
@@ -210,19 +197,15 @@ def export(objectslist, filename, argstring):
     # Write the preamble
     if OUTPUT_COMMENTS:
         gcode += linenumber() + "(begin preamble)\n"
-    for line in PREAMBLE.splitlines(False):
+    for line in PREAMBLE.splitlines():
         gcode += linenumber() + line + "\n"
     gcode += linenumber() + UNITS + "\n"
 
     for obj in objectslist:
 
         # Skip inactive operations
-        if hasattr(obj, "Active"):
-            if not obj.Active:
-                continue
-        if hasattr(obj, "Base") and hasattr(obj.Base, "Active"):
-            if not obj.Base.Active:
-                continue
+        if not PathUtil.activeForOp(obj):
+            continue
 
         # do the pre_op
         if OUTPUT_COMMENTS:
@@ -232,16 +215,7 @@ def export(objectslist, filename, argstring):
             gcode += linenumber() + line
 
         # get coolant mode
-        coolantMode = "None"
-        if (
-            hasattr(obj, "CoolantMode")
-            or hasattr(obj, "Base")
-            and hasattr(obj.Base, "CoolantMode")
-        ):
-            if hasattr(obj, "CoolantMode"):
-                coolantMode = obj.CoolantMode
-            else:
-                coolantMode = obj.Base.CoolantMode
+        coolantMode = PathUtil.coolantModeForOp(obj)
 
         # turn coolant on if required
         if OUTPUT_COMMENTS:
@@ -270,8 +244,8 @@ def export(objectslist, filename, argstring):
     # do the post_amble
     if OUTPUT_COMMENTS:
         gcode += "(begin postamble)\n"
-    for line in POSTAMBLE.splitlines(True):
-        gcode += linenumber() + line
+    for line in POSTAMBLE.splitlines():
+        gcode += linenumber() + line + "\n"
 
     if FreeCAD.GuiUp and SHOW_EDITOR:
         final = gcode
@@ -373,7 +347,7 @@ def parse(pathobj):
                 if command == lastcommand:
                     outstring.pop(0)
 
-            if c.Name[0] == "(" and not OUTPUT_COMMENTS:  # command is a comment
+            if c.Name.startswith("(") and not OUTPUT_COMMENTS:  # command is a comment
                 continue
 
             # Now add the remaining parameters in order
@@ -386,9 +360,7 @@ def parse(pathobj):
                             "G0",
                             "G00",
                         ]:  # linuxcnc doesn't use rapid speeds
-                            speed = Units.Quantity(
-                                c.Parameters["F"], FreeCAD.Units.Velocity
-                            )
+                            speed = Units.Quantity(c.Parameters["F"], FreeCAD.Units.Velocity)
                             if speed.getValueAs(UNIT_SPEED_FORMAT) > 0.0:
                                 outstring.append(
                                     param
@@ -417,21 +389,13 @@ def parse(pathobj):
                         else:
                             if param in ("A", "B", "C"):
                                 outstring.append(
-                                    param
-                                    + format(
-                                        float(c.Parameters[param]),
-                                        precision_string
-                                    )
+                                    param + format(float(c.Parameters[param]), precision_string)
                                 )
                             else:
-                                pos = Units.Quantity(
-                                    c.Parameters[param], FreeCAD.Units.Length
-                                )
+                                pos = Units.Quantity(c.Parameters[param], FreeCAD.Units.Length)
                                 outstring.append(
                                     param
-                                    + format(
-                                        float(pos.getValueAs(UNIT_FORMAT)), precision_string
-                                    )
+                                    + format(float(pos.getValueAs(UNIT_FORMAT)), precision_string)
                                 )
 
             # store the latest command

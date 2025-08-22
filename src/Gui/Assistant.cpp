@@ -80,7 +80,7 @@ bool Assistant::startAssistant()
         QString app;
         app = QDir::toNativeSeparators(QString::fromStdString
             (App::Application::getHomePath()) + QLatin1String("bin/"));
-#elif defined(Q_OS_MAC)
+#elif defined(Q_OS_MACOS)
         QString app = QCoreApplication::applicationDirPath() + QDir::separator();
 #else
 #if QT_VERSION < QT_VERSION_CHECK(6,0,0)
@@ -106,7 +106,7 @@ bool Assistant::startAssistant()
 
         static bool first = true;
         if (first) {
-            Base::Console().Log("Help file at %s\n", (const char*)qhc.toUtf8());
+            Base::Console().log("Help file at %s\n", (const char*)qhc.toUtf8());
             first = false;
         }
 
@@ -175,13 +175,13 @@ bool Assistant::startAssistant()
 void Assistant::readyReadStandardOutput()
 {
     QByteArray data = proc->readAllStandardOutput();
-    Base::Console().Log("Help view: %s\n", data.constData());
+    Base::Console().log("Help view: %s\n", data.constData());
 }
 
 void Assistant::readyReadStandardError()
 {
     QByteArray data = proc->readAllStandardError();
-    Base::Console().Log("Help view: %s\n", data.constData());
+    Base::Console().log("Help view: %s\n", data.constData());
 }
 
 #include "moc_Assistant.cpp"

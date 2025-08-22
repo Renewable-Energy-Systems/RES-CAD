@@ -24,8 +24,8 @@
 #ifndef _PreComp_
 #include <Bnd_Box.hxx>
 #include <BRep_Builder.hxx>
-#include <BRepAlgoAPI_Cut.hxx>
-#include <BRepAlgoAPI_Fuse.hxx>
+#include <Mod/Part/App/FCBRepAlgoAPI_Cut.h>
+#include <Mod/Part/App/FCBRepAlgoAPI_Fuse.h>
 #include <BRepBndLib.hxx>
 #include <BRepBuilderAPI_Copy.hxx>
 #include <BRepBuilderAPI_Transform.hxx>
@@ -35,10 +35,9 @@
 
 #include <array>
 
-#include <App/Application.h>
 #include <Base/Console.h>
 #include <Base/Exception.h>
-#include <Base/Parameter.h>
+#include <Base/ProgressIndicator.h>
 #include <Base/Reader.h>
 #include <Mod/Part/App/modelRefine.h>
 
@@ -50,14 +49,18 @@
 #include "FeatureLinearPattern.h"
 #include "FeaturePolarPattern.h"
 #include "FeatureSketchBased.h"
+#include "Mod/Part/App/TopoShapeOpCode.h"
+#include "Mod/Part/App/OCCTProgressIndicator.h"
 
 
 using namespace PartDesign;
 
 namespace PartDesign
 {
+using Part::OCCTProgressIndicator;
+extern bool getPDRefineModelParameter();
 
-PROPERTY_SOURCE(PartDesign::Transformed, PartDesign::Feature)
+PROPERTY_SOURCE(PartDesign::Transformed, PartDesign::FeatureRefine)
 
 std::array<char const*, 3> transformModeEnums = {"Transform tool shapes",
                                                  "Transform body",
@@ -71,20 +74,6 @@ Transformed::Transformed()
 
     ADD_PROPERTY(TransformMode, (static_cast<long>(Mode::TransformToolShapes)));
     TransformMode.setEnums(transformModeEnums.data());
-
-    ADD_PROPERTY_TYPE(Refine,
-                      (0),
-                      "Part Design",
-                      (App::PropertyType)(App::Prop_None),
-                      "Refine shape (clean up redundant edges) after adding/subtracting");
-
-    // init Refine property
-    Base::Reference<ParameterGrp> hGrp = App::GetApplication()
-                                             .GetUserParameter()
-                                             .GetGroup("BaseApp")
-                                             ->GetGroup("Preferences")
-                                             ->GetGroup("Mod/PartDesign");
-    this->Refine.setValue(hGrp->GetBool("RefineModel", false));
 }
 
 void Transformed::positionBySupport()
@@ -109,7 +98,7 @@ Part::Feature* Transformed::getBaseObject(bool silent) const
     // first
     App::DocumentObject* firstOriginal = originals.empty() ? nullptr : originals.front();
     if (firstOriginal) {
-        rv = Base::freecad_dynamic_cast<Part::Feature>(firstOriginal);
+        rv = freecad_cast<Part::Feature*>(firstOriginal);
         if (!rv) {
             err = QT_TRANSLATE_NOOP("Exception",
                                     "Transformation feature Linked object is not a Part object");
@@ -126,24 +115,48 @@ Part::Feature* Transformed::getBaseObject(bool silent) const
     return rv;
 }
 
+std::vector<App::DocumentObject*> Transformed::getOriginals() const
+{
+    auto const mode = static_cast<Mode>(TransformMode.getValue());
+
+    if (mode == Mode::TransformBody) {
+        return {};
+    }
+
+    std::vector<DocumentObject*> originals = Originals.getValues();
+
+    const auto isSuppressed = [](const DocumentObject* obj) {
+        auto feature = freecad_cast<Feature*>(obj);
+
+        return feature != nullptr && feature->Suppressed.getValue();
+    };
+
+    // Remove suppressed features from the list so the transformations behave as if they are not
+    // there
+    auto [first, last] = std::ranges::remove_if(originals, isSuppressed);
+    originals.erase(first, last);
+
+    return originals;
+}
+
 App::DocumentObject* Transformed::getSketchObject() const
 {
-    std::vector<DocumentObject*> originals = Originals.getValues();
+    std::vector<DocumentObject*> originals = getOriginals();
     DocumentObject const* firstOriginal = !originals.empty() ? originals.front() : nullptr;
 
-    if (auto feature = Base::freecad_dynamic_cast<PartDesign::ProfileBased>(firstOriginal)) {
+    if (auto feature = freecad_cast<PartDesign::ProfileBased*>(firstOriginal)) {
         return feature->getVerifiedSketch(true);
     }
-    if (Base::freecad_dynamic_cast<PartDesign::FeatureAddSub>(firstOriginal)) {
+    if (freecad_cast<PartDesign::FeatureAddSub*>(firstOriginal)) {
         return nullptr;
     }
-    if (auto pattern = Base::freecad_dynamic_cast<LinearPattern>(this)) {
+    if (auto pattern = freecad_cast<LinearPattern*>(this)) {
         return pattern->Direction.getValue();
     }
-    if (auto pattern = Base::freecad_dynamic_cast<PolarPattern>(this)) {
+    if (auto pattern = freecad_cast<PolarPattern*>(this)) {
         return pattern->Axis.getValue();
     }
-    if (auto pattern = Base::freecad_dynamic_cast<Mirrored>(this)) {
+    if (auto pattern = freecad_cast<Mirrored*>(this)) {
         return pattern->MirrorPlane.getValue();
     }
 
@@ -161,7 +174,7 @@ bool Transformed::isMultiTransformChild() const
     // because the dependencies are only established after creation.
     /*
     for (auto const* obj : getInList()) {
-        auto mt = Base::freecad_dynamic_cast<PartDesign::MultiTransform>(obj);
+        auto mt = freecad_cast<PartDesign::MultiTransform*>(obj);
         if (!mt) {
             continue;
         }
@@ -189,7 +202,7 @@ void Transformed::handleChangedPropertyType(Base::XMLReader& reader,
     // The property 'Angle' of PolarPattern has changed from PropertyFloat
     // to PropertyAngle and the property 'Length' has changed to PropertyLength.
     Base::Type inputType = Base::Type::fromName(TypeName);
-    if (auto property = Base::freecad_dynamic_cast<App::PropertyFloat>(prop);
+    if (auto property = freecad_cast<App::PropertyFloat*>(prop);
         property != nullptr && inputType.isDerivedFrom(App::PropertyFloat::getClassTypeId())) {
         // Do not directly call the property's Restore method in case the implementation
         // has changed. So, create a temporary PropertyFloat object and assign the value.
@@ -210,6 +223,54 @@ short Transformed::mustExecute() const
     return PartDesign::Feature::mustExecute();
 }
 
+App::DocumentObjectExecReturn* Transformed::recomputePreview()
+{
+    const auto mode = static_cast<Mode>(TransformMode.getValue());
+
+    const auto makeCompoundOfToolShapes = [this]() {
+        BRep_Builder builder;
+        TopoDS_Compound compound;
+
+        builder.MakeCompound(compound);
+        for (const auto& original : getOriginals()) {
+            if (auto* feature = freecad_cast<FeatureAddSub*>(original)) {
+                const auto& shape = feature->AddSubShape.getShape();
+
+                if (shape.isNull()) {
+                    continue;
+                }
+
+                builder.Add(compound, shape.getShape());
+            }
+        }
+
+        return compound;
+    };
+
+    switch (mode) {
+        case Mode::TransformToolShapes:
+            PreviewShape.setValue(makeCompoundOfToolShapes());
+            return StdReturn;
+
+        case Mode::TransformBody:
+            PreviewShape.setValue(getBaseShape());
+            return StdReturn;
+
+        default:
+            return FeatureRefine::recomputePreview();
+    }
+}
+
+void Transformed::onChanged(const App::Property* prop)
+{
+    if (prop == &TransformMode) {
+        auto const mode = static_cast<Mode>(TransformMode.getValue());
+        Originals.setStatus(App::Property::Status::Hidden, mode == Mode::TransformBody);
+    }
+
+    FeatureRefine::onChanged(prop);
+}
+
 App::DocumentObjectExecReturn* Transformed::execute()
 {
     if (isMultiTransformChild()) {
@@ -217,29 +278,15 @@ App::DocumentObjectExecReturn* Transformed::execute()
     }
 
     auto const mode = static_cast<Mode>(TransformMode.getValue());
-    if (mode == Mode::TransformBody) {
-        Originals.setValues({});
-    }
 
-    std::vector<App::DocumentObject*> originals = Originals.getValues();
-    // Remove suppressed features from the list so the transformations behave as if they are not
-    // there
-    {
-        auto eraseIter =
-            std::remove_if(originals.begin(), originals.end(), [](App::DocumentObject const* obj) {
-                auto feature = Base::freecad_dynamic_cast<PartDesign::Feature>(obj);
-                return feature != nullptr && feature->Suppressed.getValue();
-            });
-        originals.erase(eraseIter, originals.end());
-    }
+    std::vector<DocumentObject*> originals = getOriginals();
 
     if (mode == Mode::TransformToolShapes && originals.empty()) {
         return App::DocumentObject::StdReturn;
     }
 
     if (!this->BaseFeature.getValue()) {
-        auto body = getFeatureBody();
-        if (body) {
+        if (auto body = getFeatureBody()) {
             body->setBaseProperty(this);
         }
     }
@@ -285,38 +332,21 @@ App::DocumentObjectExecReturn* Transformed::execute()
     gp_Trsf trsfInv = supportShape.getShape().Location().Transformation().Inverted();
 
     supportShape.setTransform(Base::Matrix4D());
-    TopoDS_Shape support = supportShape.getShape();
 
-    auto getTransformedCompShape = [&](const auto& origShape) {
-        TopTools_ListOfShape shapeTools;
-        std::vector<TopoDS_Shape> shapes;
-
+    auto getTransformedCompShape = [&](const auto& supportShape, const auto& origShape) {
+        std::vector<TopoShape> shapes = {supportShape};
+        TopoShape shape (origShape);
+        int idx=1;
         auto transformIter = transformations.cbegin();
-
-        // First transformation is skipped since it should not be part of the toolShape.
-        ++transformIter;
-
-        for (; transformIter != transformations.end(); ++transformIter) {
-            // Make an explicit copy of the shape because the "true" parameter to
-            // BRepBuilderAPI_Transform seems to be pretty broken
-            BRepBuilderAPI_Copy copy(origShape);
-
-            TopoDS_Shape shape = copy.Shape();
-
-            BRepBuilderAPI_Transform mkTrf(shape, *transformIter, false);  // No need to copy, now
-            if (!mkTrf.IsDone()) {
-                throw Base::CADKernelError(QT_TRANSLATE_NOOP("Exception", "Transformation failed"));
+        transformIter++;
+        for ( ; transformIter != transformations.end(); transformIter++) {
+            if (OCCTProgressIndicator::getAppIndicator().UserBreak()) {
+                return std::vector<TopoShape>();
             }
-            shape = mkTrf.Shape();
-
-            shapes.emplace_back(shape);
+            auto opName = Data::indexSuffix(idx++);
+            shapes.emplace_back(shape.makeElementTransform(*transformIter, opName.c_str()));
         }
-
-        for (const auto& shape : shapes) {
-            shapeTools.Append(shape);
-        }
-
-        return shapeTools;
+        return shapes;
     };
 
     switch (mode) {
@@ -332,7 +362,7 @@ App::DocumentObjectExecReturn* Transformed::execute()
                 Part::TopoShape fuseShape;
                 Part::TopoShape cutShape;
 
-                auto feature = Base::freecad_dynamic_cast<PartDesign::FeatureAddSub>(original);
+                auto feature = freecad_cast<PartDesign::FeatureAddSub*>(original);
                 if (!feature) {
                     return new App::DocumentObjectExecReturn(QT_TRANSLATE_NOOP(
                         "Exception",
@@ -346,108 +376,47 @@ App::DocumentObjectExecReturn* Transformed::execute()
                                           "Shape of additive/subtractive feature is empty"));
                 }
                 gp_Trsf trsf = feature->getLocation().Transformation().Multiplied(trsfInv);
-#ifdef FC_USE_TNP_FIX
                 if (!fuseShape.isNull()) {
                     fuseShape = fuseShape.makeElementTransform(trsf);
                 }
                 if (!cutShape.isNull()) {
                     cutShape = cutShape.makeElementTransform(trsf);
                 }
-#else
                 if (!fuseShape.isNull()) {
-                    fuseShape = fuseShape.makeTransform(trsf);
+                    auto shapes = getTransformedCompShape(supportShape, fuseShape);
+                    if (OCCTProgressIndicator::getAppIndicator().UserBreak()) {
+                        return new App::DocumentObjectExecReturn("User aborted");
+                    }
+                    supportShape.makeElementFuse(shapes);
                 }
                 if (!cutShape.isNull()) {
-                    cutShape = cutShape.makeTransform(trsf);
-                }
-
-#endif
-
-                TopoDS_Shape current = support;
-                if (!fuseShape.isNull()) {
-                    TopTools_ListOfShape shapeArguments;
-                    shapeArguments.Append(current);
-                    TopTools_ListOfShape shapeTools = getTransformedCompShape(fuseShape.getShape());
-                    if (!shapeTools.IsEmpty()) {
-                        BRepAlgoAPI_Fuse mkBool;
-                        mkBool.SetArguments(shapeArguments);
-                        mkBool.SetTools(shapeTools);
-                        mkBool.Build();
-                        if (!mkBool.IsDone()) {
-                            return new App::DocumentObjectExecReturn(
-                                QT_TRANSLATE_NOOP("Exception", "Boolean operation failed"));
-                        }
-                        current = mkBool.Shape();
+                    auto shapes = getTransformedCompShape(supportShape, cutShape);
+                    if (OCCTProgressIndicator::getAppIndicator().UserBreak()) {
+                        return new App::DocumentObjectExecReturn("User aborted");
                     }
+                    supportShape.makeElementCut(shapes);
                 }
-                if (!cutShape.isNull()) {
-                    TopTools_ListOfShape shapeArguments;
-                    shapeArguments.Append(current);
-                    TopTools_ListOfShape shapeTools = getTransformedCompShape(cutShape.getShape());
-                    if (!shapeTools.IsEmpty()) {
-                        BRepAlgoAPI_Cut mkBool;
-                        mkBool.SetArguments(shapeArguments);
-                        mkBool.SetTools(shapeTools);
-                        mkBool.Build();
-                        if (!mkBool.IsDone()) {
-                            return new App::DocumentObjectExecReturn(
-                                QT_TRANSLATE_NOOP("Exception", "Boolean operation failed"));
-                        }
-                        current = mkBool.Shape();
-                    }
-                }
-
-                support = current;  // Use result of this operation for fuse/cut of next original
             }
             break;
         case Mode::TransformBody: {
-            TopTools_ListOfShape shapeArguments;
-            shapeArguments.Append(support);
-            TopTools_ListOfShape shapeTools = getTransformedCompShape(support);
-            if (!shapeTools.IsEmpty()) {
-                BRepAlgoAPI_Fuse mkBool;
-                mkBool.SetArguments(shapeArguments);
-                mkBool.SetTools(shapeTools);
-                mkBool.Build();
-                if (!mkBool.IsDone()) {
-                    return new App::DocumentObjectExecReturn(
-                        QT_TRANSLATE_NOOP("Exception", "Boolean operation failed"));
-                }
-                support = mkBool.Shape();
+            auto shapes = getTransformedCompShape(supportShape, supportShape);
+            if (OCCTProgressIndicator::getAppIndicator().UserBreak()) {
+                return new App::DocumentObjectExecReturn("User aborted");
             }
+            supportShape.makeElementFuse(shapes);
             break;
         }
     }
 
-    support = refineShapeIfActive(support);
-
-    if (!isSingleSolidRuleSatisfied(support)) {
-        Base::Console().Warning("Transformed: Result has multiple solids. Only keeping the first.\n");
+    supportShape = refineShapeIfActive((supportShape));
+    if (!isSingleSolidRuleSatisfied(supportShape.getShape())) {
+        Base::Console().warning("Transformed: Result has multiple solids. Only keeping the first.\n");
     }
 
-    this->Shape.setValue(getSolid(support));  // picking the first solid
-    rejected = getRemainingSolids(support);
+    this->Shape.setValue(getSolid(supportShape));  // picking the first solid
+    rejected = getRemainingSolids(supportShape.getShape());
 
     return App::DocumentObject::StdReturn;
-}
-
-TopoDS_Shape Transformed::refineShapeIfActive(const TopoDS_Shape& oldShape) const
-{
-    if (this->Refine.getValue()) {
-        try {
-            Part::BRepBuilderAPI_RefineModel mkRefine(oldShape);
-            TopoDS_Shape resShape = mkRefine.Shape();
-            if (!TopoShape(resShape).isClosed()) {
-                return oldShape;
-            }
-            return resShape;
-        }
-        catch (Standard_Failure&) {
-            return oldShape;
-        }
-    }
-
-    return oldShape;
 }
 
 TopoDS_Shape Transformed::getRemainingSolids(const TopoDS_Shape& shape)

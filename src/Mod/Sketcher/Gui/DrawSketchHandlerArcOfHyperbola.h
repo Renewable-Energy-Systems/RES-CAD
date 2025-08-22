@@ -28,6 +28,7 @@
 #include <Gui/Notifications.h>
 #include <Gui/Command.h>
 #include <Gui/CommandT.h>
+#include <Gui/InputHint.h>
 
 #include <Mod/Sketcher/App/SketchObject.h>
 
@@ -56,10 +57,10 @@ public:
     /// mode table
     enum SelectMode
     {
-        STATUS_SEEK_First,  /**< enum value ----. */
-        STATUS_SEEK_Second, /**< enum value ----. */
-        STATUS_SEEK_Third,  /**< enum value ----. */
-        STATUS_SEEK_Fourth, /**< enum value ----. */
+        STATUS_SEEK_First,
+        STATUS_SEEK_Second,
+        STATUS_SEEK_Third,
+        STATUS_SEEK_Fourth,
         STATUS_Close
     };
 
@@ -67,10 +68,7 @@ public:
     {
         if (Mode == STATUS_SEEK_First) {
             setPositionText(onSketchPos);
-            if (seekAutoConstraint(sugConstr1, onSketchPos, Base::Vector2d(0.f, 0.f))) {
-                renderSuggestConstraintsCursor(sugConstr1);
-                return;
-            }
+            seekAndRenderAutoConstraint(sugConstr1, onSketchPos, Base::Vector2d(0.f, 0.f));
         }
         else if (Mode == STATUS_SEEK_Second) {
             EditCurve[1] = onSketchPos;
@@ -85,13 +83,10 @@ public:
             }
 
             drawEdit(EditCurve);
-            if (seekAutoConstraint(sugConstr2,
-                                   onSketchPos,
-                                   Base::Vector2d(0.f, 0.f),
-                                   AutoConstraint::CURVE)) {
-                renderSuggestConstraintsCursor(sugConstr2);
-                return;
-            }
+            seekAndRenderAutoConstraint(sugConstr2,
+                                        onSketchPos,
+                                        Base::Vector2d(0.f, 0.f),
+                                        AutoConstraint::CURVE);
         }
         else if (Mode == STATUS_SEEK_Third) {
             // angle between the major axis of the hyperbola and the X axis
@@ -109,7 +104,7 @@ public:
             if (!boost::math::isnan(b)) {
                 for (int i = 15; i >= -15; i--) {
                     // P(U) = O + MajRad*Cosh(U)*XDir + MinRad*Sinh(U)*YDir
-                    // double angle = i*M_PI/16.0;
+                    // double angle = i*std::numbers::pi/16.0;
                     double angle = i * angleatpoint / 15;
                     double rx = a * cosh(angle) * cos(phi) - b * sinh(angle) * sin(phi);
                     double ry = a * cosh(angle) * sin(phi) + b * sinh(angle) * cos(phi);
@@ -126,10 +121,7 @@ public:
                 }
 
                 drawEdit(EditCurve);
-                if (seekAutoConstraint(sugConstr3, onSketchPos, Base::Vector2d(0.f, 0.f))) {
-                    renderSuggestConstraintsCursor(sugConstr3);
-                    return;
-                }
+                seekAndRenderAutoConstraint(sugConstr3, onSketchPos, Base::Vector2d(0.f, 0.f));
             }
         }
         else if (Mode == STATUS_SEEK_Fourth) {
@@ -159,7 +151,7 @@ public:
 
             /*double angle1 = angleatpoint - startAngle;
 
-            double angle2 = angle1 + (angle1 < 0. ? 2 : -2) * M_PI ;
+            double angle2 = angle1 + (angle1 < 0. ? 2 : -2) * std::numbers::pi ;
             arcAngle = abs(angle1-arcAngle) < abs(angle2-arcAngle) ? angle1 : angle2;*/
 
             arcAngle = angleatpoint - startAngle;
@@ -190,13 +182,8 @@ public:
             }
 
             drawEdit(EditCurve);
-            if (seekAutoConstraint(sugConstr4, onSketchPos, Base::Vector2d(0.f, 0.f))) {
-                renderSuggestConstraintsCursor(sugConstr4);
-                return;
-            }
+            seekAndRenderAutoConstraint(sugConstr4, onSketchPos, Base::Vector2d(0.f, 0.f));
         }
-
-        applyCursor();
     }
 
     bool pressButton(Base::Vector2d onSketchPos) override
@@ -224,6 +211,8 @@ public:
 
             Mode = STATUS_Close;
         }
+
+        updateHint();
         return true;
     }
 
@@ -304,8 +293,8 @@ public:
                 perp.Scale(abs(b));
                 majAxisPoint = centerPoint + perp;
                 minAxisPoint = centerPoint + minAxisDir;
-                endAngle += M_PI / 2;
-                startAngle += M_PI / 2;
+                endAngle += std::numbers::pi / 2;
+                startAngle += std::numbers::pi / 2;
             }
 
             int currentgeoid = getHighestCurveIndex();
@@ -345,8 +334,7 @@ public:
                     QT_TRANSLATE_NOOP("Notifications", "Cannot create arc of hyperbola"));
                 Gui::Command::abortCommand();
 
-                tryAutoRecomputeIfNotSolve(
-                    static_cast<Sketcher::SketchObject*>(sketchgui->getObject()));
+                tryAutoRecomputeIfNotSolve(sketchgui->getObject<Sketcher::SketchObject>());
 
                 return false;
             }
@@ -383,8 +371,7 @@ public:
                 sugConstr4.clear();
             }
 
-            tryAutoRecomputeIfNotSolve(
-                static_cast<Sketcher::SketchObject*>(sketchgui->getObject()));
+            tryAutoRecomputeIfNotSolve(sketchgui->getObject<Sketcher::SketchObject>());
 
             ParameterGrp::handle hGrp = App::GetApplication().GetParameterGroupByPath(
                 "User parameter:BaseApp/Preferences/Mod/Sketcher");
@@ -407,15 +394,45 @@ public:
                                             // ViewProvider
             }
         }
+        updateHint();
         return true;
     }
 
 private:
     QString getCrosshairCursorSVGName() const override
     {
-        return QString::fromLatin1("Sketcher_Pointer_Create_ArcOfHyperbola");
+        return QStringLiteral("Sketcher_Pointer_Create_ArcOfHyperbola");
     }
 
+    std::list<Gui::InputHint> getToolHints() const override
+    {
+        using enum Gui::InputHint::UserInput;
+
+        return Gui::lookupHints<SelectMode>(
+            Mode,
+            {
+                {.state = STATUS_SEEK_First,
+                 .hints =
+                     {
+                         {tr("%1 pick center point"), {MouseLeft}},
+                     }},
+                {.state = STATUS_SEEK_Second,
+                 .hints =
+                     {
+                         {tr("%1 pick axis point"), {MouseLeft}},
+                     }},
+                {.state = STATUS_SEEK_Third,
+                 .hints =
+                     {
+                         {tr("%1 pick arc start point"), {MouseLeft}},
+                     }},
+                {.state = STATUS_SEEK_Fourth,
+                 .hints =
+                     {
+                         {tr("%1 pick arc end point"), {MouseLeft}},
+                     }},
+            });
+    }
 
 protected:
     SelectMode Mode;
@@ -424,7 +441,6 @@ protected:
     double arcAngle, arcAngle_t;
     std::vector<AutoConstraint> sugConstr1, sugConstr2, sugConstr3, sugConstr4;
 };
-
 
 }  // namespace SketcherGui
 

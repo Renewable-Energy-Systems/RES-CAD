@@ -24,6 +24,7 @@
 #include "PreCompiled.h"
 
 #include "Workbench.h"
+#include <Base/Interpreter.h>
 #include <Gui/MenuManager.h>
 #include <Gui/ToolBarManager.h>
 
@@ -46,7 +47,25 @@ using namespace PartGui;
 /// @namespace PartGui @class Workbench
 TYPESYSTEM_SOURCE(PartGui::Workbench, Gui::StdWorkbench)
 
-Workbench::Workbench() = default;
+Workbench::Workbench() {
+    /** If we are to have Sketcher_NewSketch as command in toolbar and menu,
+     then we must assure SketcherGui has already been loaded.
+     By putting this in a try/except block we avoid creating a dependency
+     on sketcher workbench as the import will silently fail if sketcher wb is not built.
+     Note that BUILD_SKETCHER is a cmake-gui option.
+     **/
+
+    const char* code =
+            "try:\n"
+            "    import SketcherGui\n"
+            "    success = 'True'\n"
+            "except ImportError:\n"
+            "    success = 'False'";
+
+    const std::string result = Base::Interpreter().runStringWithKey(code, "success", "False");
+    hasSketcher = (result == "True");
+
+}
 
 Workbench::~Workbench() = default;
 
@@ -62,11 +81,10 @@ Gui::MenuItem* Workbench::setupMenuBar() const
           << "Part_Sphere"
           << "Part_Cone"
           << "Part_Torus"
-          << "Separator"
           << "Part_Tube";
 
     Gui::MenuItem* copy = new Gui::MenuItem;
-    copy->setCommand("Create a copy");
+    copy->setCommand("Copy");
     *copy << "Part_SimpleCopy"
           << "Part_TransformedCopy"
           << "Part_ElementCopy"
@@ -96,15 +114,13 @@ Gui::MenuItem* Workbench::setupMenuBar() const
     compound->setCommand("Compound");
     *compound << "Part_Compound"
               << "Part_ExplodeCompound"
-              << "Part_CompoundFilter";
+              << "Part_CompoundFilter"
+              << "Part_ToleranceSet";
 
     Gui::MenuItem* part = new Gui::MenuItem;
     root->insertItem(item, part);
     part->setCommand("&Part");
-    *part << "Part_Import"
-          << "Part_Export"
-          << "Separator"
-          << "Part_BoxSelection"
+    *part << "Part_BoxSelection"
           << "Separator";
     *part << prim
           << "Part_Primitives"
@@ -115,15 +131,13 @@ Gui::MenuItem* Workbench::setupMenuBar() const
           << "Part_MakeSolid"
           << "Part_ReverseShape"
           << copy
-          << "Part_CheckGeometry"
-          << "Part_Defeaturing"
-          << "Materials_InspectAppearance"
-          << "Materials_InspectMaterial"
           << "Separator"
           << bop << join << split << compound
-          << "Separator"
-          << "Sketcher_NewSketch"
-          << "Part_Extrude"
+          << "Separator";
+    if (hasSketcher) {
+      *part << "Sketcher_NewSketch";
+    }
+    *part << "Part_Extrude"
           << "Part_Revolve"
           << "Part_Mirror"
           << "Part_Scale"
@@ -139,8 +153,14 @@ Gui::MenuItem* Workbench::setupMenuBar() const
           << "Part_Offset2D"
           << "Part_Thickness"
           << "Part_ProjectionOnSurface"
+          << "Part_SectionCut"
           << "Separator"
-          << "Part_EditAttachment";
+          << "Part_EditAttachment"
+          << "Separator"
+          << "Part_CheckGeometry"
+          << "Part_Defeaturing"
+          << "Materials_InspectAppearance"
+          << "Materials_InspectMaterial";
 
     Gui::MenuItem* view = root->findItem("&View");
     if (view) {
@@ -171,8 +191,10 @@ Gui::ToolBarItem* Workbench::setupToolBars() const
 
     Gui::ToolBarItem* tool = new Gui::ToolBarItem(root);
     tool->setCommand("Part tools");
-    *tool << "Sketcher_NewSketch"
-          << "Part_Extrude"
+    if (hasSketcher) {
+        *tool << "Sketcher_NewSketch";
+    }
+    *tool << "Part_Extrude"
           << "Part_Revolve"
           << "Part_Mirror"
           << "Part_Scale"

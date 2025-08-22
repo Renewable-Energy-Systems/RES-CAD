@@ -55,7 +55,7 @@ class BezCurve(gui_lines.Line):
     """Gui command for the Bézier Curve tool."""
 
     def __init__(self):
-        super().__init__(wiremode=True)
+        super().__init__(mode="wire")
         self.degree = None
 
     def GetResources(self):
@@ -63,8 +63,8 @@ class BezCurve(gui_lines.Line):
 
         return {"Pixmap": "Draft_BezCurve",
                 "Accel": "B, Z",
-                "MenuText": QT_TRANSLATE_NOOP("Draft_BezCurve", "Bézier curve"),
-                "ToolTip": QT_TRANSLATE_NOOP("Draft_BezCurve", "Creates an N-degree Bézier curve. The more points you pick, the higher the degree.\nCTRL to snap, SHIFT to constrain.")}
+                "MenuText": QT_TRANSLATE_NOOP("Draft_BezCurve", "Bézier Curve"),
+                "ToolTip": QT_TRANSLATE_NOOP("Draft_BezCurve", "Creates an n-degree Bézier curve. The more points, the higher the degree.")}
 
     def Activated(self):
         """Execute when the command is called.
@@ -73,7 +73,7 @@ class BezCurve(gui_lines.Line):
         """
         super().Activated(name="BezCurve",
                           icon="Draft_BezCurve",
-                          task_title=translate("draft", "Bézier curve"))
+                          task_title=translate("draft", "Bézier Curve"))
         if self.doc:
             self.bezcurvetrack = trackers.bezcurveTracker()
 
@@ -92,6 +92,8 @@ class BezCurve(gui_lines.Line):
         if arg["Type"] == "SoKeyboardEvent":
             if arg["Key"] == "ESCAPE":
                 self.finish()
+            return
+        if not self.ui.mouse:
             return
         if arg["Type"] == "SoLocation2Event":  # mouse movement detection
             self.point, ctrlPoint, info = gui_tool_utils.getPoint(self, arg, noTracker=True)
@@ -121,11 +123,11 @@ class BezCurve(gui_lines.Line):
                 # if mod(len(cpoints), 2) == 0
                 # then create 2 handle points?
                 self.drawUpdate(self.point)
-                if not self.isWire and len(self.node) == 2:
+                if self.mode == "line" and len(self.node) == 2:
                     self.finish(cont=None, closed=False)
                 if len(self.node) > 2:
                     # does this make sense for a BCurve?
-                    # DNC: allows to close the curve
+                    # DNC: allows one to close the curve
                     # by placing ends close to each other
                     # with tol = Draft tolerance
                     # old code has been to insensitive
@@ -211,7 +213,7 @@ class BezCurve(gui_lines.Line):
                              'bez = ' + _cmd,
                              'Draft.autogroup(bez)',
                              'FreeCAD.ActiveDocument.recompute()']
-                self.commit(translate("draft", "Create BezCurve"),
+                self.commit(translate("draft", "Create Bézier Curve"),
                             _cmd_list)
             except Exception:
                 _err("Draft: error delaying commit")
@@ -241,7 +243,7 @@ class CubicBezCurve(gui_lines.Line):
     """
 
     def __init__(self):
-        super().__init__(wiremode=True)
+        super().__init__(mode="wire")
         self.degree = 3
         self.old_EnableSelection = True
 
@@ -250,8 +252,8 @@ class CubicBezCurve(gui_lines.Line):
 
         return {"Pixmap": "Draft_CubicBezCurve",
                 # "Accel": "B, Z",
-                "MenuText": QT_TRANSLATE_NOOP("Draft_CubicBezCurve", "Cubic Bézier curve"),
-                "ToolTip": QT_TRANSLATE_NOOP("Draft_CubicBezCurve", "Creates a Bézier curve made of 2nd degree (quadratic) and 3rd degree (cubic) segments. Click and drag to define each segment.\nAfter the curve is created you can go back to edit each control point and set the properties of each knot.\nCTRL to snap, SHIFT to constrain.")}
+                "MenuText": QT_TRANSLATE_NOOP("Draft_CubicBezCurve", "Cubic Bézier Curve"),
+                "ToolTip": QT_TRANSLATE_NOOP("Draft_CubicBezCurve", "Creates a Bézier curve made of 2nd degree (quadratic) and 3rd degree (cubic) segments. Clicking and dragging allows to define segments.\nControl points and properties of each knot can be edited after creation.")}
 
     def Activated(self):
         """Execute when the command is called.
@@ -282,6 +284,8 @@ class CubicBezCurve(gui_lines.Line):
         if arg["Type"] == "SoKeyboardEvent":
             if arg["Key"] == "ESCAPE":
                 self.finish()
+            return
+        if not self.ui.mouse:
             return
         if arg["Type"] == "SoLocation2Event":  # mouse movement detection
             self.point, ctrlPoint, info = gui_tool_utils.getPoint(self, arg, noTracker=True)
@@ -320,14 +324,14 @@ class CubicBezCurve(gui_lines.Line):
                     # if mod(len(cpoints), 2) == 0
                     # then create 2 handle points?
                     self.drawUpdate(self.point)
-                    if not self.isWire and len(self.node) == 2:
+                    if self.mode == "line" and len(self.node) == 2:
                         self.finish(cont=None, closed=False)
                     # does this make sense for a BCurve?
                     if len(self.node) > 2:
                         # add point to "clicked list"
                         self.node.append(self.point)
                         self.drawUpdate(self.point)
-                        # DNC: allows to close the curve
+                        # DNC: allows one to close the curve
                         # by placing ends close to each other
                         # with tol = Draft tolerance
                         # old code has been to insensitive
@@ -357,13 +361,13 @@ class CubicBezCurve(gui_lines.Line):
                     # if mod(len(cpoints),2) == 0
                     # then create 2 handle points?
                     self.drawUpdate(self.point)
-                    if not self.isWire and len(self.node) == 2:
+                    if self.mode == "line" and len(self.node) == 2:
                         self.finish(cont=None, closed=False)
                     # Does this make sense for a BCurve?
                     if len(self.node) > 2:
                         self.node[-3] = 2 * self.node[-2] - self.node[-1]
                         self.drawUpdate(self.point)
-                        # DNC: allows to close the curve
+                        # DNC: allows one to close the curve
                         # by placing ends close to each other
                         # with tol = Draft tolerance
                         # old code has been to insensitive
@@ -458,7 +462,7 @@ class CubicBezCurve(gui_lines.Line):
                              'bez = ' + _cmd,
                              'Draft.autogroup(bez)',
                              'FreeCAD.ActiveDocument.recompute()']
-                self.commit(translate("draft", "Create BezCurve"),
+                self.commit(translate("draft", "Create Bézier Curve"),
                             _cmd_list)
             except Exception:
                 _err("Draft: error delaying commit")
@@ -482,8 +486,8 @@ class BezierGroup:
 
     def GetResources(self):
         """Set icon, menu and tooltip."""
-        return {"MenuText": QT_TRANSLATE_NOOP("Draft_BezierTools", "Bézier tools"),
-                "ToolTip": QT_TRANSLATE_NOOP("Draft_BezierTools", "Create various types of Bézier curves.")}
+        return {"MenuText": QT_TRANSLATE_NOOP("Draft_BezierTools", "Bézier Tools"),
+                "ToolTip": QT_TRANSLATE_NOOP("Draft_BezierTools", "Tools to create various types of Bézier curves")}
 
     def GetCommands(self):
         """Return a tuple of commands in the group."""

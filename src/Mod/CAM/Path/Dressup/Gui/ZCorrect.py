@@ -65,9 +65,7 @@ class ObjectDressup:
             "App::PropertyFile",
             "probefile",
             "ProbeData",
-            QT_TRANSLATE_NOOP(
-                "App::Property", "The point file from the surface probing."
-            ),
+            QT_TRANSLATE_NOOP("App::Property", "The point file from the surface probing."),
         )
         obj.Proxy = self
         obj.addProperty("Part::PropertyPartShape", "interpSurface", "Path")
@@ -75,9 +73,7 @@ class ObjectDressup:
             "App::PropertyDistance",
             "ArcInterpolate",
             "Interpolate",
-            QT_TRANSLATE_NOOP(
-                "App::Property", "Deflection distance for arc interpolation"
-            ),
+            QT_TRANSLATE_NOOP("App::Property", "Deflection distance for arc interpolation"),
         )
         obj.addProperty(
             "App::PropertyDistance",
@@ -173,10 +169,7 @@ class ObjectDressup:
                             Path.Log.debug("     curLoc:{}".format(currLocation))
                             newparams = dict(c.Parameters)
                             zval = newparams.get("Z", currLocation["Z"])
-                            if (
-                                c.Name
-                                in Path.Geom.CmdMoveStraight + Path.Geom.CmdMoveArc
-                            ):
+                            if c.Name in Path.Geom.CmdMoveStraight + Path.Geom.CmdMoveArc:
                                 curVec = FreeCAD.Vector(
                                     currLocation["X"],
                                     currLocation["Y"],
@@ -196,9 +189,7 @@ class ObjectDressup:
                                     else:
                                         pointlist = [v.Point for v in arcwire.Vertexes]
                                 for point in pointlist:
-                                    offset = self._bilinearInterpolate(
-                                        surface, point.x, point.y
-                                    )
+                                    offset = self._bilinearInterpolate(surface, point.x, point.y)
 
                                     commandparams = {
                                         "X": point.x,
@@ -226,9 +217,7 @@ class TaskPanel:
         self.obj = obj
         self.form = FreeCADGui.PySideUic.loadUi(":/panels/ZCorrectEdit.ui")
         FreeCAD.ActiveDocument.openTransaction("Edit Z Correction Dress-up")
-        self.interpshape = FreeCAD.ActiveDocument.addObject(
-            "Part::Feature", "InterpolationSurface"
-        )
+        self.interpshape = FreeCAD.ActiveDocument.addObject("Part::Feature", "InterpolationSurface")
         self.interpshape.Shape = obj.interpSurface
         self.interpshape.ViewObject.Transparency = 60
         self.interpshape.ViewObject.ShapeColor = (1.00000, 1.00000, 0.01961)
@@ -346,7 +335,7 @@ class CommandPathDressup:
             "MenuText": QT_TRANSLATE_NOOP("CAM_DressupZCorrect", "Z Depth Correction"),
             "Accel": "",
             "ToolTip": QT_TRANSLATE_NOOP(
-                "CAM_DressupZCorrect", "Use Probe Map to correct Z depth"
+                "CAM_DressupZCorrect", "Corrects Z depth using a probe map"
             ),
         }
 
@@ -361,9 +350,7 @@ class CommandPathDressup:
         # check that the selection contains exactly what we want
         selection = FreeCADGui.Selection.getSelection()
         if len(selection) != 1:
-            FreeCAD.Console.PrintError(
-                translate("CAM_Dressup", "Please select one toolpath object\n")
-            )
+            FreeCAD.Console.PrintError(translate("CAM_Dressup", "Select one toolpath object\n"))
             return
         if not selection[0].isDerivedFrom("Path::Feature"):
             FreeCAD.Console.PrintError(
@@ -371,9 +358,7 @@ class CommandPathDressup:
             )
             return
         if selection[0].isDerivedFrom("Path::FeatureCompoundPython"):
-            FreeCAD.Console.PrintError(
-                translate("CAM_Dressup", "Please select a toolpath object")
-            )
+            FreeCAD.Console.PrintError(translate("CAM_Dressup", "Select a toolpath object"))
             return
 
         # everything ok!
@@ -385,13 +370,9 @@ class CommandPathDressup:
         )
         FreeCADGui.doCommand("Path.Dressup.Gui.ZCorrect.ObjectDressup(obj)")
         FreeCADGui.doCommand("obj.Base = FreeCAD.ActiveDocument." + selection[0].Name)
-        FreeCADGui.doCommand(
-            "Path.Dressup.Gui.ZCorrect.ViewProviderDressup(obj.ViewObject)"
-        )
+        FreeCADGui.doCommand("Path.Dressup.Gui.ZCorrect.ViewProviderDressup(obj.ViewObject)")
         FreeCADGui.doCommand("PathScripts.PathUtils.addToJob(obj)")
-        FreeCADGui.doCommand(
-            "Gui.ActiveDocument.getObject(obj.Base.Name).Visibility = False"
-        )
+        FreeCADGui.doCommand("Gui.ActiveDocument.getObject(obj.Base.Name).Visibility = False")
         FreeCADGui.doCommand("obj.ViewObject.Document.setEdit(obj.ViewObject, 0)")
         # FreeCAD.ActiveDocument.commitTransaction()  # Final `commitTransaction()` called via TaskPanel.accept()
         FreeCAD.ActiveDocument.recompute()
@@ -401,4 +382,4 @@ if FreeCAD.GuiUp:
     # register the FreeCAD command
     FreeCADGui.addCommand("CAM_DressupZCorrect", CommandPathDressup())
 
-FreeCAD.Console.PrintLog("Loading PathDressup... done\n")
+FreeCAD.Console.PrintLog("Loading PathDressup… done\n")

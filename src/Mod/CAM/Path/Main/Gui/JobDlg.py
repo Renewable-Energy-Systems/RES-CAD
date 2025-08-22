@@ -56,33 +56,7 @@ class JobCreate:
     DataObject = QtCore.Qt.ItemDataRole.UserRole
 
     def __init__(self, parent=None, sel=None):
-        # Warn user if current schema doesn't use minute for time in velocity
-        if not Path.Preferences.suppressVelocity():
-            schemes = FreeCAD.Units.listSchemas()
-            for idx, val in enumerate(schemes):
-                if FreeCAD.ActiveDocument.UnitSystem == FreeCAD.Units.listSchemas(idx):
-                    current_schema = FreeCAD.Units.listSchemas(idx)
-                    if idx not in [2, 3, 6]:
-                        msg = translate(
-                            "CAM_Job",
-                            "The currently selected unit schema: \n     '{}' for this document\n Does not use 'minutes' for velocity values. \n \nCNC machines require feed rate to be expressed in \nunit/minute. To ensure correct G-code: \nSelect a minute-based schema in preferences.\nFor example:\n    'Metric, Small Parts & CNC'\n    'US Customary'\n    'Imperial Decimal'",
-                        ).format(current_schema)
-                        header = translate("CAM_Job", "Warning")
-                        msgbox = QtGui.QMessageBox(
-                            QtGui.QMessageBox.Warning, header, msg
-                        )
-
-                        msgbox.addButton(
-                            translate("CAM_Job", "Ok"), QtGui.QMessageBox.AcceptRole
-                        )
-                        msgbox.addButton(
-                            translate("CAM_Job", "Don't Show This Anymore"),
-                            QtGui.QMessageBox.ActionRole,
-                        )
-                        if msgbox.exec_() == 1:
-                            from Path.Preferences import preferences
-
-                            preferences().SetBool("WarningSuppressVelocity", True)
+        self._warnUserIfNotUsingMinutes()
 
         self.dialog = FreeCADGui.PySideUic.loadUi(":/panels/DlgJobCreate.ui")
         self.itemsSolid = QtGui.QStandardItem(translate("CAM_Job", "Solids"))
@@ -90,11 +64,64 @@ class JobCreate:
         self.itemsJob = QtGui.QStandardItem(translate("CAM_Job", "Jobs"))
         self.dialog.templateGroup.hide()
         self.dialog.modelGroup.hide()
+
         # debugging support
         self.candidates = None
         self.delegate = None
         self.index = None
         self.model = None
+
+    def _warnUserIfNotUsingMinutes(self):
+        # Warn user if current schema doesn't use minute for time in velocity
+        if Path.Preferences.suppressVelocity():
+            return
+
+        # schemas in order of preference -- the first ones get proposed to the user
+        minute_based_schemes = list(map(FreeCAD.Units.listSchemas, [6, 3, 2]))
+        if FreeCAD.ActiveDocument.UnitSystem in minute_based_schemes:
+            return
+
+        # NB: On macOS the header is ignored as per its UI guidelines.
+        header = translate("CAM_Job", "Warning: Incompatible Unit Schema")
+        info = translate(
+            "CAM_Job",
+            (
+                "This document uses an improper unit schema "
+                "which can result in dangerous situations and machine crashes!"
+            ),
+        )
+        details = translate(
+            "CAM_Job",
+            (
+                "<p>This document's unit schema, '{}', "
+                "expresses velocity in values <i>per second</i>."
+                "\n"
+                "<p>Please change the unit schema in the document properties "
+                "to one that expresses feed rates <i>per minute</i> instead. "
+                "\n"
+                "For example: \n"
+                "<ul>\n"
+                "<li>{}\n"
+                "<li>{}\n"
+                "</ul>\n"
+                "\n"
+                "<p>Keeping the current unit schema can result in dangerous G-code errors. "
+                "For details please refer to the "
+                "<a href='https://wiki.freecad.org/CAM_Workbench#Units'>Units section</a> "
+                "of the CAM Workbench's wiki page."
+            ),
+        ).format(FreeCAD.ActiveDocument.UnitSystem, *minute_based_schemes[:2])
+        msgbox = QtGui.QMessageBox(QtGui.QMessageBox.Warning, header, info)
+        msgbox.setInformativeText(details)
+        msgbox.addButton(translate("CAM_Job", "Ok"), QtGui.QMessageBox.AcceptRole)
+        dont_show_again_button = msgbox.addButton(
+            translate("CAM_Job", "Don't show this warning again"),
+            QtGui.QMessageBox.ActionRole,
+        )
+
+        msgbox.exec_()
+        if msgbox.clickedButton() == dont_show_again_button:
+            Path.Preferences.preferences().SetBool(Path.Preferences.WarningSuppressVelocity, True)
 
     def setupTitle(self, title):
         self.dialog.setWindowTitle(title)
@@ -110,14 +137,10 @@ class JobCreate:
             )
             jobResources = job.Model.Group + [job.Stock]
         else:
-            preSelected = Counter(
-                [obj.Label for obj in FreeCADGui.Selection.getSelection()]
-            )
+            preSelected = Counter([obj.Label for obj in FreeCADGui.Selection.getSelection()])
             jobResources = []
 
-        self.candidates = sorted(
-            PathJob.ObjectJob.baseCandidates(), key=lambda o: o.Label
-        )
+        self.candidates = sorted(PathJob.ObjectJob.baseCandidates(), key=lambda o: o.Label)
 
         # If there is only one possibility we might as well make sure it's selected
         if not preSelected and 1 == len(self.candidates):
@@ -187,7 +210,9 @@ class JobCreate:
 
         self.delegate = _ItemDelegate(self, self.dialog.modelTree)
         self.model = QtGui.QStandardItemModel(self.dialog)
-        self.model.setHorizontalHeaderLabels([translate("CAM_Job","Model"), translate("CAM_Job", "Count")])
+        self.model.setHorizontalHeaderLabels(
+            [translate("CAM_Job", "Model"), translate("CAM_Job", "Count")]
+        )
 
         if self.itemsSolid.hasChildren():
             self.model.appendRow(self.itemsSolid)
@@ -299,9 +324,7 @@ class JobCreate:
                 # Note that we do want to use the models (resource clones) of the
                 # source job as base objects for the new job in order to get the
                 # identical placement, and anything else that's been customized.
-                models.extend(
-                    self.itemsJob.child(i, 0).data(self.DataObject).Model.Group
-                )
+                models.extend(self.itemsJob.child(i, 0).data(self.DataObject).Model.Group)
 
         return models
 
@@ -353,9 +376,7 @@ class JobTemplateExport:
         if job.Stock and not PathJob.isResourceClone(job, "Stock", "Stock"):
             stockType = PathStock.StockType.FromStock(job.Stock)
             if stockType == PathStock.StockType.FromBase:
-                seHint = translate(
-                    "CAM_Job", "Base -/+ %.2f/%.2f %.2f/%.2f %.2f/%.2f"
-                ) % (
+                seHint = translate("CAM_Job", "Base -/+ %.2f/%.2f %.2f/%.2f %.2f/%.2f") % (
                     job.Stock.ExtXneg,
                     job.Stock.ExtXpos,
                     job.Stock.ExtYneg,

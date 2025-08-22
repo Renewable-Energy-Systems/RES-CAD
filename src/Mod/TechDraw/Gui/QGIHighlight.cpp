@@ -64,9 +64,11 @@ QGIHighlight::~QGIHighlight()
 
 }
 
+
+// QGIHighlight is no longer dragged except through TaskDetail.
 void QGIHighlight::onDragFinished()
 {
-//    Base::Console().Message("QGIH::onDragFinished - pos: %s\n",
+//    Base::Console().message("QGIH::onDragFinished - pos: %s\n",
 //                            DrawUtil::formatVector(pos()).c_str());
     QGraphicsItem* parent = parentItem();
     auto qgivp = dynamic_cast<QGIViewPart*>(parent);
@@ -100,7 +102,7 @@ void QGIHighlight::makeHighlight()
 void QGIHighlight::makeReference()
 {
     prepareGeometryChange();
-    int fontSize = QGIView::exactFontSize(Base::Tools::toStdString(m_refFont.family()),
+    int fontSize = QGIView::exactFontSize(m_refFont.family().toStdString(),
                                           m_refSize);
     m_refFont .setPixelSize(fontSize);
     m_reference->setFont(m_refFont);
@@ -126,7 +128,7 @@ void QGIHighlight::makeReference()
     QRectF r(m_start, m_end);
     double radius = r.width() / 2.0;
     QPointF center = r.center();
-    double angleRad = m_referenceAngle * M_PI / 180.0;
+    double angleRad = Base::toRadians(m_referenceAngle);
     double posX = center.x() + cos(angleRad) * radius + horizOffset;
     double posY = center.y() - sin(angleRad) * radius - vertOffset;
     m_reference->setPos(posX, posY);
@@ -189,17 +191,10 @@ void QGIHighlight::paint ( QPainter * painter, const QStyleOptionGraphicsItem * 
 
 void QGIHighlight::setTools()
 {
-    m_pen.setWidthF(m_width);
-    m_pen.setColor(m_colCurrent);
-    m_pen.setStyle(Qt::CustomDashLine);
-
-    m_brush.setStyle(m_brushCurrent);
-    m_brush.setColor(m_colCurrent);
-
     m_circle->setPen(m_pen);
     m_rect->setPen(m_pen);
 
-    m_reference->setDefaultTextColor(m_colCurrent);
+    m_reference->setDefaultTextColor(m_pen.color());
 }
 
 void QGIHighlight::setLinePen(QPen isoPen)

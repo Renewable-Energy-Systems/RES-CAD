@@ -109,7 +109,7 @@ unsigned long MeshObject::countSubElements(const char* Type) const
     if (element == "Mesh") {
         return 1;
     }
-    else if (element == "Segment") {
+    if (element == "Segment") {
         return countSegments();
     }
     return 0;
@@ -123,7 +123,7 @@ Data::Segment* MeshObject::getSubElement(const char* Type, unsigned long n) cons
         segm->mesh = new MeshObject(*this);
         return segm;
     }
-    else if (element == "Segment" && n < countSegments()) {
+    if (element == "Segment" && n < countSegments()) {
         MeshSegment* segm = new MeshSegment();
         segm->mesh = new MeshObject(*this);
         const Segment& faces = getSegment(n);
@@ -526,19 +526,19 @@ void MeshObject::load(std::istream& in)
     try {
         MeshCore::MeshEvalNeighbourhood nb(_kernel);
         if (!nb.Evaluate()) {
-            Base::Console().Warning("Errors in neighbourhood of mesh found...");
+            Base::Console().warning("Errors in neighbourhood of mesh found...");
             _kernel.RebuildNeighbours();
-            Base::Console().Warning("fixed\n");
+            Base::Console().warning("fixed\n");
         }
 
         MeshCore::MeshEvalTopology eval(_kernel);
         if (!eval.Evaluate()) {
-            Base::Console().Warning("The mesh data structure has some defects\n");
+            Base::Console().warning("The mesh data structure has some defects\n");
         }
     }
     catch (const Base::MemoryException&) {
         // ignore memory exceptions and continue
-        Base::Console().Log("Check for defects in mesh data structure failed\n");
+        Base::Console().log("Check for defects in mesh data structure failed\n");
     }
 #endif
 }
@@ -703,10 +703,9 @@ void MeshObject::deletedFacets(const std::vector<FacetIndex>& remFacets)
 
         // remove the invalid indices
         std::sort(segm.begin(), segm.end());
-        std::vector<FacetIndex>::iterator ft =
-            std::find_if(segm.begin(), segm.end(), [](FacetIndex v) {
-                return v == MeshCore::FACET_INDEX_MAX;
-            });
+        auto ft = std::find_if(segm.begin(), segm.end(), [](FacetIndex v) {
+            return v == MeshCore::FACET_INDEX_MAX;
+        });
         if (ft != segm.end()) {
             segm.erase(ft, segm.end());
         }
@@ -941,8 +940,7 @@ void MeshObject::offset(float fSize)
 
     unsigned int i = 0;
     // go through all the vertex normals
-    for (std::vector<Base::Vector3f>::iterator It = normals.begin(); It != normals.end();
-         ++It, i++) {
+    for (auto It = normals.begin(); It != normals.end(); ++It, i++) {
         // and move each mesh point in the normal direction
         _kernel.MovePoint(i, It->Normalize() * fSize);
     }
@@ -954,7 +952,7 @@ void MeshObject::offsetSpecial2(float fSize)
     Base::Builder3D builder;
     std::vector<Base::Vector3f> PointNormals = _kernel.CalcVertexNormals();
     std::vector<Base::Vector3f> FaceNormals;
-    std::set<FacetIndex> fliped;
+    std::set<FacetIndex> flipped;
 
     MeshCore::MeshFacetIterator it(_kernel);
     for (it.Init(); it.More(); it.Next()) {
@@ -964,8 +962,7 @@ void MeshObject::offsetSpecial2(float fSize)
     unsigned int i = 0;
 
     // go through all the vertex normals
-    for (std::vector<Base::Vector3f>::iterator It = PointNormals.begin(); It != PointNormals.end();
-         ++It, i++) {
+    for (auto It = PointNormals.begin(); It != PointNormals.end(); ++It, i++) {
         Base::Line3f line {_kernel.GetPoint(i), _kernel.GetPoint(i) + It->Normalize() * fSize};
         Base::DrawStyle drawStyle;
         builder.addNode(Base::LineItem {line, drawStyle});
@@ -991,20 +988,20 @@ void MeshObject::offsetSpecial2(float fSize)
                                       drawStyle,
                                       Base::ColorRGB {1.0F, 0.0F, 0.0F}};
                 builder.addNode(item);
-                fliped.insert(it.Position());
+                flipped.insert(it.Position());
             }
         }
 
         // if there are no flipped triangles -> stop
-        // int f =fliped.size();
-        if (fliped.empty()) {
+        // int f =flipped.size();
+        if (flipped.empty()) {
             break;
         }
 
-        for (FacetIndex It : fliped) {
+        for (FacetIndex It : flipped) {
             alg.CollapseFacet(It);
         }
-        fliped.clear();
+        flipped.clear();
     }
 
     alg.Cleanup();
@@ -1022,8 +1019,7 @@ void MeshObject::offsetSpecial(float fSize, float zmax, float zmin)
 
     unsigned int i = 0;
     // go through all the vertex normals
-    for (std::vector<Base::Vector3f>::iterator It = normals.begin(); It != normals.end();
-         ++It, i++) {
+    for (auto It = normals.begin(); It != normals.end(); ++It, i++) {
         auto Pnt = _kernel.GetPoint(i);
         if (Pnt.z < zmax && Pnt.z > zmin) {
             Pnt.z = 0;
@@ -1349,8 +1345,8 @@ void MeshObject::refine()
     // x < 30 deg => cos(x) > sqrt(3)/2 or x > 120 deg => cos(x) < -0.5
     for (unsigned long i = 0; i < cnt; i++) {
         cF.Set(i);
-        if (!cF->IsDeformed(0.86f, -0.5f)) {
-            topalg.InsertVertexAndSwapEdge(i, cF->GetGravityPoint(), 0.1f);
+        if (!cF->IsDeformed(0.86F, -0.5F)) {
+            topalg.InsertVertexAndSwapEdge(i, cF->GetGravityPoint(), 0.1F);
         }
     }
 
@@ -1378,7 +1374,7 @@ void MeshObject::validateCaps(float fMaxAngle, float fSplitFactor)
 void MeshObject::optimizeTopology(float fMaxAngle)
 {
     MeshCore::MeshTopoAlgorithm topalg(_kernel);
-    if (fMaxAngle > 0.0f) {
+    if (fMaxAngle > 0.0F) {
         topalg.OptimizeTopology(fMaxAngle);
     }
     else {
@@ -1402,8 +1398,7 @@ void MeshObject::splitEdges()
     MeshCore::MeshAlgorithm alg(_kernel);
     alg.ResetFacetFlag(MeshCore::MeshFacet::VISIT);
     const MeshCore::MeshFacetArray& rFacets = _kernel.GetFacets();
-    for (MeshCore::MeshFacetArray::_TConstIterator pF = rFacets.begin(); pF != rFacets.end();
-         ++pF) {
+    for (auto pF = rFacets.begin(); pF != rFacets.end(); ++pF) {
         int id = 2;
         if (pF->_aulNeighbours[id] != MeshCore::FACET_INDEX_MAX) {
             const MeshCore::MeshFacet& rFace = rFacets[pF->_aulNeighbours[id]];
@@ -1420,7 +1415,7 @@ void MeshObject::splitEdges()
     MeshCore::MeshTopoAlgorithm topalg(_kernel);
     for (const auto& it : adjacentFacet) {
         cIter.Set(it.first);
-        Base::Vector3f mid = 0.5f * (cIter->_aclPoints[0] + cIter->_aclPoints[2]);
+        Base::Vector3f mid = 0.5F * (cIter->_aclPoints[0] + cIter->_aclPoints[2]);
         topalg.SplitEdge(it.first, it.second, mid);
     }
 
@@ -1751,8 +1746,8 @@ void MeshObject::validateDeformations(float fMaxAngle, float fEps)
 {
     unsigned long count = _kernel.CountFacets();
     MeshCore::MeshFixDeformedFacets eval(_kernel,
-                                         Base::toRadians(15.0f),
-                                         Base::toRadians(150.0f),
+                                         Base::toRadians(15.0F),
+                                         Base::toRadians(150.0F),
                                          fMaxAngle,
                                          fEps);
     eval.Fixup();
@@ -2143,10 +2138,10 @@ MeshObject::const_point_iterator::const_point_iterator(const MeshObject* mesh, P
     this->_point.Mesh = _mesh;
 }
 
-MeshObject::const_point_iterator::const_point_iterator(const MeshObject::const_point_iterator& fi) =
+MeshObject::const_point_iterator::const_point_iterator(const MeshObject::const_point_iterator& pi) =
     default;
 
-MeshObject::const_point_iterator::const_point_iterator(MeshObject::const_point_iterator&& fi) =
+MeshObject::const_point_iterator::const_point_iterator(MeshObject::const_point_iterator&& pi) =
     default;
 
 MeshObject::const_point_iterator::~const_point_iterator() = default;

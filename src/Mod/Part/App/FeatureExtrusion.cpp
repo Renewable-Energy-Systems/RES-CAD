@@ -37,7 +37,9 @@
 # include <TopTools_IndexedMapOfShape.hxx>
 #endif
 
+#include <App/Document.h>
 #include <Base/Exception.h>
+#include <Base/Tools.h>
 
 #include "FeatureExtrusion.h"
 #include "ExtrusionHelper.h"
@@ -169,10 +171,14 @@ bool Extrusion::fetchAxisLink(const App::PropertyLinkSub& axisLink, Base::Vector
 
     TopoDS_Shape axEdge;
     if (!axisLink.getSubValues().empty() && axisLink.getSubValues()[0].length() > 0) {
-        axEdge = Feature::getTopoShape(linked, axisLink.getSubValues()[0].c_str(), true /*need element*/).getShape();
+        axEdge = Feature::getTopoShape(linked,
+                                          ShapeOption::NeedSubElement
+                                        | ShapeOption::ResolveLink
+                                        | ShapeOption::Transform,
+                                       axisLink.getSubValues()[0].c_str()).getShape();
     }
     else {
-        axEdge = Feature::getShape(linked);
+        axEdge = Feature::getShape(linked, ShapeOption::ResolveLink | ShapeOption::Transform);
     }
 
     if (axEdge.IsNull())
@@ -200,6 +206,8 @@ bool Extrusion::fetchAxisLink(const App::PropertyLinkSub& axisLink, Base::Vector
 
 ExtrusionParameters Extrusion::computeFinalParameters()
 {
+    using std::numbers::pi;
+
     ExtrusionParameters result;
     Base::Vector3d dir;
     switch (this->DirMode.getValue()) {
@@ -244,11 +252,11 @@ ExtrusionParameters Extrusion::computeFinalParameters()
 
     result.solid = this->Solid.getValue();
 
-    result.taperAngleFwd = this->TaperAngle.getValue() * M_PI / 180.0;
-    if (fabs(result.taperAngleFwd) > M_PI * 0.5 - Precision::Angular())
+    result.taperAngleFwd = Base::toRadians(this->TaperAngle.getValue());
+    if (fabs(result.taperAngleFwd) > pi * 0.5 - Precision::Angular())
         throw Base::ValueError("Magnitude of taper angle matches or exceeds 90 degrees. That is too much.");
-    result.taperAngleRev = this->TaperAngleRev.getValue() * M_PI / 180.0;
-    if (fabs(result.taperAngleRev) > M_PI * 0.5 - Precision::Angular())
+    result.taperAngleRev = Base::toRadians(this->TaperAngleRev.getValue());
+    if (fabs(result.taperAngleRev) > pi * 0.5 - Precision::Angular())
         throw Base::ValueError("Magnitude of taper angle matches or exceeds 90 degrees. That is too much.");
 
     result.faceMakerClass = this->FaceMakerClass.getValue();
@@ -260,13 +268,18 @@ Base::Vector3d Extrusion::calculateShapeNormal(const App::PropertyLink& shapeLin
 {
     App::DocumentObject* docobj = nullptr;
     Base::Matrix4D mat;
-    TopoDS_Shape sh = Feature::getShape(shapeLink.getValue(), nullptr, false, &mat, &docobj);
+    TopoDS_Shape sh = Feature::getShape(shapeLink.getValue(),
+                                           ShapeOption::ResolveLink 
+                                         | ShapeOption::Transform,
+                                        nullptr,
+                                        &mat,
+                                        &docobj);
 
     if (!docobj)
         throw Base::ValueError("calculateShapeNormal: link is empty");
 
     //special case for sketches and the like: no matter what shape they have, use their local Z axis.
-    if (docobj->isDerivedFrom(Part::Part2DObject::getClassTypeId())) {
+    if (docobj->isDerivedFrom<Part::Part2DObject>()) {
         Base::Vector3d OZ(0.0, 0.0, 1.0);
         Base::Vector3d result;
         Base::Rotation(mat).multVec(OZ, result);
@@ -303,83 +316,6 @@ Base::Vector3d Extrusion::calculateShapeNormal(const App::PropertyLink& shapeLin
 void Extrusion::extrudeShape(TopoShape &result, const TopoShape &source, const ExtrusionParameters& params)
 {
     gp_Vec vec = gp_Vec(params.dir).Multiplied(params.lengthFwd + params.lengthRev);//total vector of extrusion
-#ifndef FC_USE_TNP_FIX
-    if (std::fabs(params.taperAngleFwd) >= Precision::Angular() ||
-        std::fabs(params.taperAngleRev) >= Precision::Angular()) {
-        //Tapered extrusion!
-#if defined(__GNUC__) && defined (FC_OS_LINUX)
-        Base::SignalException se;
-#endif
-        TopoDS_Shape myShape = source.getShape();
-        if (myShape.IsNull())
-            Standard_Failure::Raise("Cannot extrude empty shape");
-        // #0000910: Circles Extrude Only Surfaces, thus use BRepBuilderAPI_Copy
-        myShape = BRepBuilderAPI_Copy(myShape).Shape();
-
-        std::list<TopoDS_Shape> drafts;
-        bool isPartDesign = false; // there is an OCC bug with single-edge wires (circles) we need to treat differently for PD and Part
-        ExtrusionHelper::makeDraft(myShape, params.dir, params.lengthFwd, params.lengthRev,
-                                   params.taperAngleFwd, params.taperAngleRev, params.solid, drafts, isPartDesign);
-        if (drafts.empty()) {
-            Standard_Failure::Raise("Drafting shape failed");
-        }
-        else if (drafts.size() == 1) {
-            result = drafts.front();
-        }
-        else {
-            TopoDS_Compound comp;
-            BRep_Builder builder;
-            builder.MakeCompound(comp);
-            for (const auto & draft : drafts)
-                builder.Add(comp, draft);
-            result = comp;
-        }
-    }
-    else {
-        //Regular (non-tapered) extrusion!
-        TopoDS_Shape myShape = source.getShape();
-        if (myShape.IsNull())
-            Standard_Failure::Raise("Cannot extrude empty shape");
-
-        // #0000910: Circles Extrude Only Surfaces, thus use BRepBuilderAPI_Copy
-        myShape = BRepBuilderAPI_Copy(myShape).Shape();
-
-        //apply reverse part of extrusion by shifting the source shape
-        if (fabs(params.lengthRev) > Precision::Confusion()) {
-            gp_Trsf mov;
-            mov.SetTranslation(gp_Vec(params.dir) * (-params.lengthRev));
-            TopLoc_Location loc(mov);
-            myShape.Move(loc);
-        }
-
-        //make faces from wires
-        if (params.solid) {
-            //test if we need to make faces from wires. If there are faces - we don't.
-            TopExp_Explorer xp(myShape, TopAbs_FACE);
-            if (xp.More()) {
-                //source shape has faces. Just extrude as-is.
-            }
-            else {
-                std::unique_ptr<FaceMaker> mkFace = FaceMaker::ConstructFromType(params.faceMakerClass.c_str());
-
-                if (myShape.ShapeType() == TopAbs_COMPOUND)
-                    mkFace->useCompound(TopoDS::Compound(myShape));
-                else
-                    mkFace->addShape(myShape);
-                mkFace->Build();
-                myShape = mkFace->Shape();
-            }
-        }
-
-        //extrude!
-        BRepPrimAPI_MakePrism mkPrism(myShape, vec);
-        result = mkPrism.Shape();
-    }
-
-    if (result.isNull())
-        throw NullShapeException("Result of extrusion is null shape.");
-//    return TopoShape(result);
-#else
 
     // #0000910: Circles Extrude Only Surfaces, thus use BRepBuilderAPI_Copy
     TopoShape myShape(source.makeElementCopy());
@@ -428,7 +364,6 @@ void Extrusion::extrudeShape(TopoShape &result, const TopoShape &source, const E
         // extrude!
         result.makeElementPrism(myShape, vec);
     }
-#endif
 }
 
 App::DocumentObjectExecReturn* Extrusion::execute()
@@ -440,8 +375,9 @@ App::DocumentObjectExecReturn* Extrusion::execute()
 
     try {
         ExtrusionParameters params = computeFinalParameters();
-        TopoShape result(0);
-        extrudeShape(result, Feature::getTopoShape(link), params);
+        TopoShape result(0, getDocument()->getStringHasher());
+        
+        extrudeShape(result, Feature::getTopoShape(link, ShapeOption::ResolveLink | ShapeOption::Transform), params);
         this->Shape.setValue(result);
         return App::DocumentObject::StdReturn;
     }

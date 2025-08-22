@@ -56,7 +56,7 @@ class ViewProviderDraft(object):
     vobj : a base C++ view provider
         The view provider of the scripted object (`obj.ViewObject`),
         which commonly may be of types `PartGui::ViewProvider2DObjectPython`,
-        `PartGui::ViewProviderPython`, or `Gui::ViewProviderPythonFeature`.
+        `PartGui::ViewProviderPython`, or `Gui::ViewProviderFeaturePython`.
 
         A basic view provider is instantiated during the creation
         of the base C++ object, for example,
@@ -106,7 +106,8 @@ class ViewProviderDraft(object):
                              "Pattern",
                              "Draft",
                              QT_TRANSLATE_NOOP("App::Property",
-                                               "Defines an SVG pattern."))
+                                               "Defines an SVG pattern."),
+                             locked=True)
             patterns = list(utils.svg_patterns())
             patterns.sort()
             vobj.Pattern = ["None"] + patterns
@@ -116,7 +117,8 @@ class ViewProviderDraft(object):
                              "PatternSize",
                              "Draft",
                              QT_TRANSLATE_NOOP("App::Property",
-                                               "Defines the size of the SVG pattern."))
+                                               "Defines the size of the SVG pattern."),
+                             locked=True)
             vobj.PatternSize = params.get_param("HatchPatternSize")
 
     def dumps(self):
@@ -263,7 +265,7 @@ class ViewProviderDraft(object):
         draw style, shape color, transparency, and others.
 
         This method  updates the texture and pattern if
-        the properties `TextureImage`, `Pattern`, `DiffuseColor`,
+        the properties `TextureImage`, `Pattern`, `ShapeAppearance`,
         and `PatternSize` change.
 
         Parameters
@@ -275,7 +277,7 @@ class ViewProviderDraft(object):
             Name of the property that was modified.
         """
         # treatment of patterns and image textures
-        if prop in ("TextureImage", "Pattern", "DiffuseColor"):
+        if prop in ("TextureImage", "Pattern", "ShapeAppearance"):
             if hasattr(self.Object, "Shape"):
                 if self.Object.Shape.Faces:
                     path = None
@@ -289,11 +291,12 @@ class ViewProviderDraft(object):
                             else:
                                 path = "None"
                     if path and vobj.RootNode:
-                        if vobj.RootNode.getChildren().getLength() > 2:
-                            if vobj.RootNode.getChild(2).getChildren().getLength() > 0:
-                                innodes = vobj.RootNode.getChild(2).getChild(0).getChildren().getLength()
+                        switch = gui_utils.find_coin_node(vobj.RootNode, coin.SoSwitch)
+                        if switch is not None:
+                            if switch.getChildren().getLength() > 0:
+                                innodes = switch.getChild(0).getChildren().getLength()
                                 if  innodes > 2:
-                                    r = vobj.RootNode.getChild(2).getChild(0).getChild(innodes-1)
+                                    r = switch.getChild(0).getChild(innodes-1)
                                     i = QtCore.QFileInfo(path)
                                     if self.texture:
                                         r.removeChild(self.texture)

@@ -36,6 +36,7 @@ import Path
 import Path.Base.Util as PathUtil
 import Path.Post.Utils as PostUtils
 import PathScripts.PathUtils as PathUtils
+from builtins import open as pyopen
 
 Revised = "2020-11-03"  # Revision date for this file.
 
@@ -106,12 +107,8 @@ parser = argparse.ArgumentParser(prog="marlin", add_help=False)
 parser.add_argument("--header", action="store_true", help="output headers (default)")
 parser.add_argument("--no-header", action="store_true", help="suppress header output")
 parser.add_argument("--comments", action="store_true", help="output comment (default)")
-parser.add_argument(
-    "--no-comments", action="store_true", help="suppress comment output"
-)
-parser.add_argument(
-    "--finish-comments", action="store_true", help="output finish-comment"
-)
+parser.add_argument("--no-comments", action="store_true", help="suppress comment output")
+parser.add_argument("--finish-comments", action="store_true", help="output finish-comment")
 parser.add_argument(
     "--no-finish-comments",
     action="store_true",
@@ -123,17 +120,13 @@ parser.add_argument(
     action="store_true",
     help="suppress path-comment output (default)",
 )
-parser.add_argument(
-    "--marlin-config", action="store_true", help="output #defines for Marlin"
-)
+parser.add_argument("--marlin-config", action="store_true", help="output #defines for Marlin")
 parser.add_argument(
     "--no-marlin-config",
     action="store_true",
     help="suppress output #defines for Marlin (default)",
 )
-parser.add_argument(
-    "--line-numbers", action="store_true", help="prefix with line numbers"
-)
+parser.add_argument("--line-numbers", action="store_true", help="prefix with line numbers")
 parser.add_argument(
     "--no-line-numbers",
     action="store_true",
@@ -149,9 +142,7 @@ parser.add_argument(
     action="store_true",
     help="do not pop up editor before writing output",
 )
-parser.add_argument(
-    "--precision", default="3", help="number of digits of precision, default=3"
-)
+parser.add_argument("--precision", default="3", help="number of digits of precision, default=3")
 parser.add_argument(
     "--translate_drill",
     action="store_true",
@@ -166,11 +157,9 @@ parser.add_argument(
     "--preamble", help='set commands to be issued before the first command, default=""'
 )
 parser.add_argument(
-    "--postamble", help='set commands to be issued after the last command, default="M5"'
+    "--postamble", help='set commands to be issued after the last command, default="M5\\n"'
 )
-parser.add_argument(
-    "--tool-change", action="store_true", help="Insert M6 for all tool changes"
-)
+parser.add_argument("--tool-change", action="store_true", help="Insert M6 for all tool changes")
 parser.add_argument(
     "--wait-for-spindle",
     type=int,
@@ -274,9 +263,9 @@ def processArguments(argstring):
         if args.show_editor:
             SHOW_EDITOR = True
         if args.preamble is not None:
-            PREAMBLE = args.preamble
+            PREAMBLE = args.preamble.replace("\\n", "\n")
         if args.postamble is not None:
-            POSTAMBLE = args.postamble
+            POSTAMBLE = args.postamble.replace("\\n", "\n")
         if args.no_translate_drill:
             TRANSLATE_DRILL_CYCLES = False
         if args.translate_drill:
@@ -346,8 +335,8 @@ def export(objectslist, filename, argstring):
     # Write the preamble:
     if OUTPUT_COMMENTS:
         gcode += linenumber() + "(Begin preamble)\n"
-    for line in PREAMBLE.splitlines(True):
-        gcode += linenumber() + line
+    for line in PREAMBLE.splitlines():
+        gcode += linenumber() + line + "\n"
 
     # Write these settings AFTER the preamble,
     # to prevent the preamble from changing these:
@@ -364,14 +353,12 @@ def export(objectslist, filename, argstring):
         # print('\n' + '*'*70 + '\n')
         if not hasattr(obj, "Path"):
             print(
-                "The object "
-                + obj.Name
-                + " is not a path. Please select only path and Compounds."
+                "The object " + obj.Name + " is not a path. Please select only path and Compounds."
             )
             return
 
         # Skip inactive operations:
-        if PathUtil.opProperty(obj, "Active") is False:
+        if not PathUtil.activeForOp(obj):
             continue
 
         # Do the pre_op:
@@ -385,16 +372,7 @@ def export(objectslist, filename, argstring):
             gcode += linenumber() + line
 
         # Get coolant mode:
-        coolantMode = "None"  # None is the word returned from the operation
-        if (
-            hasattr(obj, "CoolantMode")
-            or hasattr(obj, "Base")
-            and hasattr(obj.Base, "CoolantMode")
-        ):
-            if hasattr(obj, "CoolantMode"):
-                coolantMode = obj.CoolantMode
-            else:
-                coolantMode = obj.Base.CoolantMode
+        coolantMode = PathUtil.coolantModeForOp(obj)
 
         # Turn coolant on if required:
         if OUTPUT_COMMENTS:
@@ -427,8 +405,8 @@ def export(objectslist, filename, argstring):
         gcode += linenumber() + "(Block-enable: 1)\n"
     if OUTPUT_COMMENTS:
         gcode += linenumber() + "(Begin postamble)\n"
-    for line in POSTAMBLE.splitlines(True):
-        gcode += linenumber() + line
+    for line in POSTAMBLE.splitlines():
+        gcode += linenumber() + line + "\n"
 
     # Optionally add a final XYZ position to the end of the gcode:
     if RETURN_TO:
@@ -473,8 +451,12 @@ def export(objectslist, filename, argstring):
     print("Done postprocessing.")
 
     # Write the file:
-    with open(filename, "w") as fp:
-        fp.write(final)
+    if not filename == "-":
+        gfile = pyopen(filename, "w")
+        gfile.write(final)
+        gfile.close()
+
+    return final
 
 
 def linenumber():
@@ -560,9 +542,7 @@ def parse(pathobj):
                 if param in c.Parameters:
                     if param == "F":
                         if command not in RAPID_MOVES:
-                            feedRate = Units.Quantity(
-                                c.Parameters["F"], FreeCAD.Units.Velocity
-                            )
+                            feedRate = Units.Quantity(c.Parameters["F"], FreeCAD.Units.Velocity)
                             if feedRate.getValueAs(UNIT_FEED_FORMAT) > 0.0:
                                 outlist.append(
                                     param
@@ -574,17 +554,12 @@ def parse(pathobj):
                     elif param in ["T", "H", "D", "S", "P", "L"]:
                         outlist.append(param + str(c.Parameters[param]))
                     elif param in ["A", "B", "C"]:
-                        outlist.append(
-                            param + format(c.Parameters[param], precision_string)
-                        )
+                        outlist.append(param + format(c.Parameters[param], precision_string))
                     # [X, Y, Z, U, V, W, I, J, K, R, Q]
                     else:
                         pos = Units.Quantity(c.Parameters[param], FreeCAD.Units.Length)
                         outlist.append(
-                            param
-                            + format(
-                                float(pos.getValueAs(UNIT_FORMAT)), precision_string
-                            )
+                            param + format(float(pos.getValueAs(UNIT_FORMAT)), precision_string)
                         )
 
             # Store the latest command:
@@ -651,9 +626,7 @@ def parse(pathobj):
                     else:  # This line contains a comment, and possibly more
                         right_index = outlist[list_index].find(")")
                         comment_area = outlist[list_index][left_index : right_index + 1]
-                        line_minus_comment = (
-                            outlist[list_index].replace(comment_area, "").strip()
-                        )
+                        line_minus_comment = outlist[list_index].replace(comment_area, "").strip()
                         if line_minus_comment:
                             # Line contained more than just a comment
                             tmplist.append(line_minus_comment)

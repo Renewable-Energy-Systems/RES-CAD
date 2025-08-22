@@ -2,13 +2,9 @@
 include_directories(
     ${CMAKE_BINARY_DIR}
     ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/3rdParty/OndselSolver
     ${CMAKE_BINARY_DIR}/src
     ${CMAKE_CURRENT_BINARY_DIR}
-    ${OCC_INCLUDE_DIR}
-    ${PYTHON_INCLUDE_DIRS}
 )
-link_directories(${OCC_LIBRARY_DIR})
 
 set(Assembly_LIBS
     Part
@@ -19,14 +15,27 @@ set(Assembly_LIBS
 )
 
 generate_from_xml(AssemblyObjectPy)
+generate_from_xml(AssemblyLinkPy)
 generate_from_xml(BomObjectPy)
 generate_from_xml(BomGroupPy)
 generate_from_xml(JointGroupPy)
 generate_from_xml(ViewGroupPy)
+generate_from_xml(SimulationGroupPy)
+
+generate_from_py_(AssemblyObjectPy)
+generate_from_py_(AssemblyLinkPy)
+generate_from_py_(BomObjectPy)
+generate_from_py_(BomGroupPy)
+generate_from_py_(JointGroupPy)
+generate_from_py_(ViewGroupPy)
+generate_from_py_(SimulationGroupPy)
+
 
 SET(Python_SRCS
     AssemblyObjectPy.xml
     AssemblyObjectPyImp.cpp
+    AssemblyLinkPy.xml
+    AssemblyLinkPyImp.cpp
     BomObjectPy.xml
     BomObjectPyImp.cpp
     BomGroupPy.xml
@@ -35,6 +44,8 @@ SET(Python_SRCS
     JointGroupPyImp.cpp
     ViewGroupPy.xml
     ViewGroupPyImp.cpp
+    SimulationGroupPy.xml
+    SimulationGroupPyImp.cpp
 )
 SOURCE_GROUP("Python" FILES ${Python_SRCS})
 
@@ -49,6 +60,10 @@ SOURCE_GROUP("Module" FILES ${Module_SRCS})
 SET(Assembly_SRCS
     AssemblyObject.cpp
     AssemblyObject.h
+    AssemblyLink.cpp
+    AssemblyLink.h
+    AssemblyUtils.cpp
+    AssemblyUtils.h
     BomObject.cpp
     BomObject.h
     BomGroup.cpp
@@ -57,6 +72,8 @@ SET(Assembly_SRCS
     JointGroup.h
     ViewGroup.cpp
     ViewGroup.h
+    SimulationGroup.cpp
+    SimulationGroup.h
     ${Module_SRCS}
     ${Python_SRCS}
 )

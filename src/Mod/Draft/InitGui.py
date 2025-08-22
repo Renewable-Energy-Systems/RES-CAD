@@ -100,19 +100,19 @@ class DraftWorkbench(FreeCADGui.Workbench):
 
         # Set up toolbars
         it.init_toolbar(self,
-                        QT_TRANSLATE_NOOP("Workbench", "Draft creation tools"),
+                        QT_TRANSLATE_NOOP("Workbench", "Draft Creation"),
                         self.drawing_commands)
         it.init_toolbar(self,
-                        QT_TRANSLATE_NOOP("Workbench", "Draft annotation tools"),
+                        QT_TRANSLATE_NOOP("Workbench", "Draft Annotation"),
                         self.annotation_commands)
         it.init_toolbar(self,
-                        QT_TRANSLATE_NOOP("Workbench", "Draft modification tools"),
+                        QT_TRANSLATE_NOOP("Workbench", "Draft Modification"),
                         self.modification_commands)
         it.init_toolbar(self,
-                        QT_TRANSLATE_NOOP("Workbench", "Draft utility tools"),
+                        QT_TRANSLATE_NOOP("Workbench", "Draft Utility"),
                         self.utility_commands_toolbar)
         it.init_toolbar(self,
-                        QT_TRANSLATE_NOOP("Workbench", "Draft snap"),
+                        QT_TRANSLATE_NOOP("Workbench", "Draft Snap"),
                         it.get_draft_snap_commands())
 
         # Set up menus
@@ -151,8 +151,8 @@ class DraftWorkbench(FreeCADGui.Workbench):
             FreeCADGui.draftToolBar.Activated()
         if hasattr(FreeCADGui, "Snapper"):
             FreeCADGui.Snapper.show()
-            import draftutils.init_draft_statusbar as dsb
-            dsb.show_draft_statusbar()
+            from draftutils import init_draft_statusbar
+            init_draft_statusbar.show_draft_statusbar()
         import WorkingPlane
         WorkingPlane._view_observer_start()  # Updates the draftToolBar when switching views.
         from draftutils import grid_observer
@@ -165,8 +165,8 @@ class DraftWorkbench(FreeCADGui.Workbench):
             FreeCADGui.draftToolBar.Deactivated()
         if hasattr(FreeCADGui, "Snapper"):
             FreeCADGui.Snapper.hide()
-            import draftutils.init_draft_statusbar as dsb
-            dsb.hide_draft_statusbar()
+            from draftutils import init_draft_statusbar
+            init_draft_statusbar.hide_draft_statusbar()
         import WorkingPlane
         WorkingPlane._view_observer_stop()
         from draftutils import grid_observer

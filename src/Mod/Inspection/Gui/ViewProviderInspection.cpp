@@ -52,6 +52,7 @@
 #include <Gui/Flag.h>
 #include <Gui/MainWindow.h>
 #include <Gui/SoFCColorBar.h>
+#include <Gui/SoFCColorBarNotifier.h>
 #include <Gui/View3DInventorViewer.h>
 #include <Gui/Widgets.h>
 #include <Mod/Inspection/App/InspectionFeature.h>
@@ -95,6 +96,7 @@ ViewProviderInspection::ViewProviderInspection()
     // simple color bar
     pcColorBar = new Gui::SoFCColorBar;
     pcColorBar->Attach(this);
+    Gui::SoFCColorBarNotifier::instance().attach(pcColorBar);
     pcColorBar->ref();
     pcColorBar->setRange(-0.1f, 0.1f, 3);
     pcLinkRoot = new SoGroup;
@@ -109,14 +111,26 @@ ViewProviderInspection::ViewProviderInspection()
 
 ViewProviderInspection::~ViewProviderInspection()
 {
-    pcColorRoot->unref();
-    pcCoords->unref();
-    pcMatBinding->unref();
-    pcColorMat->unref();
-    pcColorBar->Detach(this);
-    pcColorBar->unref();
-    pcLinkRoot->unref();
-    pcPointStyle->unref();
+    try {
+        pcColorRoot->unref();
+        pcCoords->unref();
+        pcMatBinding->unref();
+        pcColorMat->unref();
+        pcLinkRoot->unref();
+        pcPointStyle->unref();
+        deleteColorBar();
+    }
+    catch (Base::Exception& e) {
+        Base::Console().destructorError(
+            "ViewProviderInspection",
+            "ViewProviderInspection::deleteColorBar() threw an exception: %s\n",
+            e.what());
+    }
+    catch (...) {
+        Base::Console().destructorError(
+            "ViewProviderInspection",
+            "ViewProviderInspection destructor threw an unknown exception");
+    }
 }
 
 void ViewProviderInspection::onChanged(const App::Property* prop)
@@ -145,6 +159,13 @@ void ViewProviderInspection::show()
 {
     inherited::show();
     pcColorStyle->style = SoDrawStyle::FILLED;
+}
+
+void ViewProviderInspection::deleteColorBar()
+{
+    Gui::SoFCColorBarNotifier::instance().detach(pcColorBar);
+    pcColorBar->Detach(this);
+    pcColorBar->unref();
 }
 
 void ViewProviderInspection::attach(App::DocumentObject* pcFeat)
@@ -182,8 +203,7 @@ void ViewProviderInspection::attach(App::DocumentObject* pcFeat)
         pcBar->ref();
         pcBar->setRange(fMin, fMax, 3);
         pcBar->Notify(0);
-        pcColorBar->Detach(this);
-        pcColorBar->unref();
+        deleteColorBar();
         pcColorBar = pcBar;
     }
 
@@ -378,7 +398,7 @@ void ViewProviderInspection::setDistances()
         SoDebugError::post("ViewProviderInspection::setDistances", "Unknown property 'Distances'");
         return;
     }
-    if (pDistances->getTypeId() != Inspection::PropertyDistanceList::getClassTypeId()) {
+    if (!pDistances->is<Inspection::PropertyDistanceList>()) {
         SoDebugError::post(
             "ViewProviderInspection::setDistances",
             "Property 'Distances' has type %s (Inspection::PropertyDistanceList was expected)",
@@ -406,7 +426,7 @@ void ViewProviderInspection::setDistances()
 
     unsigned long j = 0;
     for (std::vector<float>::const_iterator jt = fValues.begin(); jt != fValues.end(); ++jt, j++) {
-        App::Color col = pcColorBar->getColor(*jt);
+        Base::Color col = pcColorBar->getColor(*jt);
         cols[j] = SbColor(col.r, col.g, col.b);
         if (pcColorBar->isVisible(*jt)) {
             tran[j] = 0.0f;
@@ -541,7 +561,7 @@ void ViewProviderInspection::inspectCallback(void* ud, SoEventCallback* n)
             QAction* fl = menu.addAction(QObject::tr("Annotation"));
             fl->setCheckable(true);
             fl->setChecked(addflag);
-            QAction* cl = menu.addAction(QObject::tr("Leave info mode"));
+            QAction* cl = menu.addAction(QObject::tr("Leave Info Mode"));
             QAction* id = menu.exec(QCursor::pos());
             if (fl == id) {
                 addflag = fl->isChecked();
@@ -563,7 +583,7 @@ void ViewProviderInspection::inspectCallback(void* ud, SoEventCallback* n)
                  && mbe->getState() == SoButtonEvent::UP) {
             const SoPickedPoint* point = n->getPickedPoint();
             if (!point) {
-                Base::Console().Message("No point picked.\n");
+                Base::Console().message("No point picked.\n");
                 return;
             }
 

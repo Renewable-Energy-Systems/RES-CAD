@@ -37,7 +37,7 @@ using namespace Gui;
 /* TRANSLATOR PartDesignGui::TaskPocketParameters */
 
 TaskPocketParameters::TaskPocketParameters(ViewProviderPocket *PocketView,QWidget *parent, bool newObj)
-    : TaskExtrudeParameters(PocketView, parent, "PartDesign_Pocket", tr("Pocket parameters"))
+    : TaskExtrudeParameters(PocketView, parent, "PartDesign_Pocket", tr("Pocket Parameters"))
     , oldLength(0)
 {
     ui->offsetEdit->setToolTip(tr("Offset from face at which pocket will end"));
@@ -87,7 +87,7 @@ void TaskPocketParameters::updateUI(int index)
 
 void TaskPocketParameters::onModeChanged(int index)
 {
-    PartDesign::Pocket* pcPocket = static_cast<PartDesign::Pocket*>(vp->getObject());
+    auto pcPocket = getObject<PartDesign::Pocket>();
 
     switch (static_cast<Mode>(index)) {
         case Mode::Dimension:
@@ -135,7 +135,7 @@ void TaskPocketParameters::onModeChanged(int index)
 
 void TaskPocketParameters::apply()
 {
-    QString facename = QString::fromLatin1("None");
+    QString facename = QStringLiteral("None");
     if (static_cast<Mode>(getMode()) == Mode::ToFace) {
         facename = getFaceName();
     }
@@ -151,6 +151,7 @@ TaskDlgPocketParameters::TaskDlgPocketParameters(ViewProviderPocket *PocketView)
     : TaskDlgExtrudeParameters(PocketView), parameters(new TaskPocketParameters(PocketView))
 {
     Content.push_back(parameters);
+    Content.push_back(preview);
 }
 
 #include "moc_TaskPocketParameters.cpp"

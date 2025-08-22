@@ -217,7 +217,7 @@ def make_label(target_point=App.Vector(0, 0, 0),
         placement = App.Placement(placement, App.Rotation())
     elif isinstance(placement, App.Rotation):
         placement = App.Placement(App.Vector(), placement)
-        
+
     if target_object:
         if isinstance(target_object, (list, tuple)):
             _err(translate("draft","Wrong input: target_object must not be a list."))
@@ -339,6 +339,9 @@ def make_label(target_point=App.Vector(0, 0, 0),
         ViewProviderLabel(new_obj.ViewObject)
         h = params.get_param("textheight")
         new_obj.ViewObject.FontSize = h
+        if direction == "Horizontal" and distance > 0:
+            # StraightDistance and Justification must be in sync.
+            new_obj.ViewObject.Justification = "Right"
 
         gui_utils.format_object(new_obj)
         gui_utils.select(new_obj)

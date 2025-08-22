@@ -29,7 +29,7 @@
 #endif
 
 #include <App/Origin.h>
-#include <App/OriginFeature.h>
+#include <App/Datums.h>
 #include <App/Part.h>
 #include <Gui/Application.h>
 #include <Gui/CommandT.h>
@@ -89,12 +89,14 @@ bool setEdit(App::DocumentObject *obj, PartDesign::Body *body) {
         return false;
     App::DocumentObject *parent = nullptr;
     std::string subname;
-    auto activeBody = activeView->getActiveObject<PartDesign::Body*>(PDBODYKEY);
+    auto activeBody = activeView->getActiveObject<PartDesign::Body*>(PDBODYKEY, &parent, &subname);
     if (activeBody != body) {
         parent = obj;
+        subname.clear();
     }
     else {
-        parent = getParent(obj, subname);
+        subname += obj->getNameInDocument();
+        subname += '.';
     }
 
     Gui::cmdGuiDocument(parent, std::ostringstream() << "setEdit("
@@ -119,8 +121,8 @@ PartDesign::Body *getBody(bool messageIfNot, bool autoActivate, bool assertModer
 
     if (activeView) {
         auto doc = activeView->getAppDocument();
-        bool singleBodyDocument = doc->countObjectsOfType(PartDesign::Body::getClassTypeId()) == 1;
-        if (assertModern && PartDesignGui::assureModernWorkflow (doc) ) {
+        bool singleBodyDocument = doc->countObjectsOfType<PartDesign::Body>() == 1;
+        if (assertModern) {
             activeBody = activeView->getActiveObject<PartDesign::Body*>(PDBODYKEY,topParent,subname);
 
             if (!activeBody && singleBodyDocument && autoActivate) {
@@ -135,11 +137,10 @@ PartDesign::Body *getBody(bool messageIfNot, bool autoActivate, bool assertModer
                 DlgActiveBody dia(
                     Gui::getMainWindow(),
                     doc,
-                    QObject::tr("In order to use PartDesign you need an active Body object in the document. "
-                                "Please make one active (double click) or create one."
-                                "\n\nIf you have a legacy document with PartDesign objects without Body, "
-                                "use the migrate function in PartDesign to put them into a Body."
-                        ));
+                    QObject::tr("To use Part Design, an active body object is required in the document. "
+                                "Activate a body (double-click) or create a new one."
+                                "\n\nFor legacy documents with Part Design objects lacking a body, "
+                                "use the migrate function in Part Design to place them into a body."));
                 if (dia.exec() == QDialog::DialogCode::Accepted)
                     activeBody = dia.getActiveBody();
             }
@@ -184,9 +185,8 @@ void needActiveBodyError()
 {
     QMessageBox::warning( Gui::getMainWindow(),
         QObject::tr("Active Body Required"),
-        QObject::tr("To create a new PartDesign object, there must be "
-                    "an active Body object in the document. Please make "
-                    "one active (double click) or create a new Body.") );
+        QObject::tr("To create a new Part Design object, an active body is required in the document. "
+            "Activate an existing body (double-click) or create a new one."));
 }
 
 PartDesign::Body * makeBody(App::Document *doc)
@@ -281,7 +281,7 @@ void fixSketchSupport (Sketcher::SketchObject* sketch)
     const App::Document* doc = sketch->getDocument();
     PartDesign::Body *body = getBodyFor(sketch, /*messageIfNot*/ false);
     if (!body) {
-        throw Base::RuntimeError ("Couldn't find body for the sketch");
+        throw Base::RuntimeError ("Could not find a body for the sketch");
     }
 
     // Get the Origin for the body
@@ -325,7 +325,7 @@ void fixSketchSupport (Sketcher::SketchObject* sketch)
         // Offset to base plane
         // Find out which direction we need to offset
         double a = sketchVector.GetAngle(pnt);
-        if ((a < -M_PI_2) || (a > M_PI_2))
+        if ((a < -std::numbers::pi/2) || (a > std::numbers::pi/2))
             offset *= -1.0;
 
         std::string Datum = doc->getUniqueObjectName("DatumPlane");
@@ -391,7 +391,7 @@ void relinkToBody (PartDesign::Feature *feature) {
     PartDesign::Body *body = PartDesign::Body::findBodyOf ( feature );
 
     if (!body) {
-        throw Base::RuntimeError ("Couldn't find body for the feature");
+        throw Base::RuntimeError ("Could not find a body for the feature");
     }
 
     for ( const auto & obj: doc->getObjects () ) {
@@ -502,7 +502,7 @@ bool isFeatureMovable(App::DocumentObject* const feat)
             }
         }
 
-        if (auto prop = dynamic_cast<App::PropertyLinkSub*>(prim->getPropertyByName("AuxillerySpine"))) {
+        if (auto prop = dynamic_cast<App::PropertyLinkSub*>(prim->getPropertyByName("AuxiliarySpine"))) {
             App::DocumentObject* auxSpine = prop->getValue();
             if (auxSpine && !isFeatureMovable(auxSpine)) {
                 return false;
@@ -514,7 +514,7 @@ bool isFeatureMovable(App::DocumentObject* const feat)
     if (feat->hasExtension(Part::AttachExtension::getExtensionClassTypeId())) {
         auto attachable = feat->getExtensionByType<Part::AttachExtension>();
         App::DocumentObject* support = attachable->AttachmentSupport.getValue();
-        if (support && !support->isDerivedFrom<App::OriginFeature>()) {
+        if (support && !support->isDerivedFrom<App::DatumElement>()) {
             return false;
         }
     }
@@ -545,19 +545,19 @@ std::vector<App::DocumentObject*> collectMovableDependencies(std::vector<App::Do
             }
             if (auto prop = dynamic_cast<App::PropertyLinkSub*>(prim->getPropertyByName("ReferenceAxis"))) {
                 App::DocumentObject* axis = prop->getValue();
-                if (axis && !axis->isDerivedFrom<App::OriginFeature>()){
+                if (axis && !axis->isDerivedFrom<App::DatumElement>()){
                     unique_objs.insert(axis);
                 }
             }
             if (auto prop = dynamic_cast<App::PropertyLinkSub*>(prim->getPropertyByName("Spine"))) {
                 App::DocumentObject* axis = prop->getValue();
-                if (axis && !axis->isDerivedFrom<App::OriginFeature>()){
+                if (axis && !axis->isDerivedFrom<App::DatumElement>()){
                     unique_objs.insert(axis);
                 }
             }
-            if (auto prop = dynamic_cast<App::PropertyLinkSub*>(prim->getPropertyByName("AuxillerySpine"))) {
+            if (auto prop = dynamic_cast<App::PropertyLinkSub*>(prim->getPropertyByName("AuxiliarySpine"))) {
                 App::DocumentObject* axis = prop->getValue();
-                if (axis && !axis->isDerivedFrom<App::OriginFeature>()){
+                if (axis && !axis->isDerivedFrom<App::DatumElement>()){
                     unique_objs.insert(axis);
                 }
             }
@@ -576,9 +576,9 @@ void relinkToOrigin(App::DocumentObject* feat, PartDesign::Body* targetbody)
     if (feat->hasExtension(Part::AttachExtension::getExtensionClassTypeId())) {
         auto attachable = feat->getExtensionByType<Part::AttachExtension>();
         App::DocumentObject* support = attachable->AttachmentSupport.getValue();
-        if (support && support->isDerivedFrom<App::OriginFeature>()) {
-            auto originfeat = static_cast<App::OriginFeature*>(support);
-            App::OriginFeature* targetOriginFeature = targetbody->getOrigin()->getOriginFeature(originfeat->Role.getValue());
+        if (support && support->isDerivedFrom<App::DatumElement>()) {
+            auto originfeat = static_cast<App::DatumElement*>(support);
+            App::DatumElement* targetOriginFeature = targetbody->getOrigin()->getDatumElement(originfeat->Role.getValue());
             if (targetOriginFeature) {
                 attachable->AttachmentSupport.setValue(static_cast<App::DocumentObject*>(targetOriginFeature), "");
             }
@@ -588,9 +588,9 @@ void relinkToOrigin(App::DocumentObject* feat, PartDesign::Body* targetbody)
         auto prim = static_cast<PartDesign::ProfileBased*>(feat);
         if (auto prop = static_cast<App::PropertyLinkSub*>(prim->getPropertyByName("ReferenceAxis"))) {
             App::DocumentObject* axis = prop->getValue();
-            if (axis && axis->isDerivedFrom<App::OriginFeature>()){
-                auto originfeat = static_cast<App::OriginFeature*>(axis);
-                App::OriginFeature* targetOriginFeature = targetbody->getOrigin()->getOriginFeature(originfeat->Role.getValue());
+            if (axis && axis->isDerivedFrom<App::DatumElement>()){
+                auto originfeat = static_cast<App::DatumElement*>(axis);
+                App::DatumElement* targetOriginFeature = targetbody->getOrigin()->getDatumElement(originfeat->Role.getValue());
                 if (targetOriginFeature) {
                     prop->setValue(static_cast<App::DocumentObject*>(targetOriginFeature), std::vector<std::string>(0));
                 }

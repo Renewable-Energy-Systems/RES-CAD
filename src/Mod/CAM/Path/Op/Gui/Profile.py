@@ -77,6 +77,8 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
         if obj.Direction != str(self.form.direction.currentData()):
             obj.Direction = str(self.form.direction.currentData())
         PathGuiUtil.updateInputField(obj, "OffsetExtra", self.form.extraOffset)
+        obj.NumPasses = self.form.numPasses.value()
+        PathGuiUtil.updateInputField(obj, "Stepover", self.form.stepover)
 
         if obj.UseComp != self.form.useCompensation.isChecked():
             obj.UseComp = self.form.useCompensation.isChecked()
@@ -98,9 +100,11 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
         self.selectInComboBox(obj.Side, self.form.cutSide)
         self.selectInComboBox(obj.Direction, self.form.direction)
         self.form.extraOffset.setText(
-            FreeCAD.Units.Quantity(
-                obj.OffsetExtra.Value, FreeCAD.Units.Length
-            ).UserString
+            FreeCAD.Units.Quantity(obj.OffsetExtra.Value, FreeCAD.Units.Length).UserString
+        )
+        self.form.numPasses.setValue(obj.NumPasses)
+        self.form.stepover.setText(
+            FreeCAD.Units.Quantity(obj.Stepover.Value, FreeCAD.Units.Length).UserString
         )
 
         self.form.useCompensation.setChecked(obj.UseComp)
@@ -119,11 +123,20 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
         signals.append(self.form.cutSide.currentIndexChanged)
         signals.append(self.form.direction.currentIndexChanged)
         signals.append(self.form.extraOffset.editingFinished)
-        signals.append(self.form.useCompensation.stateChanged)
-        signals.append(self.form.useStartPoint.stateChanged)
-        signals.append(self.form.processHoles.stateChanged)
-        signals.append(self.form.processPerimeter.stateChanged)
-        signals.append(self.form.processCircles.stateChanged)
+        signals.append(self.form.numPasses.editingFinished)
+        signals.append(self.form.stepover.editingFinished)
+        if hasattr(self.form.useCompensation, "checkStateChanged"):  # Qt version >= 6.7.0
+            signals.append(self.form.useCompensation.checkStateChanged)
+            signals.append(self.form.useStartPoint.checkStateChanged)
+            signals.append(self.form.processHoles.checkStateChanged)
+            signals.append(self.form.processPerimeter.checkStateChanged)
+            signals.append(self.form.processCircles.checkStateChanged)
+        else:  # Qt version < 6.7.0
+            signals.append(self.form.useCompensation.stateChanged)
+            signals.append(self.form.useStartPoint.stateChanged)
+            signals.append(self.form.processHoles.stateChanged)
+            signals.append(self.form.processPerimeter.stateChanged)
+            signals.append(self.form.processCircles.stateChanged)
 
         return signals
 
@@ -135,7 +148,7 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
             objBase = self.obj.Base
 
         if objBase.__len__() > 0:
-            for (base, subsList) in objBase:
+            for base, subsList in objBase:
                 for sub in subsList:
                     if sub[:4] == "Face":
                         hasFace = True
@@ -150,8 +163,14 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
             self.form.processHoles.hide()
             self.form.processPerimeter.hide()
 
+        self.form.stepover.setEnabled(self.obj.NumPasses > 1)
+
     def registerSignalHandlers(self, obj):
-        self.form.useCompensation.stateChanged.connect(self.updateVisibility)
+        if hasattr(self.form.useCompensation, "checkStateChanged"):  # Qt version >= 6.7.0
+            self.form.useCompensation.checkStateChanged.connect(self.updateVisibility)
+        else:  # Qt version < 6.7.0
+            self.form.useCompensation.stateChanged.connect(self.updateVisibility)
+        self.form.numPasses.editingFinished.connect(self.updateVisibility)
 
 
 # Eclass
@@ -163,9 +182,7 @@ Command = PathOpGui.SetupOperation(
     TaskPanelOpPage,
     "CAM_Profile",
     QT_TRANSLATE_NOOP("CAM_Profile", "Profile"),
-    QT_TRANSLATE_NOOP(
-        "CAM_Profile", "Profile entire model, selected face(s) or selected edge(s)"
-    ),
+    QT_TRANSLATE_NOOP("CAM_Profile", "Profile entire model, selected face(s) or selected edge(s)"),
     PathProfile.SetupProperties,
 )
 

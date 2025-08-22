@@ -31,6 +31,7 @@
 
 #include "ViewProviderPrimitive.h"
 #include "TaskDatumParameters.h"
+#include "TaskFeatureParameters.h"
 
 namespace App {
 class Property;
@@ -101,19 +102,29 @@ private:
     /** Notifies when the object is about to be removed. */
     void slotDeletedObject(const Gui::ViewProviderDocumentObject& Obj) override;
 
+    template<typename T = App::DocumentObject> T* getObject() const
+    {
+        static_assert(std::is_base_of<App::DocumentObject, T>::value, "Wrong template argument");
+        if (vp) {
+            return vp->getObject<T>();
+        }
+
+        return nullptr;
+    }
+
 private:
     QWidget* proxy;
     std::unique_ptr<Ui_DlgPrimitives> ui;
     ViewProviderPrimitive* vp;
 };
 
-class TaskPrimitiveParameters : public Gui::TaskView::TaskDialog
+class TaskDlgPrimitiveParameters : public TaskDlgFeatureParameters
 {
     Q_OBJECT
 
 public:
-    explicit TaskPrimitiveParameters(ViewProviderPrimitive *PrimitiveView);
-    ~TaskPrimitiveParameters() override;
+    explicit TaskDlgPrimitiveParameters(ViewProviderPrimitive *PrimitiveView);
+    ~TaskDlgPrimitiveParameters() override;
 
 protected:
     QDialogButtonBox::StandardButtons getStandardButtons() const override;

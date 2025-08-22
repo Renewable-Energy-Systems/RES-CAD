@@ -325,41 +325,7 @@ int TopoShapeFacePy::PyInit(PyObject* args, PyObject* /*kwd*/)
     PyErr_Clear();
     if (PyArg_ParseTuple(args, "Os", &pcPyShapeOrList, &className)) {
         try {
-#ifdef FC_USE_TNP_FIX
             getTopoShapePtr()->makeElementFace(getPyShapes(pcPyShapeOrList),0,className);
-#else
-            std::unique_ptr<FaceMaker> fm = Part::FaceMaker::ConstructFromType(className);
-
-            //dump all supplied shapes to facemaker, no matter what type (let facemaker decide).
-            if (PySequence_Check(pcPyShapeOrList)){
-                Py::Sequence list(pcPyShapeOrList);
-                for (Py::Sequence::iterator it = list.begin(); it != list.end(); ++it) {
-                    PyObject* item = (*it).ptr();
-                    if (PyObject_TypeCheck(item, &(Part::TopoShapePy::Type))) {
-                        const TopoDS_Shape& sh = static_cast<Part::TopoShapePy*>(item)->getTopoShapePtr()->getShape();
-                        fm->addShape(sh);
-                    } else {
-                        PyErr_SetString(PyExc_TypeError, "Object is not a shape.");
-                        return -1;
-                    }
-                }
-            } else if (PyObject_TypeCheck(pcPyShapeOrList, &(Part::TopoShapePy::Type))) {
-                const TopoDS_Shape& sh = static_cast<Part::TopoShapePy*>(pcPyShapeOrList)->getTopoShapePtr()->getShape();
-                if (sh.IsNull())
-                    throw NullShapeException("Shape is null!");
-                if (sh.ShapeType() == TopAbs_COMPOUND)
-                    fm->useCompound(TopoDS::Compound(sh));
-                else
-                    fm->addShape(sh);
-            } else {
-                PyErr_SetString(PyExc_TypeError, "First argument is neither a shape nor list of shapes.");
-                return -1;
-            }
-
-            fm->Build();
-
-            getTopoShapePtr()->setShape(fm->Face());
-#endif
             return 0;
         } catch (Base::Exception &e) {
             e.setPyException();
@@ -423,27 +389,10 @@ PyObject* TopoShapeFacePy::addWire(PyObject *args)
     Py_Return;
 }
 
-PyObject* TopoShapeFacePy::makeOffset(PyObject *args)
+PyObject* TopoShapeFacePy::makeOffset(PyObject *args) const
 {
-#ifdef FC_USE_TNP_FIX
     Py::Dict dict;
     return TopoShapePy::makeOffset2D(args, dict.ptr());
-#else
-    double dist;
-    if (!PyArg_ParseTuple(args, "d",&dist))
-        return nullptr;
-    auto f = getTopoDSFace(this);
-    BRepBuilderAPI_FindPlane findPlane(f);
-    if (!findPlane.Found()) {
-        PyErr_SetString(PartExceptionOCCError, "No planar face");
-        return nullptr;
-    }
-
-    BRepOffsetAPI_MakeOffset mkOffset(f);
-    mkOffset.Perform(dist);
-
-    return new TopoShapePy(new TopoShape(mkOffset.Shape()));
-#endif
 }
 
 /*
@@ -453,66 +402,12 @@ profile = Part.makePolygon([v(0.,0.,0.), v(-60.,-60.,-100.), v(-60.,-60.,-140.)]
 spine = Part.Face(Part.makePolygon([v(0.,0.,0.), v(100.,0.,0.), v(100.,100.,0.), v(0.,100.,0.), v(0.,0.,0.)]))
 evolve = spine.makeEvolved(Profile=profile, Join=PartEnums.JoinType.Arc)
 */
-PyObject* TopoShapeFacePy::makeEvolved(PyObject *args, PyObject *kwds)
+PyObject* TopoShapeFacePy::makeEvolved(PyObject *args, PyObject *kwds) const
 {
-#ifdef FC_USE_TNP_FIX
     return TopoShapePy::makeEvolved(args, kwds);
-#else
-    PyObject* Profile;
-    PyObject* AxeProf = Py_True;
-    PyObject* Solid = Py_False;
-    PyObject* ProfOnSpine = Py_False;
-    int JoinType = int(GeomAbs_Arc);
-    double Tolerance = 0.0000001;
-
-    static const std::array<const char *, 7> kwds_evolve{"Profile", "Join", "AxeProf", "Solid", "ProfOnSpine",
-                                                         "Tolerance", nullptr};
-    if (!Base::Wrapped_ParseTupleAndKeywords(args, kwds, "O!|iO!O!O!d", kwds_evolve,
-                                             &TopoShapeWirePy::Type, &Profile, &JoinType,
-                                             &PyBool_Type, &AxeProf, &PyBool_Type, &Solid,
-                                             &PyBool_Type, &ProfOnSpine, &Tolerance)) {
-        return nullptr;
-    }
-
-    const TopoDS_Face& spine = TopoDS::Face(getTopoShapePtr()->getShape());
-    BRepBuilderAPI_FindPlane findPlane(spine);
-    if (!findPlane.Found()) {
-        PyErr_SetString(PartExceptionOCCError, "No planar face");
-        return nullptr;
-    }
-
-    const TopoDS_Wire& profile = TopoDS::Wire(static_cast<TopoShapeWirePy*>(Profile)->getTopoShapePtr()->getShape());
-
-    GeomAbs_JoinType joinType;
-    switch (JoinType) {
-    case GeomAbs_Tangent:
-        joinType = GeomAbs_Tangent;
-        break;
-    case GeomAbs_Intersection:
-        joinType = GeomAbs_Intersection;
-        break;
-    default:
-        joinType = GeomAbs_Arc;
-        break;
-    }
-
-    try {
-        BRepOffsetAPI_MakeEvolved evolved(spine, profile, joinType,
-                                          Base::asBoolean(AxeProf),
-                                          Base::asBoolean(Solid),
-                                          Base::asBoolean(ProfOnSpine),
-                                          Tolerance);
-        TopoDS_Shape shape = evolved.Shape();
-        return Py::new_reference_to(shape2pyshape(shape));
-    }
-    catch (Standard_Failure& e) {
-        PyErr_SetString(PartExceptionOCCError, e.GetMessageString());
-        return nullptr;
-    }
-#endif
 }
 
-PyObject* TopoShapeFacePy::valueAt(PyObject *args)
+PyObject* TopoShapeFacePy::valueAt(PyObject *args) const
 {
     double u,v;
     if (!PyArg_ParseTuple(args, "dd",&u,&v))
@@ -526,7 +421,7 @@ PyObject* TopoShapeFacePy::valueAt(PyObject *args)
     return new Base::VectorPy(new Base::Vector3d(V.X(),V.Y(),V.Z()));
 }
 
-PyObject* TopoShapeFacePy::normalAt(PyObject *args)
+PyObject* TopoShapeFacePy::normalAt(PyObject *args) const
 {
     double u,v;
     if (!PyArg_ParseTuple(args, "dd",&u,&v))
@@ -546,7 +441,7 @@ PyObject* TopoShapeFacePy::normalAt(PyObject *args)
     return new Base::VectorPy(new Base::Vector3d(dir.X(),dir.Y(),dir.Z()));
 }
 
-PyObject* TopoShapeFacePy::getUVNodes(PyObject *args)
+PyObject* TopoShapeFacePy::getUVNodes(PyObject *args) const
 {
     if (!PyArg_ParseTuple(args, ""))
         return nullptr;
@@ -586,7 +481,7 @@ PyObject* TopoShapeFacePy::getUVNodes(PyObject *args)
     return Py::new_reference_to(list);
 }
 
-PyObject* TopoShapeFacePy::tangentAt(PyObject *args)
+PyObject* TopoShapeFacePy::tangentAt(PyObject *args) const
 {
     double u,v;
     if (!PyArg_ParseTuple(args, "dd",&u,&v))
@@ -618,7 +513,7 @@ PyObject* TopoShapeFacePy::tangentAt(PyObject *args)
     return Py::new_reference_to(tuple);
 }
 
-PyObject* TopoShapeFacePy::curvatureAt(PyObject *args)
+PyObject* TopoShapeFacePy::curvatureAt(PyObject *args) const
 {
     double u,v;
     if (!PyArg_ParseTuple(args, "dd",&u,&v))
@@ -641,7 +536,7 @@ PyObject* TopoShapeFacePy::curvatureAt(PyObject *args)
     return Py::new_reference_to(tuple);
 }
 
-PyObject* TopoShapeFacePy::derivative1At(PyObject *args)
+PyObject* TopoShapeFacePy::derivative1At(PyObject *args) const
 {
     double u,v;
     if (!PyArg_ParseTuple(args, "dd",&u,&v))
@@ -665,7 +560,7 @@ PyObject* TopoShapeFacePy::derivative1At(PyObject *args)
     }
 }
 
-PyObject* TopoShapeFacePy::derivative2At(PyObject *args)
+PyObject* TopoShapeFacePy::derivative2At(PyObject *args) const
 {
     double u,v;
     if (!PyArg_ParseTuple(args, "dd",&u,&v))
@@ -689,7 +584,7 @@ PyObject* TopoShapeFacePy::derivative2At(PyObject *args)
     }
 }
 
-PyObject* TopoShapeFacePy::isPartOfDomain(PyObject *args)
+PyObject* TopoShapeFacePy::isPartOfDomain(PyObject *args) const
 {
     double u,v;
     if (!PyArg_ParseTuple(args, "dd",&u,&v))
@@ -715,7 +610,7 @@ PyObject* TopoShapeFacePy::isPartOfDomain(PyObject *args)
     }
 }
 
-PyObject* TopoShapeFacePy::makeHalfSpace(PyObject *args)
+PyObject* TopoShapeFacePy::makeHalfSpace(PyObject *args) const
 {
     PyObject* pPnt;
     if (!PyArg_ParseTuple(args, "O!",&(Base::VectorPy::Type),&pPnt))
@@ -783,7 +678,7 @@ PyObject* TopoShapeFacePy::validate(PyObject *args)
     }
 }
 
-PyObject* TopoShapeFacePy::countNodes(PyObject *args)
+PyObject* TopoShapeFacePy::countNodes(PyObject *args) const
 {
     if (!PyArg_ParseTuple(args, ""))
         return nullptr;
@@ -800,7 +695,7 @@ PyObject* TopoShapeFacePy::countNodes(PyObject *args)
     return Py::new_reference_to(Py::Long(count));
 }
 
-PyObject* TopoShapeFacePy::countTriangles(PyObject *args)
+PyObject* TopoShapeFacePy::countTriangles(PyObject *args) const
 {
     if (!PyArg_ParseTuple(args, ""))
         return nullptr;
@@ -817,7 +712,7 @@ PyObject* TopoShapeFacePy::countTriangles(PyObject *args)
     return Py::new_reference_to(Py::Long(count));
 }
 
-PyObject* TopoShapeFacePy::curveOnSurface(PyObject *args)
+PyObject* TopoShapeFacePy::curveOnSurface(PyObject *args) const
 {
     PyObject* e;
     if (!PyArg_ParseTuple(args, "O!", &(TopoShapeEdgePy::Type), &e))
@@ -911,7 +806,6 @@ PyObject* TopoShapeFacePy::cutHoles(PyObject *args)
     PyErr_SetString(PyExc_RuntimeError, "invalid list of wires");
     return nullptr;
 }
-
 
 Py::Object TopoShapeFacePy::getSurface() const
 {
@@ -1079,7 +973,7 @@ Py::Object TopoShapeFacePy::getWire() const
         Py::Object sys_out(PySys_GetObject("stdout"));
         Py::Callable write(sys_out.getAttr("write"));
         Py::Tuple arg(1);
-        arg.setItem(0, Py::String("Warning: Wire is deprecated, please use OuterWire\n"));
+        arg.setItem(0, Py::String("Warning: Wire is deprecated, use OuterWire\n"));
         write.apply(arg);
     }
     catch (const Py::Exception&) {

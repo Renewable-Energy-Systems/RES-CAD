@@ -28,6 +28,7 @@
 #include <Mod/Mesh/MeshGlobal.h>
 #endif
 #include <algorithm>
+#include <limits>
 #include <list>
 #include <set>
 #include <vector>
@@ -133,19 +134,19 @@ public:
     /**
      * Add point for the fit algorithm.
      */
-    void AddPoint(const Base::Vector3f& rcVector);
+    void AddPoint(const Base::Vector3f& point);
     /**
      * Add points for the fit algorithm.
      */
-    void AddPoints(const std::vector<Base::Vector3f>& rvPointVect);
+    void AddPoints(const std::vector<Base::Vector3f>& points);
     /**
      * Add points for the fit algorithm.
      */
-    void AddPoints(const std::set<Base::Vector3f>& rsPointSet);
+    void AddPoints(const std::set<Base::Vector3f>& points);
     /**
      * Add points for the fit algorithm.
      */
-    void AddPoints(const std::list<Base::Vector3f>& rsPointList);
+    void AddPoints(const std::list<Base::Vector3f>& points);
     /**
      * Add points for the fit algorithm.
      */
@@ -201,7 +202,8 @@ protected:
     // NOLINTBEGIN
     std::list<Base::Vector3f> _vPoints; /**< Holds the points for the fit algorithm.  */
     bool _bIsFitted {false};            /**< Flag, whether the fit has been called. */
-    float _fLastResult {FLOAT_MAX};     /**< Stores the last result of the fit */
+    float _fLastResult {
+        std::numeric_limits<float>::max()}; /**< Stores the last result of the fit */
     // NOLINTEND
 };
 

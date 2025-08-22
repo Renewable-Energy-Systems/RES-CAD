@@ -25,6 +25,7 @@
 
 #ifndef _PreComp_
 #include <QMessageBox>
+#include <limits>
 #endif
 
 #include <Gui/Command.h>
@@ -68,8 +69,7 @@ TaskFemConstraintPulley::TaskFemConstraintPulley(ViewProviderFemConstraintPulley
     ui->spinTensionForce->blockSignals(true);
 
     // Get the feature data
-    Fem::ConstraintPulley* pcConstraint =
-        static_cast<Fem::ConstraintPulley*>(ConstraintView->getObject());
+    Fem::ConstraintPulley* pcConstraint = ConstraintView->getObject<Fem::ConstraintPulley>();
     double otherdia = pcConstraint->OtherDiameter.getValue();
     double centerdist = pcConstraint->CenterDistance.getValue();
     bool isdriven = pcConstraint->IsDriven.getValue();
@@ -77,15 +77,15 @@ TaskFemConstraintPulley::TaskFemConstraintPulley(ViewProviderFemConstraintPulley
 
     // Fill data into dialog elements
     ui->spinOtherDiameter->setMinimum(0);
-    ui->spinOtherDiameter->setMaximum(FLOAT_MAX);
+    ui->spinOtherDiameter->setMaximum(std::numeric_limits<float>::max());
     ui->spinOtherDiameter->setValue(otherdia);
     ui->spinCenterDistance->setMinimum(0);
-    ui->spinCenterDistance->setMaximum(FLOAT_MAX);
+    ui->spinCenterDistance->setMaximum(std::numeric_limits<float>::max());
     ui->spinCenterDistance->setValue(centerdist);
     ui->checkIsDriven->setChecked(isdriven);
-    ui->spinForce->setMinimum(-FLOAT_MAX);
+    ui->spinForce->setMinimum(-std::numeric_limits<float>::max());
     ui->spinTensionForce->setMinimum(0);
-    ui->spinTensionForce->setMaximum(FLOAT_MAX);
+    ui->spinTensionForce->setMaximum(std::numeric_limits<float>::max());
     ui->spinTensionForce->setValue(tensionforce);
 
     // Adjust ui
@@ -110,29 +110,25 @@ TaskFemConstraintPulley::TaskFemConstraintPulley(ViewProviderFemConstraintPulley
 
 void TaskFemConstraintPulley::onOtherDiameterChanged(double l)
 {
-    Fem::ConstraintPulley* pcConstraint =
-        static_cast<Fem::ConstraintPulley*>(ConstraintView->getObject());
+    Fem::ConstraintPulley* pcConstraint = ConstraintView->getObject<Fem::ConstraintPulley>();
     pcConstraint->OtherDiameter.setValue(l);
 }
 
 void TaskFemConstraintPulley::onCenterDistanceChanged(double l)
 {
-    Fem::ConstraintPulley* pcConstraint =
-        static_cast<Fem::ConstraintPulley*>(ConstraintView->getObject());
+    Fem::ConstraintPulley* pcConstraint = ConstraintView->getObject<Fem::ConstraintPulley>();
     pcConstraint->CenterDistance.setValue(l);
 }
 
 void TaskFemConstraintPulley::onTensionForceChanged(double force)
 {
-    Fem::ConstraintPulley* pcConstraint =
-        static_cast<Fem::ConstraintPulley*>(ConstraintView->getObject());
+    Fem::ConstraintPulley* pcConstraint = ConstraintView->getObject<Fem::ConstraintPulley>();
     pcConstraint->TensionForce.setValue(force);
 }
 
 void TaskFemConstraintPulley::onCheckIsDriven(const bool pressed)
 {
-    Fem::ConstraintPulley* pcConstraint =
-        static_cast<Fem::ConstraintPulley*>(ConstraintView->getObject());
+    Fem::ConstraintPulley* pcConstraint = ConstraintView->getObject<Fem::ConstraintPulley>();
     pcConstraint->IsDriven.setValue(pressed);
 }
 
@@ -193,21 +189,6 @@ TaskDlgFemConstraintPulley::TaskDlgFemConstraintPulley(
 }
 
 //==== calls from the TaskView ===============================================================
-
-void TaskDlgFemConstraintPulley::open()
-{
-    // a transaction is already open at creation time of the panel
-    if (!Gui::Command::hasPendingCommand()) {
-        QString msg = QObject::tr("Constraint pulley");
-        Gui::Command::openCommand((const char*)msg.toUtf8());
-        ConstraintView->setVisible(true);
-        Gui::Command::doCommand(
-            Gui::Command::Doc,
-            ViewProviderFemConstraint::gethideMeshShowPartStr(
-                (static_cast<Fem::Constraint*>(ConstraintView->getObject()))->getNameInDocument())
-                .c_str());  // OvG: Hide meshes and show parts
-    }
-}
 
 bool TaskDlgFemConstraintPulley::accept()
 {

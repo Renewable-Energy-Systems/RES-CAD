@@ -24,14 +24,17 @@
 #ifndef PARTDESIGN_FeatureAdditive_H
 #define PARTDESIGN_FeatureAdditive_H
 
-#include "Feature.h"
+#include "FeatureRefine.h"
+
+#include <QtCore>
 
 /// Base class of all additive features in PartDesign
 namespace PartDesign
 {
 
-class PartDesignExport FeatureAddSub : public PartDesign::Feature
+class PartDesignExport FeatureAddSub : public PartDesign::FeatureRefine
 {
+    Q_DECLARE_TR_FUNCTIONS(PartDesign::FeatureAddSub)
     PROPERTY_HEADER_WITH_OVERRIDE(PartDesign::FeatureAddSub);
 
 public:
@@ -42,21 +45,20 @@ public:
 
     FeatureAddSub();
 
+    void onChanged(const App::Property *) override;
     Type getAddSubType();
 
     short mustExecute() const override;
 
     virtual void getAddSubShape(Part::TopoShape &addShape, Part::TopoShape &subShape);
 
+    void updatePreviewShape() override;
+
     Part::PropertyPartShape   AddSubShape;
-    App::PropertyBool Refine;
+
 
 protected:
     Type addSubType{Additive};
-
-    // TODO: Toponaming April 2024 Deprecated in favor of TopoShape method.  Remove when possible.
-    TopoDS_Shape refineShapeIfActive(const TopoDS_Shape&) const;
-    TopoShape refineShapeIfActive(const TopoShape&) const;
 };
 
 using FeatureAddSubPython = App::FeaturePythonT<FeatureAddSub>;

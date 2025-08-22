@@ -1,47 +1,30 @@
-#***************************************************************************
-#*   Copyright (c) 2018 Yorik van Havre <yorik@uncreated.net>              *
-#*                                                                         *
-#*   This program is free software; you can redistribute it and/or modify  *
-#*   it under the terms of the GNU Lesser General Public License (LGPL)    *
-#*   as published by the Free Software Foundation; either version 2 of     *
-#*   the License, or (at your option) any later version.                   *
-#*   for detail see the LICENCE text file.                                 *
-#*                                                                         *
-#*   This program is distributed in the hope that it will be useful,       *
-#*   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
-#*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
-#*   GNU Library General Public License for more details.                  *
-#*                                                                         *
-#*   You should have received a copy of the GNU Library General Public     *
-#*   License along with this program; if not, write to the Free Software   *
-#*   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  *
-#*   USA                                                                   *
-#*                                                                         *
-#***************************************************************************
+# SPDX-License-Identifier: LGPL-2.1-or-later
+
+# ***************************************************************************
+# *                                                                         *
+# *   Copyright (c) 2018 Yorik van Havre <yorik@uncreated.net>              *
+# *                                                                         *
+# *   This file is part of FreeCAD.                                         *
+# *                                                                         *
+# *   FreeCAD is free software: you can redistribute it and/or modify it    *
+# *   under the terms of the GNU Lesser General Public License as           *
+# *   published by the Free Software Foundation, either version 2.1 of the  *
+# *   License, or (at your option) any later version.                       *
+# *                                                                         *
+# *   FreeCAD is distributed in the hope that it will be useful, but        *
+# *   WITHOUT ANY WARRANTY; without even the implied warranty of            *
+# *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU      *
+# *   Lesser General Public License for more details.                       *
+# *                                                                         *
+# *   You should have received a copy of the GNU Lesser General Public      *
+# *   License along with FreeCAD. If not, see                               *
+# *   <https://www.gnu.org/licenses/>.                                      *
+# *                                                                         *
+# ***************************************************************************
 
 __title__  = "FreeCAD Arch External Reference"
 __author__ = "Yorik van Havre"
 __url__    = "https://www.freecad.org"
-
-
-import FreeCAD
-import os
-import zipfile
-import re
-from draftutils import params
-
-if FreeCAD.GuiUp:
-    import FreeCADGui
-    from PySide import QtCore, QtGui
-    from draftutils.translate import translate
-    from PySide.QtCore import QT_TRANSLATE_NOOP
-else:
-    # \cond
-    def translate(ctxt,txt):
-        return txt
-    def QT_TRANSLATE_NOOP(ctxt,txt):
-        return txt
-    # \endcond
 
 ## @package ArchReference
 #  \ingroup ARCH
@@ -51,6 +34,27 @@ else:
 #  References can take a shape from a Part-based object in
 #  another file.
 
+import os
+import re
+import zipfile
+
+import FreeCAD
+
+from draftutils import params
+
+if FreeCAD.GuiUp:
+    from PySide import QtCore, QtGui
+    from PySide.QtCore import QT_TRANSLATE_NOOP
+    import FreeCADGui
+    from draftutils.translate import translate
+else:
+    # \cond
+    def translate(ctxt,txt):
+        return txt
+    def QT_TRANSLATE_NOOP(ctxt,txt):
+        return txt
+    # \endcond
+
 
 class ArchReference:
 
@@ -59,8 +63,8 @@ class ArchReference:
     def __init__(self, obj):
 
         obj.Proxy = self
-        ArchReference.setProperties(self, obj)
         self.Type = "Reference"
+        ArchReference.setProperties(self, obj)
         self.reload = True
 
 
@@ -69,13 +73,13 @@ class ArchReference:
         pl = obj.PropertiesList
         if not "File" in pl:
             t = QT_TRANSLATE_NOOP("App::Property","The base file this component is built upon")
-            obj.addProperty("App::PropertyFile","File","Reference",t)
+            obj.addProperty("App::PropertyFile","File","Reference",t, locked=True)
         if not "Part" in pl:
             t = QT_TRANSLATE_NOOP("App::Property","The part to use from the base file")
-            obj.addProperty("App::PropertyString","Part","Reference",t)
+            obj.addProperty("App::PropertyString","Part","Reference",t, locked=True)
         if not "ReferenceMode" in pl:
             t = QT_TRANSLATE_NOOP("App::Property","The way the referenced objects are included in the current document. 'Normal' includes the shape, 'Transient' discards the shape when the object is switched off (smaller filesize), 'Lightweight' does not import the shape but only the OpenInventor representation")
-            obj.addProperty("App::PropertyEnumeration","ReferenceMode","Reference",t)
+            obj.addProperty("App::PropertyEnumeration","ReferenceMode","Reference",t, locked=True)
             obj.ReferenceMode = ["Normal","Transient","Lightweight"]
             if "TransientReference" in pl:
                 if obj.TransientReference:
@@ -85,8 +89,7 @@ class ArchReference:
                 FreeCAD.Console.PrintMessage(translate("Arch","Upgrading")+" "+obj.Label+" "+t+"\n")
         if not "FuseArch" in pl:
             t = QT_TRANSLATE_NOOP("App::Property","Fuse objects of same material")
-            obj.addProperty("App::PropertyBool","FuseArch", "Reference", t)
-        self.Type = "Reference"
+            obj.addProperty("App::PropertyBool","FuseArch", "Reference", t, locked=True)
 
 
     def onDocumentRestored(self, obj):
@@ -105,7 +108,7 @@ class ArchReference:
 
     def loads(self, state):
 
-        return None
+        self.Type = "Reference"
 
 
     def onChanged(self, obj, prop):
@@ -390,28 +393,28 @@ class ArchReference:
             for line in docf:
                 line = line.decode("utf8")
                 if "<Object name=" in line:
-                    n = re.findall('name=\"(.*?)\"',line)
+                    n = re.findall(r'name=\"(.*?)\"',line)
                     if n:
                         name = n[0]
                 elif "<Property name=\"Label\"" in line:
                     writemode = True
                 elif writemode and "<String value=" in line:
-                    n = re.findall('value=\"(.*?)\"',line)
+                    n = re.findall(r'value=\"(.*?)\"',line)
                     if n:
                         label = n[0]
                         writemode = False
                 elif "<Property name=\"Shape\" type=\"Part::PropertyPartShape\"" in line:
                     writemode = True
-                elif writemode and "<Part file=" in line:
-                    n = re.findall('file=\"(.*?)\"',line)
+                elif writemode and "<Part" in line and "file=" in line:
+                    n = re.findall(r'file=\"(.*?)\"',line)
                     if n:
                         part = n[0]
                         writemode = False
                 elif "<Property name=\"MaterialsTable\" type=\"App::PropertyMap\"" in line:
                     writemode = True
                 elif writemode and "<Item key=" in line:
-                    n = re.findall('key=\"(.*?)\"',line)
-                    v = re.findall('value=\"(.*?)\"',line)
+                    n = re.findall(r'key=\"(.*?)\"',line)
+                    v = re.findall(r'value=\"(.*?)\"',line)
                     if n and v:
                         materials[n[0]] = v[0]
                 elif writemode and "</Map>" in line:
@@ -469,7 +472,7 @@ class ArchReference:
                         writemode1 = False
                         writemode2 = True
                     elif writemode2 and ("<ColorList file=" in line):
-                        n = re.findall('file=\"(.*?)\"',line)
+                        n = re.findall(r'file=\"(.*?)\"',line)
                         if n:
                             colorfile = n[0]
                             break
@@ -522,11 +525,11 @@ class ViewProviderArchReference:
         pl = vobj.PropertiesList
         if not "TimeStamp" in pl:
             t = QT_TRANSLATE_NOOP("App::Property","The latest time stamp of the linked file")
-            vobj.addProperty("App::PropertyFloat","TimeStamp","Reference",t)
+            vobj.addProperty("App::PropertyFloat","TimeStamp","Reference",t, locked=True)
             vobj.setEditorMode("TimeStamp",2)
         if not "UpdateColors" in pl:
             t = QT_TRANSLATE_NOOP("App::Property","If true, the colors from the linked file will be kept updated")
-            vobj.addProperty("App::PropertyBool","UpdateColors","Reference",t)
+            vobj.addProperty("App::PropertyBool","UpdateColors","Reference",t, locked=True)
             vobj.UpdateColors = True
 
 
@@ -564,8 +567,8 @@ class ViewProviderArchReference:
                     colors = obj.Proxy.getColors(obj)
                     if colors:
                         obj.ViewObject.DiffuseColor = colors
-                    from DraftGui import todo
-                    todo.delay(self.recolorize,obj.ViewObject)
+                    from draftutils import todo
+                    todo.ToDo.delay(self.recolorize,obj.ViewObject)
 
 
     def recolorize(self,vobj):
@@ -642,12 +645,15 @@ class ViewProviderArchReference:
             return None
 
         FreeCADGui.Control.closeDialog()
-        from DraftGui import todo
-        todo.delay(vobj.Proxy.recolorize,vobj)
+        from draftutils import todo
+        todo.ToDo.delay(vobj.Proxy.recolorize,vobj)
         return True
 
 
     def setupContextMenu(self, vobj, menu):
+
+        if FreeCADGui.activeWorkbench().name() != 'BIMWorkbench':
+            return
 
         actionEdit = QtGui.QAction(translate("Arch", "Edit"),
                                    menu)
@@ -808,7 +814,7 @@ class ViewProviderArchReference:
                     writemode1 = False
                     writemode2 = True
                 elif writemode2 and ("<FileIncluded file=" in line):
-                    n = re.findall('file=\"(.*?)\"',line)
+                    n = re.findall(r'file=\"(.*?)\"',line)
                     if n:
                         ivfile = n[0]
                         break
@@ -877,7 +883,7 @@ class ArchReferenceTaskPanel:
         if self.obj.File:
             self.fileButton.setText(os.path.basename(self.obj.File))
         else:
-            self.fileButton.setText(translate("Arch","Choose file..."))
+            self.fileButton.setText(translate("Arch","Choose File"))
         self.partCombo = QtGui.QComboBox(self.form)
         self.partCombo.setEnabled(False)
         layout.addWidget(self.partCombo)
@@ -970,6 +976,3 @@ class ArchReferenceTaskPanel:
                 FreeCAD.loadFile(self.obj.File)
             FreeCADGui.Control.closeDialog()
             FreeCADGui.ActiveDocument.resetEdit()
-
-
-

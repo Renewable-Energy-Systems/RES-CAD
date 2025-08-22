@@ -54,59 +54,38 @@ App::DocumentObjectExecReturn *Fillet::execute()
 #if defined(__GNUC__) && defined (FC_OS_LINUX)
         Base::SignalException se;
 #endif
-        auto baseShape = Feature::getShape(link);
-        TopoShape baseTopoShape = Feature::getTopoShape(link);
+    TopoShape baseTopoShape = Feature::getTopoShape(link, ShapeOption::ResolveLink | ShapeOption::Transform);
+        auto baseShape = baseTopoShape.getShape();
         BRepFilletAPI_MakeFillet mkFillet(baseShape);
         TopTools_IndexedMapOfShape mapOfShape;
         TopExp::MapShapes(baseShape, TopAbs_EDGE, mapOfShape);
         TopTools_IndexedMapOfShape mapOfEdges;
         TopExp::MapShapes(baseShape, TopAbs_EDGE, mapOfEdges);
-#ifndef FC_USE_TNP_FIX
+        std::vector<Part::FilletElement> edges = Edges.getValues();
+        std::string fullErrMsg;
 
-        std::vector<FilletElement> values = Edges.getValues();
-        for (const auto & value : values) {
-            int id = value.edgeid;
-            double radius1 = value.radius1;
-            double radius2 = value.radius2;
-            const TopoDS_Edge& edge = TopoDS::Edge(mapOfShape.FindKey(id));
-            mkFillet.Add(radius1, radius2, edge);
-        }
-
-        TopoDS_Shape shape = mkFillet.Shape();
-        if (shape.IsNull())
-            return new App::DocumentObjectExecReturn("Resulting shape is null");
-
-        //shapefix re #4285
-        //https://www.forum.freecad.org/viewtopic.php?f=3&t=43890&sid=dae2fa6fda71670863a103b42739e47f
-        TopoShape* ts = new TopoShape(shape);
-        double minTol = 2.0 * Precision::Confusion();
-        double maxTol = 4.0 * Precision::Confusion();
-        bool rc = ts->fix(Precision::Confusion(), minTol, maxTol);
-        if (rc) {
-            shape = ts->getShape();
-        }
-        delete ts;
-
-        ShapeHistory history = buildHistory(mkFillet, TopAbs_FACE, shape, baseShape);
-        this->Shape.setValue(shape);
-
-        // make sure the 'PropertyShapeHistory' is not safed in undo/redo (#0001889)
-        PropertyShapeHistory prop;
-        prop.setValue(history);
-        prop.setContainer(this);
-        prop.touch();
-
-        return App::DocumentObject::StdReturn;
-#else
-        const auto &vals = EdgeLinks.getSubValues();
+        const auto &vals = EdgeLinks.getSubValues(true);
         const auto &subs = EdgeLinks.getShadowSubs();
         if(subs.size()!=(size_t)Edges.getSize())
             return new App::DocumentObjectExecReturn("Edge link size mismatch");
         size_t i=0;
-        for(const auto &info : Edges.getValues()) {
+        for(const auto &info : edges) {
             auto &sub = subs[i];
-            auto &ref = sub.first.size()?sub.first:vals[i];
+            auto &ref = sub.newName.empty() ? vals[i] : sub.newName;
+            auto &oldName = sub.oldName.empty() ? "" : sub.oldName;
             ++i;
+
+            if (Data::hasMissingElement(ref.c_str()) || Data::hasMissingElement(oldName.c_str())) {
+                fullErrMsg.append("Missing edge link: ");
+                fullErrMsg.append(ref);
+                fullErrMsg.append("\n");
+
+                auto removeIt = std::remove(edges.begin(), edges.end(), info);
+                edges.erase(removeIt, edges.end());
+
+                continue;
+            }
+
             // Toponaming project March 2024:  Replaced this code because it wouldn't work:
 //            TopoDS_Shape edge;
 //            try {
@@ -114,21 +93,27 @@ App::DocumentObjectExecReturn *Fillet::execute()
 //            }catch(...){}
             auto id = Data::MappedName(ref.c_str()).toIndexedName().getIndex();
             const TopoDS_Edge& edge = TopoDS::Edge(mapOfEdges.FindKey(id));
+
             if(edge.IsNull())
-                return new App::DocumentObjectExecReturn("Invalid edge link");
+                return new App::DocumentObjectExecReturn("Invalid edge link");                
+
             double radius1 = info.radius1;
             double radius2 = info.radius2;
             mkFillet.Add(radius1, radius2, TopoDS::Edge(edge));
         }
+
+        if (!fullErrMsg.empty()) {
+            return new App::DocumentObjectExecReturn(fullErrMsg);
+        }
+        Edges.setValues(edges);
 
         TopoDS_Shape shape = mkFillet.Shape();
         if (shape.IsNull())
             return new App::DocumentObjectExecReturn("Resulting shape is null");
 
         TopoShape res(0);
-        this->Shape.setValue(res.makeElementShape(mkFillet,baseTopoShape,Part::OpCodes::Fillet));
-        return Part::Feature::execute();
-#endif
+        this->Shape.setValue(res.makeElementShape(mkFillet, baseTopoShape, Part::OpCodes::Fillet));
+        return Part::FilletBase::execute();
     }
     catch (Standard_Failure& e) {
         return new App::DocumentObjectExecReturn(e.GetMessageString());

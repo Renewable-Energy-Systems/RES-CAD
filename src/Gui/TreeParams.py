@@ -63,11 +63,11 @@ Params = [
     ParamInt('Indentation', 0, on_change=True),
     ParamBool('LabelExpression', False),
     ParamInt('IconSize', 0, on_change=True),
-    ParamInt('FontSize', 0, on_change=True),
+    ParamInt('FontSize', 0, on_change=True, title='Font size', proxy=ParamSpinBox(0, 100, 1, suffix=" pt")),
     ParamInt('ItemSpacing', 0, on_change=True),
     ParamHex('ItemBackground', 0, on_change=True, title='Item background color', proxy=ParamColor(),
         doc = "Tree view item background. Only effective in overlay."),
-    ParamInt('ItemBackgroundPadding', 0, on_change=True, title="Item background padding", proxy=ParamSpinBox(0, 100, 1),
+    ParamInt('ItemBackgroundPadding', 0, on_change=True, title="Item background padding", proxy=ParamSpinBox(0, 100, 1, suffix=" px"),
         doc = "Tree view item background padding."),
     ParamBool('HideColumn', True, on_change=True, title="Hide Description",
         doc = "Hide extra tree view column for item description."),
@@ -84,7 +84,7 @@ Params = [
     ParamInt('ColumnSize3', 0),
     ParamBool('TreeToolTipIcon', False, title='Show icon in tool tip'),
     ParamBool('VisibilityIcon', True, on_change=True, title='Show visibility icon',
-        doc = "If enabled, show an eye icon before the tree view items, showing the items visibility status. When clicked the visibility is toggled"),
+        doc = "Displays an eye icon in front of the tree view items, showing the items visibility status. When clicked the visibility is toggled"),
 ]
 
 def declare_begin():

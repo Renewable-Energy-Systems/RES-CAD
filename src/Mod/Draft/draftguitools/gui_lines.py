@@ -51,9 +51,9 @@ from draftutils.translate import translate
 class Line(gui_base_original.Creator):
     """Gui command for the Line tool."""
 
-    def __init__(self, wiremode=False):
+    def __init__(self, mode="line"):
         super().__init__()
-        self.isWire = wiremode
+        self.mode = mode
 
     def GetResources(self):
         """Set icon, menu and tooltip."""
@@ -61,7 +61,7 @@ class Line(gui_base_original.Creator):
         return {'Pixmap': 'Draft_Line',
                 'Accel': "L,I",
                 'MenuText': QT_TRANSLATE_NOOP("Draft_Line", "Line"),
-                'ToolTip': QT_TRANSLATE_NOOP("Draft_Line", "Creates a 2-point line. CTRL to snap, SHIFT to constrain.")}
+                'ToolTip': QT_TRANSLATE_NOOP("Draft_Line", "Creates a 2-point line")}
 
     def Activated(self, name=QT_TRANSLATE_NOOP("draft", "Line"), icon="Draft_Line", task_title=None):
         """Execute when the command is called."""
@@ -70,8 +70,12 @@ class Line(gui_base_original.Creator):
             title = translate("draft", name)
         else:
             title = task_title
-        if self.isWire:
+        if self.mode == "wire":
             self.ui.wireUi(title=title, icon=icon)
+        elif self.mode == "leader":
+            self.ui.wireUi(title=title, icon=icon)
+            self.ui.closeButton.hide()
+            self.ui.makeFace.hide()
         else:
             self.ui.lineUi(title=title, icon=icon)
 
@@ -120,7 +124,7 @@ class Line(gui_base_original.Creator):
                 self.pos = arg["Position"]
                 self.node.append(self.point)
                 self.drawSegment(self.point)
-                if not self.isWire and len(self.node) == 2:
+                if self.mode == "line" and len(self.node) == 2:
                     self.finish(cont=None, closed=False)
                 if len(self.node) > 2:
                     # The wire is closed
@@ -236,7 +240,7 @@ class Line(gui_base_original.Creator):
             newseg = Part.LineSegment(last, point).toShape()
             self.obj.Shape = newseg
             self.obj.ViewObject.Visibility = True
-            if self.isWire:
+            if self.mode != "line":
                 _toolmsg(translate("draft", "Pick next point"))
         else:
             currentshape = self.obj.Shape.copy()
@@ -279,7 +283,7 @@ class Line(gui_base_original.Creator):
         self.point = App.Vector(numx, numy, numz)
         self.node.append(self.point)
         self.drawSegment(self.point)
-        if not self.isWire and len(self.node) == 2:
+        if self.mode == "line" and len(self.node) == 2:
             self.finish(cont=None, closed=False)
         self.ui.setNextFocus()
 
@@ -291,12 +295,12 @@ class Wire(Line):
     """Gui command for the Wire or Polyline tool.
 
     It inherits the `Line` class, and calls essentially the same code,
-    only this time the `wiremode` is set to `True`,
+    only this time the `mode` is set to `"wire"`,
     so we are allowed to place more than two points.
     """
 
     def __init__(self):
-        super().__init__(wiremode=True)
+        super().__init__(mode="wire")
 
     def GetResources(self):
         """Set icon, menu and tooltip."""
@@ -304,7 +308,7 @@ class Wire(Line):
         return {'Pixmap': 'Draft_Wire',
                 'Accel': "P, L",
                 'MenuText': QT_TRANSLATE_NOOP("Draft_Wire", "Polyline"),
-                'ToolTip': QT_TRANSLATE_NOOP("Draft_Wire", "Creates a multiple-points line (polyline). CTRL to snap, SHIFT to constrain.")}
+                'ToolTip': QT_TRANSLATE_NOOP("Draft_Wire", "Creates a polyline")}
 
     def Activated(self):
         """Execute when the command is called."""
@@ -326,8 +330,8 @@ class Wire(Line):
                     w = Part.Wire(Part.__sortEdges__(edges))
                 except Exception:
                     _err(translate("draft",
-                                   "Unable to create a Wire "
-                                   "from selected objects"))
+                                   "Unable to create a wire "
+                                   "from the selected objects"))
                 else:
                     # Points of the new fused Wire in string form
                     # 'FreeCAD.Vector(x,y,z), FreeCAD.Vector(x1,y1,z1), ...'

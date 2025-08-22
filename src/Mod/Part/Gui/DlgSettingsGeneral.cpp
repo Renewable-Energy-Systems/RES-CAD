@@ -30,6 +30,7 @@
 #endif
 
 #include <Mod/Part/App/Interface.h>
+#include <Mod/Part/App/FuzzyHelper.h>
 #include <Mod/Part/App/IGES/ImportExportSettings.h>
 #include <Mod/Part/App/OCAF/ImportExportSettings.h>
 #include <Mod/Part/App/STEP/ImportExportSettings.h>
@@ -61,6 +62,10 @@ void DlgSettingsGeneral::saveSettings()
     ui->checkSketchBaseRefine->onSave();
     ui->checkObjectNaming->onSave();
     ui->checkAllowCompoundBody->onSave();
+    ui->comboDefaultProfileTypeForHole->onSave();
+    ui->checkShowFinalPreview->onSave();
+    ui->checkShowTransparentPreview->onSave();
+    ui->checkSwitchToTask->onSave();
 }
 
 void DlgSettingsGeneral::loadSettings()
@@ -70,6 +75,10 @@ void DlgSettingsGeneral::loadSettings()
     ui->checkSketchBaseRefine->onRestore();
     ui->checkObjectNaming->onRestore();
     ui->checkAllowCompoundBody->onRestore();
+    ui->comboDefaultProfileTypeForHole->onRestore();
+    ui->checkShowFinalPreview->onRestore();
+    ui->checkShowTransparentPreview->onRestore();
+    ui->checkSwitchToTask->onRestore();
 }
 
 /**
@@ -98,7 +107,7 @@ DlgImportExportIges::DlgImportExportIges(QWidget* parent)
     bg->addButton(ui->radioButtonBRepOn, 1);
 
     QRegularExpression rx;
-    rx.setPattern(QString::fromLatin1("[\\x00-\\x7F]+"));
+    rx.setPattern(QStringLiteral("[\\x00-\\x7F]+"));
     QRegularExpressionValidator* companyValidator = new QRegularExpressionValidator(ui->lineEditCompany);
     companyValidator->setRegularExpression(rx);
     ui->lineEditCompany->setValidator(companyValidator);

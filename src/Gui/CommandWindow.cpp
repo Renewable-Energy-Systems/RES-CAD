@@ -34,7 +34,7 @@
 #include "MainWindow.h"
 #include "View.h"
 #include "Document.h"
-#include "DlgActivateWindowImp.h"
+#include "Dialogs/DlgActivateWindowImp.h"
 #include "DockWindowManager.h"
 #include "ToolBarManager.h"
 
@@ -54,9 +54,9 @@ StdCmdTileWindows::StdCmdTileWindows()
 {
     sGroup        = "Window";
     sMenuText     = QT_TR_NOOP("&Tile");
-    sToolTipText  = QT_TR_NOOP("Tile the windows");
+    sToolTipText  = QT_TR_NOOP("Tiles the windows");
     sWhatsThis    = "Std_TileWindows";
-    sStatusTip    = QT_TR_NOOP("Tile the windows");
+    sStatusTip    = sToolTipText;
     sPixmap       = "Std_WindowTileVer";
     eType         = 0;
 }
@@ -82,9 +82,9 @@ StdCmdCascadeWindows::StdCmdCascadeWindows()
 {
     sGroup        = "Window";
     sMenuText     = QT_TR_NOOP("&Cascade");
-    sToolTipText  = QT_TR_NOOP("Tile pragmatic");
+    sToolTipText  = QT_TR_NOOP("Tiles pragmatic");
     sWhatsThis    = "Std_CascadeWindows";
-    sStatusTip    = QT_TR_NOOP("Tile pragmatic");
+    sStatusTip    = sToolTipText;
     sPixmap       = "Std_WindowCascade";
     eType         = 0;
 }
@@ -109,10 +109,10 @@ StdCmdCloseActiveWindow::StdCmdCloseActiveWindow()
   : Command("Std_CloseActiveWindow")
 {
     sGroup        = "Window";
-    sMenuText     = QT_TR_NOOP("Cl&ose");
-    sToolTipText  = QT_TR_NOOP("Close active window");
+    sMenuText     = QT_TR_NOOP("&Close");
+    sToolTipText  = QT_TR_NOOP("Closes the active window");
     sWhatsThis    = "Std_CloseActiveWindow";
-    sStatusTip    = QT_TR_NOOP("Close active window");
+    sStatusTip    = sToolTipText;
     // In QMdiSubWindow the 'QKeySequence::Close' shortcut is set which will
     // collide with this shortcut. Thus the shortcut of QMdiSubWindow will be
     // reset in MainWindow::addWindow() (#0002631)
@@ -141,10 +141,10 @@ StdCmdCloseAllWindows::StdCmdCloseAllWindows()
   : Command("Std_CloseAllWindows")
 {
     sGroup        = "Window";
-    sMenuText     = QT_TR_NOOP("Close Al&l");
-    sToolTipText  = QT_TR_NOOP("Close all windows");
+    sMenuText     = QT_TR_NOOP("Close A&ll");
+    sToolTipText  = QT_TR_NOOP("Closes all windows");
     sWhatsThis    = "Std_CloseAllWindows";
-    sStatusTip    = QT_TR_NOOP("Close all windows");
+    sStatusTip    = sToolTipText;
     sPixmap       = "Std_CloseAllWindows";
     eType         = NoTransaction;
 }
@@ -169,10 +169,10 @@ StdCmdActivateNextWindow::StdCmdActivateNextWindow()
   : Command("Std_ActivateNextWindow")
 {
     sGroup        = "Window";
-    sMenuText     = QT_TR_NOOP("Ne&xt");
-    sToolTipText  = QT_TR_NOOP("Activate next window");
+    sMenuText     = QT_TR_NOOP("&Next");
+    sToolTipText  = QT_TR_NOOP("Activates the next window");
     sWhatsThis    = "Std_ActivateNextWindow";
-    sStatusTip    = QT_TR_NOOP("Activate next window");
+    sStatusTip    = sToolTipText;
     sPixmap       = "Std_WindowNext";
     sAccel        = keySequenceToAccel(QKeySequence::NextChild);
     eType         = 0;
@@ -198,10 +198,10 @@ StdCmdActivatePrevWindow::StdCmdActivatePrevWindow()
   : Command("Std_ActivatePrevWindow")
 {
     sGroup        = "Window";
-    sMenuText     = QT_TR_NOOP("Pre&vious");
-    sToolTipText  = QT_TR_NOOP("Activate previous window");
+    sMenuText     = QT_TR_NOOP("&Previous");
+    sToolTipText  = QT_TR_NOOP("Switches to the previously active window");
     sWhatsThis    = "Std_ActivatePrevWindow";
-    sStatusTip    = QT_TR_NOOP("Activate previous window");
+    sStatusTip    = sToolTipText;
     sPixmap       = "Std_WindowPrev";
     // Depending on the OS 'QKeySequence::PreviousChild' gives
     // Ctrl+Shift+Backtab instead of Ctrl+Shift+Tab which leads
@@ -232,10 +232,11 @@ StdCmdWindows::StdCmdWindows()
   : Command("Std_Windows")
 {
     sGroup        = "Window";
-    sMenuText     = QT_TR_NOOP("&Windows...");
-    sToolTipText  = QT_TR_NOOP("Windows list");
+    sMenuText     = QT_TR_NOOP("Choose Open &Window");
+
+    sToolTipText  = QT_TR_NOOP("Displays the open windows");
     sWhatsThis    = "Std_Windows";
-    sStatusTip    = QT_TR_NOOP("Windows list");
+    sStatusTip    = sToolTipText;
     sPixmap       = "Std_Windows";
     eType         = 0;
 }
@@ -256,10 +257,10 @@ StdCmdUserInterface::StdCmdUserInterface()
   : Command("Std_UserInterface")
 {
     sGroup        = "View";
-    sMenuText     = QT_TR_NOOP("Dock views");
-    sToolTipText  = QT_TR_NOOP("Dock all top-level views");
+    sMenuText     = QT_TR_NOOP("Dock Views");
+    sToolTipText  = QT_TR_NOOP("Docks all top-level views");
     sWhatsThis    = "Std_UserInterface";
-    sStatusTip    = QT_TR_NOOP("Dock all top-level views");
+    sStatusTip    = sToolTipText;
     eType         = 0;
 }
 
@@ -278,10 +279,10 @@ StdCmdDockViewMenu::StdCmdDockViewMenu()
   : Command("Std_DockViewMenu")
 {
     sGroup        = "View";
-    sMenuText     = QT_TR_NOOP("Panels");
-    sToolTipText  = QT_TR_NOOP("List of available dock panels");
+    sMenuText     = QT_TR_NOOP("&Panels");
+    sToolTipText  = QT_TR_NOOP("Lists available dock panels");
     sWhatsThis    = "Std_DockViewMenu";
-    sStatusTip    = QT_TR_NOOP("List of available dock panels");
+    sStatusTip    = sToolTipText;
     eType         = 0;
 }
 
@@ -314,10 +315,10 @@ StdCmdToolBarMenu::StdCmdToolBarMenu()
   : Command("Std_ToolBarMenu")
 {
     sGroup        = "View";
-    sMenuText     = QT_TR_NOOP("Tool&bars");
+    sMenuText     = QT_TR_NOOP("&Toolbars");
     sToolTipText  = QT_TR_NOOP("Toggles this window");
     sWhatsThis    = "Std_ToolBarMenu";
-    sStatusTip    = QT_TR_NOOP("Toggles this window");
+    sStatusTip    = sToolTipText;
     eType         = 0;
 }
 
@@ -349,10 +350,10 @@ StdCmdToggleToolBarLock::StdCmdToggleToolBarLock()
   :Command("Std_ToggleToolBarLock")
 {
     sGroup        = "Tools";
-    sMenuText     = QT_TR_NOOP("Lock toolbars");
-    sToolTipText  = QT_TR_NOOP("Locks toolbar so they are no longer moveable");
+    sMenuText     = QT_TR_NOOP("Lock Toolbars");
+    sToolTipText  = QT_TR_NOOP("Locks toolbars so they are no longer moveable");
     sWhatsThis    = "Std_ToggleToolBarLock";
-    sStatusTip    = QT_TR_NOOP("Locks toolbar so they are no longer moveable");
+    sStatusTip    = sToolTipText;
     eType         = 0;
 }
 
@@ -362,7 +363,7 @@ Action* StdCmdToggleToolBarLock::createAction()
     Action* action = Command::createAction();
 
     action->setCheckable(true);
-    action->setChecked(ToolBarManager::getInstance()->areToolBarsLocked(), true);
+    action->setBlockedChecked(ToolBarManager::getInstance()->areToolBarsLocked());
 
     return action;
 }
@@ -409,10 +410,10 @@ StdCmdStatusBar::StdCmdStatusBar()
   : Command("Std_ViewStatusBar")
 {
     sGroup        = "View";
-    sMenuText     = QT_TR_NOOP("Status bar");
+    sMenuText     = QT_TR_NOOP("Status Bar");
     sToolTipText  = QT_TR_NOOP("Toggles the status bar");
     sWhatsThis    = "Std_ViewStatusBar";
-    sStatusTip    = QT_TR_NOOP("Toggles the status bar");
+    sStatusTip    = sToolTipText;
     eType         = 0;
 }
 
@@ -420,7 +421,7 @@ Action * StdCmdStatusBar::createAction()
 {
     Action *pcAction = Command::createAction();
     pcAction->setCheckable(true);
-    pcAction->setChecked(false, true);
+    pcAction->setBlockedChecked(false);
     auto fsb = new FilterStatusBar(pcAction);
     getMainWindow()->statusBar()->installEventFilter(fsb);
 
@@ -455,10 +456,10 @@ StdCmdWindowsMenu::StdCmdWindowsMenu()
   : Command("Std_WindowsMenu")
 {
     sGroup        = "Window";
-    sMenuText     = QT_TR_NOOP("Activate window"); // Replaced with the name of the window
+    sMenuText     = QT_TR_NOOP("Activate Window"); // Replaced with the name of the window
     sToolTipText  = QT_TR_NOOP("Activates this window");
     sWhatsThis    = "Std_WindowsMenu";
-    sStatusTip    = QT_TR_NOOP("Activates this window");
+    sStatusTip    = sToolTipText;
     eType         = 0;
 }
 
@@ -475,7 +476,7 @@ bool StdCmdWindowsMenu::isActive()
 
 Action * StdCmdWindowsMenu::createAction()
 {
-    // Allow to show 10 menu items in the 'Window' menu and one separator.
+    // Allow one to show 10 menu items in the 'Window' menu and one separator.
     // If we have more windows then the user can use the 'Windows...' item.
     WindowAction *pcAction;
     pcAction = new WindowAction(this, getMainWindow());

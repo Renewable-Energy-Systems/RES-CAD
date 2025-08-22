@@ -163,9 +163,7 @@ class TaskPanel(object):
 
         markers = []
         self.form.bones.clear()
-        for item in sorted(
-            itemList, key=lambda item: item.data(self.DataState).boneIDs()[0]
-        ):
+        for item in sorted(itemList, key=lambda item: item.data(self.DataState).boneIDs()[0]):
             self.form.bones.addItem(item)
             state = item.data(self.DataState)
             loc = state.boneTip()
@@ -208,9 +206,7 @@ class TaskPanel(object):
     def setFields(self):
         self.setupCombo(self.form.styleCombo, self.obj.Style, DogboneII.Style.All)
         self.setupCombo(self.form.sideCombo, self.obj.Side, DogboneII.Side.All)
-        self.setupCombo(
-            self.form.incisionCombo, self.obj.Incision, DogboneII.Incision.All
-        )
+        self.setupCombo(self.form.incisionCombo, self.obj.Incision, DogboneII.Incision.All)
         self.form.custom.setMinimum(0.0)
         self.form.custom.setDecimals(3)
         self.form.custom.setValue(self.obj.Custom)
@@ -251,9 +247,7 @@ class SelObserver(object):
         PST.clear()
 
     def addSelection(self, doc, obj, sub, pnt):
-        FreeCADGui.doCommand(
-            "Gui.Selection.addSelection(FreeCAD.ActiveDocument." + obj + ")"
-        )
+        FreeCADGui.doCommand("Gui.Selection.addSelection(FreeCAD.ActiveDocument." + obj + ")")
         FreeCADGui.updateGui()
 
 
@@ -309,7 +303,7 @@ class ViewProviderDressup(object):
 
 def Create(base, name="DressupDogbone"):
     """
-    Create(obj, name='DressupDogbone') ... dresses the given Path.Op.Profile object with dogbones.
+    Create(obj, name='DressupDogbone')… dresses the given Path.Op.Profile object with dogbones.
     """
     obj = DogboneII.Create(base, name)
     job = PathUtils.findParentJob(base)
@@ -329,7 +323,7 @@ class CommandDressupDogboneII(object):
             "MenuText": QT_TRANSLATE_NOOP("CAM_DressupDogbone", "Dogbone"),
             "ToolTip": QT_TRANSLATE_NOOP(
                 "CAM_DressupDogbone",
-                "Creates a Dogbone Dress-up object from a selected toolpath",
+                "Creates a dogbone dress-up object from a selected toolpath",
             ),
         }
 
@@ -346,14 +340,13 @@ class CommandDressupDogboneII(object):
         selection = FreeCADGui.Selection.getSelection()
         if len(selection) != 1:
             FreeCAD.Console.PrintError(
-                translate("CAM_DressupDogbone", "Please select one toolpath object") + "\n"
+                translate("CAM_DressupDogbone", "Select one toolpath object") + "\n"
             )
             return
         baseObject = selection[0]
         if not baseObject.isDerivedFrom("Path::Feature"):
             FreeCAD.Console.PrintError(
-                translate("CAM_DressupDogbone", "The selected object is not a toolpath")
-                + "\n"
+                translate("CAM_DressupDogbone", "The selected object is not a toolpath") + "\n"
             )
             return
 
@@ -361,8 +354,7 @@ class CommandDressupDogboneII(object):
         FreeCAD.ActiveDocument.openTransaction("Create Dogbone Dress-up")
         FreeCADGui.addModule("Path.Dressup.Gui.DogboneII")
         FreeCADGui.doCommand(
-            "Path.Dressup.Gui.DogboneII.Create(FreeCAD.ActiveDocument.%s)"
-            % baseObject.Name
+            "Path.Dressup.Gui.DogboneII.Create(FreeCAD.ActiveDocument.%s)" % baseObject.Name
         )
         # FreeCAD.ActiveDocument.commitTransaction()  # Final `commitTransaction()` called via TaskPanel.accept()
         FreeCAD.ActiveDocument.recompute()
@@ -375,4 +367,4 @@ if FreeCAD.GuiUp:
 
     FreeCADGui.addCommand("CAM_DressupDogbone", CommandDressupDogboneII())
 
-FreeCAD.Console.PrintLog("Loading DressupDogboneII ... done\n")
+FreeCAD.Console.PrintLog("Loading DressupDogboneII… done\n")

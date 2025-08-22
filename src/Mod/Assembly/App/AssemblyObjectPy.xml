@@ -13,108 +13,170 @@
       <Author Licence="LGPL" Name="Ondsel" EMail="development@ondsel.com" />
       <UserDocu>This class handles document objects in Assembly</UserDocu>
     </Documentation>
-    <Methode Name="solve">
+    <Methode Name="solve" Const="true">
       <Documentation>
         <UserDocu>
-          Solve the assembly and update part placements.
+Solve the assembly and update part placements.
 
-          solve(enableRedo=False) -> int
+solve(enableRedo=False) -> int
 
-          Args:
-          enableRedo: Whether the solve save the initial position of parts
-          to enable undoing it even without a transaction.
-          Defaults to `False` ie the solve cannot be undone if called
-          outside of a transaction.
+Args:
+enableRedo: Whether the solve save the initial position of parts
+to enable undoing it even without a transaction.
+Defaults to `False` ie the solve cannot be undone if called
+outside of a transaction.
 
-          Returns:
-          0 in case of success, otherwise the following codes in this order of
-          priority:
-          -6 if no parts are fixed.
-          -4 if over-constrained,
-          -3 if conflicting constraints,
-          -5 if malformed constraints
-          -1 if solver error,
-          -2 if redundant constraints.
+Returns:
+0 in case of success, otherwise the following codes in this order of
+priority:
+-6 if no parts are fixed.
+-4 if over-constrained,
+-3 if conflicting constraints,
+-5 if malformed constraints
+-1 if solver error,
+-2 if redundant constraints.
         </UserDocu>
       </Documentation>
     </Methode>
-    <Methode Name="undoSolve">
+    <Methode Name="generateSimulation" Const="true">
       <Documentation>
         <UserDocu>
-          Undo the last solve of the assembly and return part placements to their initial position.
+Generate the simulation.
 
-          undoSolve()
+solve(simulationObject) -> int
 
-          Returns: None
+Args:
+simulationObject: The simulation Object.
+
+Returns:
+0 in case of success, otherwise the following codes in this order of
+priority:
+-6 if no parts are fixed.
+-4 if over-constrained,
+-3 if conflicting constraints,
+-5 if malformed constraints
+-1 if solver error,
+-2 if redundant constraints.
         </UserDocu>
       </Documentation>
     </Methode>
-    <Methode Name="clearUndo">
+    <Methode Name="updateForFrame" Const="true">
       <Documentation>
         <UserDocu>
-          Clear the registered undo positions.
+Update entire assembly to frame number specified.
 
-          clearUndo()
+updateForFrame(index)
 
-          Returns: None
+Args: index of frame.
+
+Returns: None
         </UserDocu>
       </Documentation>
     </Methode>
-    <Methode Name="isPartConnected">
+    <Methode Name="numberOfFrames" Const="true">
       <Documentation>
         <UserDocu>
-          Check if a part is connected to the ground through joints.
+numberOfFrames()
 
-          isPartConnected(obj) -> bool
+Args: None
 
-          Args: document object to check.
-
-          Returns: True if part is connected to ground
+Returns: Number of frames
         </UserDocu>
       </Documentation>
     </Methode>
-    <Methode Name="isJointConnectingPartToGround">
+    <Methode Name="undoSolve" Const="true">
       <Documentation>
         <UserDocu>
-          Check if a joint is connecting a part to the ground.
+Undo the last solve of the assembly and return part placements to their initial position.
 
-          isJointConnectingPartToGround(joint, propName) -> bool
+undoSolve()
 
-          Args:
-          - joint: document object of the joint to check.
-          - propName: string 'Part1' or 'Part2' of the joint.
-
-          Returns: True if part is connected to ground
+Returns: None
         </UserDocu>
       </Documentation>
     </Methode>
-    <Methode Name="isPartGrounded">
+    <Methode Name="ensureIdentityPlacements" Const="true">
       <Documentation>
         <UserDocu>
-          Check if a part has a grounded joint.
+Makes sure that LinkGroups or sub-assemblies have identity placements.
 
-          isPartGrounded(obj) -> bool
+ensureIdentityPlacements()
 
-          Args:
-          - obj: document object of the part to check.
-
-          Returns: True if part has grounded joint
+Returns: None
         </UserDocu>
       </Documentation>
     </Methode>
-    <Methode Name="exportAsASMT">
+    <Methode Name="clearUndo" Const="true">
       <Documentation>
         <UserDocu>
-          Export the assembly in a text format called ASMT.
+Clear the registered undo positions.
 
-          exportAsASMT(fileName:str)
+clearUndo()
 
-          Args:
-          fileName: The name of the file where the ASMT will be exported.
+Returns: None
         </UserDocu>
       </Documentation>
     </Methode>
+    <Methode Name="isPartConnected" Const="true">
+      <Documentation>
+        <UserDocu>
+Check if a part is connected to the ground through joints.
 
+isPartConnected(obj) -> bool
+
+Args: document object to check.
+
+Returns: True if part is connected to ground
+        </UserDocu>
+      </Documentation>
+    </Methode>
+    <Methode Name="isJointConnectingPartToGround" Const="true">
+      <Documentation>
+        <UserDocu>
+Check if a joint is connecting a part to the ground.
+
+isJointConnectingPartToGround(joint, propName) -> bool
+
+Args:
+- joint: document object of the joint to check.
+- propName: string 'Part1' or 'Part2' of the joint.
+
+Returns: True if part is connected to ground
+        </UserDocu>
+      </Documentation>
+    </Methode>
+    <Methode Name="isPartGrounded" Const="true">
+      <Documentation>
+        <UserDocu>
+Check if a part has a grounded joint.
+
+isPartGrounded(obj) -> bool
+
+Args:
+- obj: document object of the part to check.
+
+Returns: True if part has grounded joint
+        </UserDocu>
+      </Documentation>
+    </Methode>
+    <Methode Name="exportAsASMT" Const="true">
+      <Documentation>
+        <UserDocu>
+Export the assembly in a text format called ASMT.
+
+exportAsASMT(fileName:str)
+
+Args:
+fileName: The name of the file where the ASMT will be exported.
+        </UserDocu>
+      </Documentation>
+    </Methode>
+    <Attribute Name="Joints" ReadOnly="true">
+      <Documentation>
+        <UserDocu>A list of all joints this assembly has.</UserDocu>
+      </Documentation>
+      <Parameter Name="Joints" Type="List"/>
+    </Attribute>
     <CustomAttributes />
   </PythonExport>
 </GenerateModel>

@@ -1,9 +1,7 @@
 # -------------------------------- Qt --------------------------------
 
 set(FREECAD_QT_COMPONENTS Core Concurrent Network Xml)
-if (FREECAD_QT_MAJOR_VERSION EQUAL 5)
-    list (APPEND FREECAD_QT_COMPONENTS XmlPatterns)
-elseif (FREECAD_QT_MAJOR_VERSION EQUAL 6)
+if (FREECAD_QT_MAJOR_VERSION EQUAL 6)
     set (Qt6Core_MOC_EXECUTABLE Qt6::moc)
 endif()
 
@@ -15,7 +13,7 @@ if(BUILD_GUI)
     elseif (FREECAD_QT_MAJOR_VERSION EQUAL 6)
         list (APPEND FREECAD_QT_COMPONENTS GuiTools)
         list (APPEND FREECAD_QT_COMPONENTS SvgWidgets)
-        list (APPEND FREECAD_QT_COMPONENTS Core5Compat)
+        list (APPEND FREECAD_QT_COMPONENTS OpenGLWidgets)
     endif()
 
     list (APPEND FREECAD_QT_COMPONENTS OpenGL PrintSupport Svg UiTools Widgets LinguistTools)
@@ -81,6 +79,7 @@ else()
 endif()
 
 configure_file(${CMAKE_SOURCE_DIR}/src/QtCore.h.cmake ${CMAKE_BINARY_DIR}/src/QtCore.h)
+configure_file(${CMAKE_SOURCE_DIR}/src/QtWidgets.h.cmake ${CMAKE_BINARY_DIR}/src/QtWidgets.h)
 
 function(qt_find_and_add_translation _qm_files _tr_dir _qm_dir)
     file(GLOB _ts_files ${_tr_dir})

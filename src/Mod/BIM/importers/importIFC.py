@@ -1,63 +1,64 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+
 # ***************************************************************************
+# *                                                                         *
 # *   Copyright (c) 2014 Yorik van Havre <yorik@uncreated.net>              *
 # *                                                                         *
-# *   This program is free software; you can redistribute it and/or modify  *
-# *   it under the terms of the GNU Lesser General Public License (LGPL)    *
-# *   as published by the Free Software Foundation; either version 2 of     *
-# *   the License, or (at your option) any later version.                   *
-# *   for detail see the LICENCE text file.                                 *
+# *   This file is part of FreeCAD.                                         *
 # *                                                                         *
-# *   This program is distributed in the hope that it will be useful,       *
-# *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
-# *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
-# *   GNU Library General Public License for more details.                  *
+# *   FreeCAD is free software: you can redistribute it and/or modify it    *
+# *   under the terms of the GNU Lesser General Public License as           *
+# *   published by the Free Software Foundation, either version 2.1 of the  *
+# *   License, or (at your option) any later version.                       *
 # *                                                                         *
-# *   You should have received a copy of the GNU Library General Public     *
-# *   License along with this program; if not, write to the Free Software   *
-# *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  *
-# *   USA                                                                   *
+# *   FreeCAD is distributed in the hope that it will be useful, but        *
+# *   WITHOUT ANY WARRANTY; without even the implied warranty of            *
+# *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU      *
+# *   Lesser General Public License for more details.                       *
+# *                                                                         *
+# *   You should have received a copy of the GNU Lesser General Public      *
+# *   License along with FreeCAD. If not, see                               *
+# *   <https://www.gnu.org/licenses/>.                                      *
 # *                                                                         *
 # ***************************************************************************
-"""Provide the importer for IFC files used above all in Arch and BIM.
 
-Internally it uses IfcOpenShell, which must be installed before using.
-"""
+__title__  = "FreeCAD IFC importer - Enhanced IfcOpenShell-only version"
+__author__ = ("Yorik van Havre", "Jonathan Wiedemann", "Bernd Hahnebach")
+__url__    = "https://www.freecad.org"
+
 ## @package importIFC
 #  \ingroup ARCH
 #  \brief IFC file format importer
 #
 #  This module provides tools to import IFC files.
 
+"""Provide the importer for IFC files used above all in Arch and BIM.
+
+Internally it uses IfcOpenShell, which must be installed before using.
+"""
 
 import os
 import math
 import time
 
 import FreeCAD
-import Part
-import Draft
 import Arch
-import DraftVecUtils
 import ArchIFCSchema
-from importers import importIFCHelper
-from importers import importIFCmulticore
+import Draft
+import DraftVecUtils
+import Part
 
 from draftutils import params
 from draftutils.messages import _msg, _err
 
+from importers import importIFCHelper
+from importers import importIFCmulticore
+
 if FreeCAD.GuiUp:
     import FreeCADGui as Gui
 
-__title__  = "FreeCAD IFC importer - Enhanced IfcOpenShell-only version"
-__author__ = ("Yorik van Havre", "Jonathan Wiedemann", "Bernd Hahnebach")
-__url__    = "https://www.freecad.org"
-
 DEBUG = False  # Set to True to see debug messages. Otherwise, totally silent
 ZOOMOUT = True  # Set to False to not zoom extents after import
-
-# Save the Python open function because it will be redefined
-if open.__module__ in ['__builtin__', 'io']:
-    pyopen = open
 
 # Templates and other definitions ****
 # which IFC type must create which FreeCAD type
@@ -233,7 +234,7 @@ def insert(srcfile, docname, skip=[], only=[], root=None, preferences=None):
 
     global parametrics
 
-    # allow to override the root element
+    # allow one to override the root element
     if root:
         preferences['ROOT_ELEMENT'] = root
 
@@ -743,7 +744,7 @@ def insert(srcfile, docname, skip=[], only=[], root=None, preferences=None):
 
         elif (preferences['MERGE_MODE_ARCH'] == 1 and archobj) or (preferences['MERGE_MODE_STRUCT'] == 0 and not archobj):
 
-            # non-parametric Arch objects (just Arch components with a shape)
+            # non-parametric BIM objects (just Arch components with a shape)
 
             if ptype in ["IfcSite","IfcBuilding","IfcBuildingStorey"]:
                 for freecadtype,ifctypes in typesmap.items():
@@ -822,7 +823,7 @@ def insert(srcfile, docname, skip=[], only=[], root=None, preferences=None):
                         # fix property type if needed
 
                         obj.removeProperty("IfcProperties")
-                        obj.addProperty("App::PropertyLink","IfcProperties","Component","Stores IFC properties as a spreadsheet")
+                        obj.addProperty("App::PropertyLink","IfcProperties","Component","Stores IFC properties as a spreadsheet", locked=True)
 
                     ifc_spreadsheet = Arch.makeIfcSpreadsheet()
                     n = 2
@@ -882,7 +883,7 @@ def insert(srcfile, docname, skip=[], only=[], root=None, preferences=None):
                     if hasattr(obj.ViewObject,"ShapeColor"):
                         obj.ViewObject.ShapeColor = tuple(colors[pid][0:3])
                     if hasattr(obj.ViewObject,"Transparency"):
-                        obj.ViewObject.Transparency = colors[pid][3]
+                        obj.ViewObject.Transparency = 1.0 - colors[pid][3]
 
             # if preferences['DEBUG'] is on, recompute after each shape
             if preferences['DEBUG']: doc.recompute()

@@ -1,40 +1,26 @@
-#***************************************************************************
-#*   Copyright (c) 2015 Yorik van Havre <yorik@uncreated.net>              *
-#*                                                                         *
-#*   This program is free software; you can redistribute it and/or modify  *
-#*   it under the terms of the GNU Lesser General Public License (LGPL)    *
-#*   as published by the Free Software Foundation; either version 2 of     *
-#*   the License, or (at your option) any later version.                   *
-#*   for detail see the LICENCE text file.                                 *
-#*                                                                         *
-#*   This program is distributed in the hope that it will be useful,       *
-#*   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
-#*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
-#*   GNU Library General Public License for more details.                  *
-#*                                                                         *
-#*   You should have received a copy of the GNU Library General Public     *
-#*   License along with this program; if not, write to the Free Software   *
-#*   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  *
-#*   USA                                                                   *
-#*                                                                         *
-#***************************************************************************
+# SPDX-License-Identifier: LGPL-2.1-or-later
 
-import FreeCAD
-from draftutils import params
-
-if FreeCAD.GuiUp:
-    import FreeCADGui, os
-    import Arch_rc # Needed for access to icons # lgtm [py/unused_import]
-    from PySide import QtCore, QtGui
-    from draftutils.translate import translate
-    from PySide.QtCore import QT_TRANSLATE_NOOP
-else:
-    # \cond
-    def translate(ctxt,txt):
-        return txt
-    def QT_TRANSLATE_NOOP(ctxt,txt):
-        return txt
-    # \endcond
+# ***************************************************************************
+# *                                                                         *
+# *   Copyright (c) 2015 Yorik van Havre <yorik@uncreated.net>              *
+# *                                                                         *
+# *   This file is part of FreeCAD.                                         *
+# *                                                                         *
+# *   FreeCAD is free software: you can redistribute it and/or modify it    *
+# *   under the terms of the GNU Lesser General Public License as           *
+# *   published by the Free Software Foundation, either version 2.1 of the  *
+# *   License, or (at your option) any later version.                       *
+# *                                                                         *
+# *   FreeCAD is distributed in the hope that it will be useful, but        *
+# *   WITHOUT ANY WARRANTY; without even the implied warranty of            *
+# *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU      *
+# *   Lesser General Public License for more details.                       *
+# *                                                                         *
+# *   You should have received a copy of the GNU Lesser General Public      *
+# *   License along with FreeCAD. If not, see                               *
+# *   <https://www.gnu.org/licenses/>.                                      *
+# *                                                                         *
+# ***************************************************************************
 
 __title__ = "Arch Material Management"
 __author__ = "Yorik van Havre"
@@ -46,6 +32,25 @@ __url__ = "https://www.freecad.org"
 #
 #  This module provides tools to add materials to
 #  Arch objects
+
+import FreeCAD
+
+from draftutils import params
+
+if FreeCAD.GuiUp:
+    import os
+    from PySide import QtCore, QtGui
+    from PySide.QtCore import QT_TRANSLATE_NOOP
+    import FreeCADGui
+    import Arch_rc # Needed for access to icons # lgtm [py/unused_import]
+    from draftutils.translate import translate
+else:
+    # \cond
+    def translate(ctxt,txt):
+        return txt
+    def QT_TRANSLATE_NOOP(ctxt,txt):
+        return txt
+    # \endcond
 
 
 class _ArchMaterialContainer:
@@ -84,19 +89,17 @@ class _ViewProviderArchMaterialContainer:
         self.Object = vobj.Object
 
     def setupContextMenu(self, vobj, menu):
+        if FreeCADGui.activeWorkbench().name() != 'BIMWorkbench':
+            return
         actionMergeByName = QtGui.QAction(QtGui.QIcon(":/icons/Arch_Material_Group.svg"),
                                           translate("Arch", "Merge duplicates"),
                                           menu)
-        QtCore.QObject.connect(actionMergeByName,
-                               QtCore.SIGNAL("triggered()"),
-                               self.mergeByName)
+        actionMergeByName.triggered.connect(self.mergeByName)
         menu.addAction(actionMergeByName)
 
         actionReorder = QtGui.QAction(translate("Arch", "Reorder children alphabetically"),
                                       menu)
-        QtCore.QObject.connect(actionReorder,
-                               QtCore.SIGNAL("triggered()"),
-                               self.reorder)
+        actionReorder.triggered.connect(self.reorder)
         menu.addAction(actionReorder)
 
     def mergeByName(self):
@@ -165,17 +168,17 @@ class _ArchMaterial:
     def setProperties(self,obj):
 
         if not "Description" in obj.PropertiesList:
-            obj.addProperty("App::PropertyString","Description","Material",QT_TRANSLATE_NOOP("App::Property","A description for this material"))
+            obj.addProperty("App::PropertyString","Description","Material",QT_TRANSLATE_NOOP("App::Property","A description for this material"), locked=True)
         if not "StandardCode" in obj.PropertiesList:
-            obj.addProperty("App::PropertyString","StandardCode","Material",QT_TRANSLATE_NOOP("App::Property","A standard code (MasterFormat, OmniClass,...)"))
+            obj.addProperty("App::PropertyString","StandardCode","Material",QT_TRANSLATE_NOOP("App::Property","A standard code (MasterFormat, OmniClass,…)"), locked=True)
         if not "ProductURL" in obj.PropertiesList:
-            obj.addProperty("App::PropertyString","ProductURL","Material",QT_TRANSLATE_NOOP("App::Property","A URL where to find information about this material"))
+            obj.addProperty("App::PropertyString","ProductURL","Material",QT_TRANSLATE_NOOP("App::Property","A URL where to find information about this material"), locked=True)
         if not "Transparency" in obj.PropertiesList:
-            obj.addProperty("App::PropertyPercent","Transparency","Material",QT_TRANSLATE_NOOP("App::Property","The transparency value of this material"))
+            obj.addProperty("App::PropertyPercent","Transparency","Material",QT_TRANSLATE_NOOP("App::Property","The transparency value of this material"), locked=True)
         if not "Color" in obj.PropertiesList:
-            obj.addProperty("App::PropertyColor","Color","Material",QT_TRANSLATE_NOOP("App::Property","The color of this material"))
+            obj.addProperty("App::PropertyColor","Color","Material",QT_TRANSLATE_NOOP("App::Property","The color of this material"), locked=True)
         if not "SectionColor" in obj.PropertiesList:
-            obj.addProperty("App::PropertyColor","SectionColor","Material",QT_TRANSLATE_NOOP("App::Property","The color of this material when cut"))
+            obj.addProperty("App::PropertyColor","SectionColor","Material",QT_TRANSLATE_NOOP("App::Property","The color of this material when cut"), locked=True)
 
     def isSameColor(self,c1,c2):
 
@@ -276,12 +279,18 @@ class _ArchMaterial:
     def execute(self,obj):
         if obj.Material:
             if FreeCAD.GuiUp:
+                c = None
+                t = None
                 if "DiffuseColor" in obj.Material:
-                    c = tuple([float(f) for f in obj.Material['DiffuseColor'].strip("()").strip("[]").split(",")])
-                    for p in obj.InList:
-                        if hasattr(p,"Material") and ( (not hasattr(p.ViewObject,"UseMaterialColor")) or p.ViewObject.UseMaterialColor):
-                            if p.Material.Name == obj.Name:
-                                p.ViewObject.ShapeColor = c
+                    c = tuple([float(f) for f in obj.Material["DiffuseColor"].strip("()").strip("[]").split(",")])
+                if "Transparency" in obj.Material:
+                    t = int(obj.Material["Transparency"])
+                for p in obj.InList:
+                    if hasattr(p,"Material") \
+                            and p.Material.Name == obj.Name \
+                            and getattr(obj.ViewObject,"UseMaterialColor",True):
+                        if c: p.ViewObject.ShapeColor = c
+                        if t: p.ViewObject.Transparency = t
         return
 
     def dumps(self):
@@ -364,11 +373,11 @@ class _ViewProviderArchMaterial:
         return True
 
     def setupContextMenu(self, vobj, menu):
+        if FreeCADGui.activeWorkbench().name() != 'BIMWorkbench':
+            return
         actionEdit = QtGui.QAction(translate("Arch", "Edit"),
                                    menu)
-        QtCore.QObject.connect(actionEdit,
-                               QtCore.SIGNAL("triggered()"),
-                               self.edit)
+        actionEdit.triggered.connect(self.edit)
         menu.addAction(actionEdit)
 
     def edit(self):
@@ -416,23 +425,22 @@ class _ArchMaterialTaskPanel:
         self.form.ButtonColor.setIcon(QtGui.QIcon(colorPix))
         self.form.ButtonSectionColor.setIcon(QtGui.QIcon(colorPix))
         self.form.ButtonUrl.setIcon(QtGui.QIcon(":/icons/internet-web-browser.svg"))
-        QtCore.QObject.connect(self.form.comboBox_MaterialsInDir, QtCore.SIGNAL("currentIndexChanged(QString)"), self.chooseMat)
-        QtCore.QObject.connect(self.form.comboBox_FromExisting, QtCore.SIGNAL("currentIndexChanged(int)"), self.fromExisting)
-        QtCore.QObject.connect(self.form.comboFather, QtCore.SIGNAL("currentIndexChanged(QString)"), self.setFather)
-        QtCore.QObject.connect(self.form.comboFather, QtCore.SIGNAL("currentTextChanged(QString)"), self.setFather)
-        QtCore.QObject.connect(self.form.ButtonColor,QtCore.SIGNAL("pressed()"),self.getColor)
-        QtCore.QObject.connect(self.form.ButtonSectionColor,QtCore.SIGNAL("pressed()"),self.getSectionColor)
-        QtCore.QObject.connect(self.form.ButtonUrl,QtCore.SIGNAL("pressed()"),self.openUrl)
-        QtCore.QObject.connect(self.form.ButtonEditor,QtCore.SIGNAL("pressed()"),self.openEditor)
-        QtCore.QObject.connect(self.form.ButtonCode,QtCore.SIGNAL("pressed()"),self.getCode)
+        self.form.comboBox_MaterialsInDir.currentIndexChanged.connect(self.chooseMat)
+        self.form.comboBox_FromExisting.currentIndexChanged.connect(self.fromExisting)
+        self.form.comboFather.currentTextChanged.connect(self.setFather)
+        self.form.ButtonColor.pressed.connect(self.getColor)
+        self.form.ButtonSectionColor.pressed.connect(self.getSectionColor)
+        self.form.ButtonUrl.pressed.connect(self.openUrl)
+        self.form.ButtonEditor.pressed.connect(self.openEditor)
+        self.form.ButtonCode.pressed.connect(self.getCode)
         self.fillMaterialCombo()
         self.fillExistingCombo()
         try:
-            import BimClassification
+            from bimcommands import BimClassification
         except Exception:
             self.form.ButtonCode.hide()
         else:
-            self.form.ButtonCode.setIcon(QtGui.QIcon(os.path.join(os.path.dirname(BimClassification.__file__),"icons","BIM_Classification.svg")))
+            self.form.ButtonCode.setIcon(QtGui.QIcon(":/icons/BIM_Classification.svg"))
         if self.obj:
             if hasattr(self.obj,"Material"):
                 self.material = self.obj.Material
@@ -522,6 +530,7 @@ class _ArchMaterialTaskPanel:
 
     def chooseMat(self, card):
         "sets self.material from a card"
+        card = self.form.comboBox_MaterialsInDir.currentText()
         if card in self.cards:
             import importFCMat
             self.material = importFCMat.read(self.cards[card])
@@ -536,10 +545,14 @@ class _ArchMaterialTaskPanel:
                     self.material = m.Material
                     self.setFields()
 
-    def setFather(self,text):
+    def setFather(self, text):
         "sets the father"
         if text:
-            if text != "None":
+            if text == "None":
+                if "Father" in self.material:
+                    # for some have Father at first and change to none
+                    self.material.pop("Father")
+            else:
                 self.material["Father"] = text
 
     def getColor(self):
@@ -617,10 +630,10 @@ class _ArchMultiMaterial:
     def __init__(self,obj):
         self.Type = "MultiMaterial"
         obj.Proxy = self
-        obj.addProperty("App::PropertyString","Description","Arch",QT_TRANSLATE_NOOP("App::Property","A description for this material"))
-        obj.addProperty("App::PropertyStringList","Names","Arch",QT_TRANSLATE_NOOP("App::Property","The list of layer names"))
-        obj.addProperty("App::PropertyLinkList","Materials","Arch",QT_TRANSLATE_NOOP("App::Property","The list of layer materials"))
-        obj.addProperty("App::PropertyFloatList","Thicknesses","Arch",QT_TRANSLATE_NOOP("App::Property","The list of layer thicknesses"))
+        obj.addProperty("App::PropertyString","Description","Arch",QT_TRANSLATE_NOOP("App::Property","A description for this material"), locked=True)
+        obj.addProperty("App::PropertyStringList","Names","Arch",QT_TRANSLATE_NOOP("App::Property","The list of layer names"), locked=True)
+        obj.addProperty("App::PropertyLinkList","Materials","Arch",QT_TRANSLATE_NOOP("App::Property","The list of layer materials"), locked=True)
+        obj.addProperty("App::PropertyFloatList","Thicknesses","Arch",QT_TRANSLATE_NOOP("App::Property","The list of layer thicknesses"), locked=True)
 
     def dumps(self):
         if hasattr(self,"Type"):
@@ -662,11 +675,11 @@ class _ViewProviderArchMultiMaterial:
         self.edit()
 
     def setupContextMenu(self, vobj, menu):
+        if FreeCADGui.activeWorkbench().name() != 'BIMWorkbench':
+            return
         actionEdit = QtGui.QAction(translate("Arch", "Edit"),
                                    menu)
-        QtCore.QObject.connect(actionEdit,
-                               QtCore.SIGNAL("triggered()"),
-                               self.edit)
+        actionEdit.triggered.connect(self.edit)
         menu.addAction(actionEdit)
 
     def edit(self):
@@ -748,13 +761,13 @@ class _ArchMultiMaterialTaskPanel:
         self.form.tree.setModel(self.model)
         self.form.tree.setUniformRowHeights(True)
         self.form.tree.setItemDelegate(MultiMaterialDelegate())
-        QtCore.QObject.connect(self.form.chooseCombo, QtCore.SIGNAL("currentIndexChanged(int)"), self.fromExisting)
-        QtCore.QObject.connect(self.form.addButton,QtCore.SIGNAL("pressed()"),self.addLayer)
-        QtCore.QObject.connect(self.form.upButton,QtCore.SIGNAL("pressed()"),self.upLayer)
-        QtCore.QObject.connect(self.form.downButton,QtCore.SIGNAL("pressed()"),self.downLayer)
-        QtCore.QObject.connect(self.form.delButton,QtCore.SIGNAL("pressed()"),self.delLayer)
-        QtCore.QObject.connect(self.form.invertButton,QtCore.SIGNAL("pressed()"),self.invertLayer)
-        QtCore.QObject.connect(self.model,QtCore.SIGNAL("itemChanged(QStandardItem*)"),self.recalcThickness)
+        self.form.chooseCombo.currentIndexChanged.connect(self.fromExisting)
+        self.form.addButton.pressed.connect(self.addLayer)
+        self.form.upButton.pressed.connect(self.upLayer)
+        self.form.downButton.pressed.connect(self.downLayer)
+        self.form.delButton.pressed.connect(self.delLayer)
+        self.form.invertButton.pressed.connect(self.invertLayer)
+        self.model.itemChanged.connect(self.recalcThickness)
         self.fillExistingCombo()
         self.fillData()
 
@@ -893,5 +906,3 @@ class _ArchMultiMaterialTaskPanel:
     def reject(self):
         FreeCADGui.ActiveDocument.resetEdit()
         return True
-
-

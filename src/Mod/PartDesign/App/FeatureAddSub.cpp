@@ -26,30 +26,32 @@
 # include <Standard_Failure.hxx>
 #endif
 
-#include <App/Application.h>
 #include <App/FeaturePythonPyImp.h>
-#include <Base/Parameter.h>
 #include <Mod/Part/App/modelRefine.h>
+#include <Mod/Part/App/TopoShapeOpCode.h>
 
 #include "FeatureAddSub.h"
 #include "FeaturePy.h"
+
+#include <Mod/Part/App/Tools.h>
 
 
 using namespace PartDesign;
 
 namespace PartDesign {
 
+extern bool getPDRefineModelParameter();
 
-PROPERTY_SOURCE(PartDesign::FeatureAddSub, PartDesign::Feature)
+PROPERTY_SOURCE(PartDesign::FeatureAddSub, PartDesign::FeatureRefine)
 
 FeatureAddSub::FeatureAddSub()
 {
-    ADD_PROPERTY(AddSubShape,(TopoDS_Shape()));
-    ADD_PROPERTY_TYPE(Refine,(0),"Part Design",(App::PropertyType)(App::Prop_None),"Refine shape (clean up redundant edges) after adding/subtracting");
-    //init Refine property
-    Base::Reference<ParameterGrp> hGrp = App::GetApplication().GetUserParameter()
-        .GetGroup("BaseApp")->GetGroup("Preferences")->GetGroup("Mod/PartDesign");
-    this->Refine.setValue(hGrp->GetBool("RefineModel", false));
+    ADD_PROPERTY(AddSubShape, (TopoDS_Shape()));
+}
+
+void FeatureAddSub::onChanged(const App::Property* property)
+{
+    Feature::onChanged(property);
 }
 
 FeatureAddSub::Type FeatureAddSub::getAddSubType()
@@ -64,45 +66,52 @@ short FeatureAddSub::mustExecute() const
     return PartDesign::Feature::mustExecute();
 }
 
-// TODO: Toponaming April 2024 Deprecated in favor of TopoShape method.  Remove when possible.
-TopoDS_Shape FeatureAddSub::refineShapeIfActive(const TopoDS_Shape& oldShape) const
+void FeatureAddSub::getAddSubShape(Part::TopoShape& addShape, Part::TopoShape& subShape)
 {
-    if (this->Refine.getValue()) {
-        try {
-            Part::BRepBuilderAPI_RefineModel mkRefine(oldShape);
-            TopoDS_Shape resShape = mkRefine.Shape();
-            if (!TopoShape(resShape).isClosed()) {
-                return oldShape;
-            }
-            return resShape;
-        }
-        catch (Standard_Failure&) {
-            return oldShape;
-        }
-    }
-
-    return oldShape;
-}
-
-TopoShape FeatureAddSub::refineShapeIfActive(const TopoShape& oldShape) const
-{
-    if (this->Refine.getValue()) {
-        TopoShape shape(oldShape);
-        //        this->fixShape(shape);        // Todo:  Not clear that this is required
-        return shape.makeElementRefine();
-    }
-    return oldShape;
-}
-
-void FeatureAddSub::getAddSubShape(Part::TopoShape &addShape, Part::TopoShape &subShape)
-{
-    if (addSubType == Additive)
+    if (addSubType == Additive) {
         addShape = AddSubShape.getShape();
-    else if (addSubType == Subtractive)
+    }
+    else if (addSubType == Subtractive) {
         subShape = AddSubShape.getShape();
+    }
 }
 
+void FeatureAddSub::updatePreviewShape()
+{
+    const auto notifyWarning = [](const QString& message) {
+        Base::Console().translatedUserWarning(
+            "Preview",
+            tr("Failure while computing removed volume preview: %1")
+                .arg(message)
+                .toUtf8());
+    };
+
+    // for subtractive shapes we want to also showcase removed volume, not only the tool
+    if (addSubType == Subtractive) {
+        TopoShape base = getBaseTopoShape(true).moved(getLocation().Inverted());
+
+        if (const TopoShape& addSubShape = AddSubShape.getShape(); !addSubShape.isEmpty()) {
+            try {
+                base.makeElementBoolean(Part::OpCodes::Common, { base, addSubShape });
+            } catch (Standard_Failure& e) {
+                notifyWarning(QString::fromUtf8(e.GetMessageString()));
+            } catch (Base::Exception& e) {
+                notifyWarning(QString::fromStdString(e.getMessage()));
+            }
+
+            if (base.isEmpty()) {
+                notifyWarning(tr("Resulting shape is empty. That may indicate that no material will be removed or a problem with the model."));
+            }
+
+            PreviewShape.setValue(base);
+            return;
+        }
+    }
+
+    PreviewShape.setValue(AddSubShape.getShape());
 }
+
+}  // namespace PartDesign
 
 namespace App {
 /// @cond DOXERR

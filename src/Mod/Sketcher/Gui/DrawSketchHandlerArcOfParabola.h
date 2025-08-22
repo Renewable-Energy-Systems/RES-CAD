@@ -29,6 +29,7 @@
 
 #include <Gui/Command.h>
 #include <Gui/CommandT.h>
+#include <Gui/InputHint.h>
 
 #include <Mod/Sketcher/App/SketchObject.h>
 
@@ -59,10 +60,10 @@ public:
     /// mode table
     enum SelectMode
     {
-        STATUS_SEEK_First,  /**< enum value ----. */
-        STATUS_SEEK_Second, /**< enum value ----. */
-        STATUS_SEEK_Third,  /**< enum value ----. */
-        STATUS_SEEK_Fourth, /**< enum value ----. */
+        STATUS_SEEK_First,
+        STATUS_SEEK_Second,
+        STATUS_SEEK_Third,
+        STATUS_SEEK_Fourth,
         STATUS_Close
     };
 
@@ -70,10 +71,7 @@ public:
     {
         if (Mode == STATUS_SEEK_First) {
             setPositionText(onSketchPos);
-            if (seekAutoConstraint(sugConstr1, onSketchPos, Base::Vector2d(0.f, 0.f))) {
-                renderSuggestConstraintsCursor(sugConstr1);
-                return;
-            }
+            seekAndRenderAutoConstraint(sugConstr1, onSketchPos, Base::Vector2d(0.f, 0.f));
         }
         else if (Mode == STATUS_SEEK_Second) {
             EditCurve[1] = onSketchPos;
@@ -88,10 +86,7 @@ public:
             }
 
             drawEdit(EditCurve);
-            if (seekAutoConstraint(sugConstr2, onSketchPos, Base::Vector2d(0.f, 0.f))) {
-                renderSuggestConstraintsCursor(sugConstr2);
-                return;
-            }
+            seekAndRenderAutoConstraint(sugConstr2, onSketchPos, Base::Vector2d(0.f, 0.f));
         }
         else if (Mode == STATUS_SEEK_Third) {
             double focal = (axisPoint - focusPoint).Length();
@@ -125,10 +120,7 @@ public:
 
             drawEdit(EditCurve);
 
-            if (seekAutoConstraint(sugConstr3, onSketchPos, Base::Vector2d(0.f, 0.f))) {
-                renderSuggestConstraintsCursor(sugConstr3);
-                return;
-            }
+            seekAndRenderAutoConstraint(sugConstr3, onSketchPos, Base::Vector2d(0.f, 0.f));
         }
         else if (Mode == STATUS_SEEK_Fourth) {
             double focal = (axisPoint - focusPoint).Length();
@@ -174,13 +166,8 @@ public:
             }
 
             drawEdit(EditCurve);
-            if (seekAutoConstraint(sugConstr4, onSketchPos, Base::Vector2d(0.f, 0.f))) {
-                renderSuggestConstraintsCursor(sugConstr4);
-                return;
-            }
+            seekAndRenderAutoConstraint(sugConstr4, onSketchPos, Base::Vector2d(0.f, 0.f));
         }
-
-        applyCursor();
     }
 
     bool pressButton(Base::Vector2d onSketchPos) override
@@ -207,6 +194,8 @@ public:
             endPoint = onSketchPos;
             Mode = STATUS_Close;
         }
+
+        updateHint();
         return true;
     }
 
@@ -268,8 +257,7 @@ public:
                     QT_TRANSLATE_NOOP("Notifications", "Cannot create arc of parabola"));
                 Gui::Command::abortCommand();
 
-                tryAutoRecomputeIfNotSolve(
-                    static_cast<Sketcher::SketchObject*>(sketchgui->getObject()));
+                tryAutoRecomputeIfNotSolve(sketchgui->getObject<Sketcher::SketchObject>());
 
                 return false;
             }
@@ -306,8 +294,7 @@ public:
                 sugConstr4.clear();
             }
 
-            tryAutoRecomputeIfNotSolve(
-                static_cast<Sketcher::SketchObject*>(sketchgui->getObject()));
+            tryAutoRecomputeIfNotSolve(sketchgui->getObject<Sketcher::SketchObject>());
 
             ParameterGrp::handle hGrp = App::GetApplication().GetParameterGroupByPath(
                 "User parameter:BaseApp/Preferences/Mod/Sketcher");
@@ -329,13 +316,14 @@ public:
                                             // ViewProvider
             }
         }
+        updateHint();
         return true;
     }
 
 private:
     QString getCrosshairCursorSVGName() const override
     {
-        return QString::fromLatin1("Sketcher_Pointer_Create_ArcOfParabola");
+        return QStringLiteral("Sketcher_Pointer_Create_ArcOfParabola");
     }
 
 protected:
@@ -344,9 +332,39 @@ protected:
     Base::Vector2d focusPoint, axisPoint, startingPoint, endPoint;
     double startAngle, endAngle, arcAngle, arcAngle_t;
     std::vector<AutoConstraint> sugConstr1, sugConstr2, sugConstr3, sugConstr4;
+
+private:
+    std::list<Gui::InputHint> getToolHints() const override
+    {
+        using enum Gui::InputHint::UserInput;
+
+        return Gui::lookupHints<SelectMode>(
+            Mode,
+            {
+                {.state = STATUS_SEEK_First,
+                 .hints =
+                     {
+                         {tr("%1 pick focus point"), {MouseLeft}},
+                     }},
+                {.state = STATUS_SEEK_Second,
+                 .hints =
+                     {
+                         {tr("%1 pick axis point"), {MouseLeft}},
+                     }},
+                {.state = STATUS_SEEK_Third,
+                 .hints =
+                     {
+                         {tr("%1 pick starting point"), {MouseLeft}},
+                     }},
+                {.state = STATUS_SEEK_Fourth,
+                 .hints =
+                     {
+                         {tr("%1 pick end point"), {MouseLeft}},
+                     }},
+            });
+    }
 };
 
 }  // namespace SketcherGui
-
 
 #endif  // SKETCHERGUI_DrawSketchHandlerArcOfParabola_H

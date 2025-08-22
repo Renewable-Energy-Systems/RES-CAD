@@ -23,6 +23,8 @@
 #ifndef INSPECTIOGUI_VIEWPROVIDERINSPECTION_H
 #define INSPECTIOGUI_VIEWPROVIDERINSPECTION_H
 
+#include <limits>
+
 #include <App/ComplexGeoData.h>
 #include <Base/Observer.h>
 #include <Gui/ViewProviderDocumentObject.h>
@@ -94,8 +96,9 @@ private:
     void setupNormals(const std::vector<Base::Vector3f>&);
     void setupLineIndexes(const std::vector<Data::ComplexGeoData::Line>&);
     void setupFaceIndexes(const std::vector<Data::ComplexGeoData::Facet>&);
+    void deleteColorBar();
 
-protected:
+private:
     SoMaterial* pcColorMat;
     SoMaterialBinding* pcMatBinding;
     SoGroup* pcLinkRoot;
@@ -106,7 +109,7 @@ protected:
     SoCoordinate3* pcCoords;
 
 private:
-    float search_radius {FLT_MAX};
+    float search_radius {std::numeric_limits<float>::max()};
     static bool addflag;
     static App::PropertyFloatConstraint::Constraints floatRange;
 };

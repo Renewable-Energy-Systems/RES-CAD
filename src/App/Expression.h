@@ -50,8 +50,10 @@ using ExpressionPtr = std::unique_ptr<Expression>;
 AppExport bool isAnyEqual(const App::any &v1, const App::any &v2);
 AppExport Base::Quantity anyToQuantity(const App::any &value, const char *errmsg = nullptr);
 
+// clang-format off
 // Map of depending objects to a map of depending property name to the full referencing object identifier
 using ExpressionDeps = std::map<App::DocumentObject*, std::map<std::string, std::vector<ObjectIdentifier> > >;
+// clang-format on
 
 class AppExport ExpressionVisitor {
 public:
@@ -82,7 +84,7 @@ template<class P> class ExpressionModifier : public ExpressionVisitor {
 public:
     explicit ExpressionModifier(P & _prop)
         : prop(_prop)
-        , propLink(Base::freecad_dynamic_cast<App::PropertyLinkBase>(&prop))
+        , propLink(freecad_cast<App::PropertyLinkBase*>(&prop))
         , signaller(_prop,false)
     {}
 
@@ -106,11 +108,14 @@ protected:
     int _changed{0};
 };
 
-/**
-  * Base class for expressions.
-  *
-  */
 
+/**
+  * @brief %Base class for expressions.
+  * @ingroup ExpressionFramework
+  *
+  * @details For a high-level overview of the %Expression framework see topic
+  * @ref ExpressionFramework "Expression Framework".
+  */
 class AppExport Expression : public Base::BaseClass {
     TYPESYSTEM_HEADER_WITH_OVERRIDE();
 
@@ -212,12 +217,14 @@ protected:
     virtual void _visit(ExpressionVisitor &) {}
 
 protected:
+    // clang-format off
     App::DocumentObject * owner; /**< The document object used to access unqualified variables (i.e local scope) */
 
     ComponentList components;
 
 public:
     std::string comment;
+    // clang-format on
 };
 
 }

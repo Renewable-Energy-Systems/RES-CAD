@@ -41,8 +41,9 @@ class Material;
  * This class is used to set options for a material tree search
  *
  */
-class MaterialsExport MaterialFilterOptions
+class MaterialsExport MaterialFilterOptions: public Base::BaseClass
 {
+    TYPESYSTEM_HEADER_WITH_OVERRIDE();
 
 public:
     MaterialFilterOptions();
@@ -163,7 +164,7 @@ public:
      *
      * Models only need to be included in one set.
      */
-    bool modelIncluded(const std::shared_ptr<Material>& material) const;
+    bool modelIncluded(const Material& material) const;
     bool modelIncluded(const QString& uuid) const;
 
     /* Add model UUIDs for required models, or models that are both required
@@ -171,6 +172,14 @@ public:
      */
     void addRequired(const QString& uuid);
     void addRequiredComplete(const QString& uuid);
+
+    /* Require that the materials have physical properties defined.
+     */
+    void requirePhysical(bool required) { _requirePhysical = required; }
+
+    /* Require that the materials have appearance properties defined.
+     */
+    void requireAppearance(bool required) { _requireAppearance = required; }
 
     /* These functions shouldn't normally be called directly. They are
      * for use by conversion methods, such as MaterialFilterPy
@@ -190,6 +199,8 @@ private:
     QString _name;
     QSet<QString> _required;
     QSet<QString> _requiredComplete;
+    bool _requirePhysical;
+    bool _requireAppearance;
 };
 
 }  // namespace Materials

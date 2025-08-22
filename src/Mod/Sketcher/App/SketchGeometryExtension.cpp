@@ -32,12 +32,8 @@
 using namespace Sketcher;
 
 //---------- Geometry Extension
-constexpr std::array<const char*, InternalType::NumInternalGeometryType>
-    SketchGeometryExtension::internaltype2str;
-constexpr std::array<const char*, GeometryMode::NumGeometryMode>
-    SketchGeometryExtension::geometrymode2str;
 
-TYPESYSTEM_SOURCE(Sketcher::SketchGeometryExtension, Part::GeometryPersistenceExtension)
+TYPESYSTEM_SOURCE(Sketcher::SketchGeometryExtension, Part::GeometryMigrationPersistenceExtension)
 
 // scoped within the class, multithread ready
 std::atomic<long> SketchGeometryExtension::_GeometryID;
@@ -69,16 +65,15 @@ void SketchGeometryExtension::restoreAttributes(Base::XMLReader& reader)
     Part::GeometryPersistenceExtension::restoreAttributes(reader);
 
     if (reader.hasAttribute("id")) {
-        Id = reader.getAttributeAsInteger("id");
+        Id = reader.getAttribute<long>("id");
     }
 
-    InternalGeometryType = static_cast<InternalType::InternalType>(
-        reader.getAttributeAsInteger("internalGeometryType"));
+    InternalGeometryType = reader.getAttribute<InternalType::InternalType>("internalGeometryType");
 
-    GeometryModeFlags = GeometryModeFlagType(reader.getAttribute("geometryModeFlags"));
+    GeometryModeFlags = GeometryModeFlagType(reader.getAttribute<const char*>("geometryModeFlags"));
 
     if (reader.hasAttribute("geometryLayer")) {
-        GeometryLayer = reader.getAttributeAsInteger("geometryLayer");
+        GeometryLayer = reader.getAttribute<long>("geometryLayer");
     }
 }
 
@@ -86,11 +81,20 @@ void SketchGeometryExtension::saveAttributes(Base::Writer& writer) const
 {
     Part::GeometryPersistenceExtension::saveAttributes(writer);
 
-    // This is removed as the stored Id is not used and it may interfere with RT's future
-    // implementation
-    writer.Stream()  // << "\" id=\"" << Id
-        << "\" internalGeometryType=\"" << (int)InternalGeometryType << "\" geometryModeFlags=\""
-        << GeometryModeFlags.to_string() << "\" geometryLayer=\"" << GeometryLayer;
+    writer.Stream() << "\" id=\"" << Id << "\" internalGeometryType=\"" << (int)InternalGeometryType
+                    << "\" geometryModeFlags=\"" << GeometryModeFlags.to_string()
+                    << "\" geometryLayer=\"" << GeometryLayer;
+}
+
+void SketchGeometryExtension::preSave(Base::Writer& writer) const
+{
+    writer.Stream() << " id=\"" << Id << "\"";
+}
+
+void SketchGeometryExtension::postSave(Base::Writer& writer) const
+{
+    writer.Stream() << writer.ind() << "<Construction value=\""
+                    << (GeometryModeFlags.test(GeometryMode::Construction) ? 1 : 0) << "\"/>\n";
 }
 
 std::unique_ptr<Part::GeometryExtension> SketchGeometryExtension::copy() const
@@ -98,12 +102,7 @@ std::unique_ptr<Part::GeometryExtension> SketchGeometryExtension::copy() const
     auto cpy = std::make_unique<SketchGeometryExtension>();
 
     copyAttributes(cpy.get());
-
-#if defined(__GNUC__) && (__GNUC__ <= 4)
-    return std::move(cpy);
-#else
     return cpy;
-#endif
 }
 
 PyObject* SketchGeometryExtension::getPyObject()

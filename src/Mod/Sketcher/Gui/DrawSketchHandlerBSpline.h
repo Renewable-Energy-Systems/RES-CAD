@@ -29,7 +29,7 @@
 #include <Gui/Notifications.h>
 #include <Gui/Command.h>
 #include <Gui/CommandT.h>
-
+#include <Gui/InputHint.h>
 #include <Mod/Sketcher/App/SketchObject.h>
 
 #include "DrawSketchDefaultWidgetController.h"
@@ -88,6 +88,12 @@ public:
         , resetSeekSecond(false) {};
     ~DrawSketchHandlerBSpline() override = default;
 
+    void activated() override
+    {
+        DrawSketchHandlerBSplineBase::activated();
+        Gui::Command::openCommand(QT_TRANSLATE_NOOP("Command", "Add sketch bSpline"));
+    }
+
 private:
     void updateDataAndDrawToPosition(Base::Vector2d onSketchPos) override
     {
@@ -97,10 +103,9 @@ private:
             case SelectMode::SeekFirst: {
                 toolWidgetManager.drawPositionAtCursor(onSketchPos);
 
-                if (seekAutoConstraint(sugConstraints[0], onSketchPos, Base::Vector2d(0.f, 0.f))) {
-                    renderSuggestConstraintsCursor(sugConstraints[0]);
-                    return;
-                }
+                seekAndRenderAutoConstraint(sugConstraints[0],
+                                            onSketchPos,
+                                            Base::Vector2d(0.f, 0.f));
             } break;
             case SelectMode::SeekSecond: {
                 toolWidgetManager.drawDirectionAtCursor(onSketchPos, getLastPoint());
@@ -111,10 +116,9 @@ private:
                 catch (const Base::ValueError&) {
                 }  // equal points while hovering raise an objection that can be safely ignored
 
-                if (seekAutoConstraint(sugConstraints[1], onSketchPos, Base::Vector2d(0.f, 0.f))) {
-                    renderSuggestConstraintsCursor(sugConstraints[1]);
-                    return;
-                }
+                seekAndRenderAutoConstraint(sugConstraints[1],
+                                            onSketchPos,
+                                            Base::Vector2d(0.f, 0.f));
             } break;
             default:
                 break;
@@ -247,13 +251,12 @@ private:
                 Gui::Command::runCommand(Gui::Command::Gui, "_bsps = []");
                 for (auto& controlpoints : controlpointses) {
                     // TODO: variable degrees?
-                    QString cmdstr =
-                        QString::fromLatin1("_bsps.append(Part.BSplineCurve())\n"
-                                            "_bsps[-1].interpolate(%1, PeriodicFlag=%2)\n"
-                                            "_bsps[-1].increaseDegree(%3)")
-                            .arg(QString::fromLatin1(controlpoints.c_str()))
-                            .arg(QString::fromLatin1(periodic ? "True" : "False"))
-                            .arg(myDegree);
+                    QString cmdstr = QStringLiteral("_bsps.append(Part.BSplineCurve())\n"
+                                                    "_bsps[-1].interpolate(%1, PeriodicFlag=%2)\n"
+                                                    "_bsps[-1].increaseDegree(%3)")
+                                         .arg(QString::fromLatin1(controlpoints.c_str()))
+                                         .arg(QString::fromLatin1(periodic ? "True" : "False"))
+                                         .arg(myDegree);
                     Gui::Command::runCommand(Gui::Command::Gui, cmdstr.toLatin1());
                     // Adjust internal knots here (raise multiplicity)
                     // How this contributes to the final B-spline
@@ -401,6 +404,48 @@ private:
         sugConstraints[1].clear();
     }
 
+    std::list<Gui::InputHint> getToolHints() const override
+    {
+        using State = std::pair<ConstructionMethod, SelectMode>;
+        using enum Gui::InputHint::UserInput;
+
+        const Gui::InputHint switchModeHint {tr("%1 switch mode"), {KeyM}};
+
+        return Gui::lookupHints<State>(
+            {constructionMethod(), state()},
+            {
+                // ControlPoints method
+                {.state = {ConstructionMethod::ControlPoints, SelectMode::SeekFirst},
+                 .hints =
+                     {
+                         {tr("%1 pick first control point"), {MouseLeft}},
+                         switchModeHint,
+                     }},
+                {.state = {ConstructionMethod::ControlPoints, SelectMode::SeekSecond},
+                 .hints =
+                     {
+                         {tr("%1 pick next control point"), {MouseLeft}},
+                         {tr("%1 finish B-spline"), {MouseRight}},
+                         switchModeHint,
+                     }},
+
+                // Knots method
+                {.state = {ConstructionMethod::Knots, SelectMode::SeekFirst},
+                 .hints =
+                     {
+                         {tr("%1 pick first knot"), {MouseLeft}},
+                         switchModeHint,
+                     }},
+                {.state = {ConstructionMethod::Knots, SelectMode::SeekSecond},
+                 .hints =
+                     {
+                         {tr("%1 pick next knot"), {MouseLeft}},
+                         {tr("%1 finish B-spline"), {MouseRight}},
+                         switchModeHint,
+                     }},
+            });
+    }
+
     std::string getToolName() const override
     {
         return "DSH_BSpline";
@@ -410,19 +455,18 @@ private:
     {
         if (constructionMethod() == ConstructionMethod::ControlPoints) {
             if (periodic) {
-                return QString::fromLatin1("Sketcher_Pointer_Create_Periodic_BSpline");
+                return QStringLiteral("Sketcher_Pointer_Create_Periodic_BSpline");
             }
             else {
-                return QString::fromLatin1("Sketcher_Pointer_Create_BSpline");
+                return QStringLiteral("Sketcher_Pointer_Create_BSpline");
             }
         }
         else {
             if (periodic) {
-                return QString::fromLatin1(
-                    "Sketcher_Pointer_Create_Periodic_BSplineByInterpolation");
+                return QStringLiteral("Sketcher_Pointer_Create_Periodic_BSplineByInterpolation");
             }
             else {
-                return QString::fromLatin1("Sketcher_Pointer_Create_BSplineByInterpolation");
+                return QStringLiteral("Sketcher_Pointer_Create_BSplineByInterpolation");
             }
         }
     }
@@ -444,7 +488,7 @@ private:
 
     QString getToolWidgetText() const override
     {
-        return QString(QObject::tr("BSpline parameters"));
+        return QString(tr("B-spline parameters"));
     }
 
     bool canGoToNextMode() override
@@ -453,7 +497,6 @@ private:
             ? Sketcher::PointPos::mid
             : Sketcher::PointPos::start;
         if (state() == SelectMode::SeekFirst) {
-            Gui::Command::openCommand(QT_TRANSLATE_NOOP("Command", "Add sketch bSpline"));
             // insert point for pole/knot, defer internal alignment constraining.
             if (!addPos()) {
                 return false;
@@ -528,9 +571,15 @@ private:
         // We must see if we need to create a B-spline before cancelling everything
 
         if (state() == SelectMode::SeekSecond) {
-            // create B-spline from existing poles/knots
-            setState(SelectMode::End);
-            finish();
+            if (geoIds.size() > 1) {
+                // create B-spline from existing poles/knots
+                setState(SelectMode::End);
+                finish();
+            }
+            else {
+                // We don't want to finish() as that'll create auto-constraints
+                handleContinuousMode();
+            }
         }
         else {
             DrawSketchHandler::quit();
@@ -546,6 +595,7 @@ private:
     {
         Gui::Command::abortCommand();
         tryAutoRecomputeIfNotSolve(sketchgui->getSketchObject());
+        Gui::Command::openCommand(QT_TRANSLATE_NOOP("Command", "Add sketch B-spline"));
 
         SplineDegree = 3;
         geoIds.clear();
@@ -667,7 +717,7 @@ private:
         catch (const Base::Exception&) {
             Gui::NotifyError(sketchgui,
                              QT_TRANSLATE_NOOP("Notifications", "Error"),
-                             QT_TRANSLATE_NOOP("Notifications", "Error adding B-Spline pole/knot"));
+                             QT_TRANSLATE_NOOP("Notifications", "Error adding B-spline pole/knot"));
 
             Gui::Command::abortCommand();
 
@@ -683,7 +733,7 @@ private:
         // Restart the command
         Gui::Command::abortCommand();
         tryAutoRecomputeIfNotSolve(sketchgui->getSketchObject());
-        Gui::Command::openCommand(QT_TRANSLATE_NOOP("Command", "Add sketch bSpline"));
+        Gui::Command::openCommand(QT_TRANSLATE_NOOP("Command", "Add sketch B-spline"));
 
         // Add the necessary alignment geometries and constraints
         for (size_t i = 0; i < geoIds.size(); ++i) {
@@ -776,7 +826,7 @@ private:
                 // Since it happens very frequently that the interpolation fails
                 // it's sufficient to report this as log message to avoid to pollute
                 // the output window
-                Base::Console().Log(std::string("drawBSplineToPosition"), "interpolation failed\n");
+                Base::Console().log(std::string("drawBSplineToPosition"), "interpolation failed\n");
             }
         }
     }
@@ -845,7 +895,7 @@ void DSHBSplineController::configureToolWidget()
             QApplication::translate("TaskSketcherTool_c1_bspline", "Periodic (R)"));
         toolWidget->setCheckboxToolTip(
             WCheckbox::FirstBox,
-            QApplication::translate("TaskSketcherTool_c1_bspline", "Create a periodic bspline."));
+            QApplication::translate("TaskSketcherTool_c1_bspline", "Create a periodic B-spline."));
         syncCheckboxToHandler(WCheckbox::FirstBox, handler->periodic);
 
         if (isConstructionMode()) {
@@ -878,14 +928,21 @@ void DSHBSplineController::configureToolWidget()
         toolWidget->setParameterLabel(
             WParameter::First,
             QApplication::translate("ToolWidgetManager_p4", "Degree (+'U'/ -'J')"));
-        toolWidget->setParameter(WParameter::First, handler->SplineDegree);
         toolWidget->configureParameterUnit(WParameter::First, Base::Unit());
         toolWidget->configureParameterMin(WParameter::First, 1.0);  // NOLINT
-        // We set a reasonable max to avoid the spinbox from being very large
+        toolWidget->configureParameterMax(WParameter::First, Geom_BSplineCurve::MaxDegree());
         toolWidget->configureParameterDecimals(WParameter::First, 0);
     }
 
-    toolWidget->configureParameterMax(WParameter::First, Geom_BSplineCurve::MaxDegree());  // NOLINT
+    if (handler->constructionMethod() == ConstructionMethod::ControlPoints) {
+        toolWidget->setParameter(WParameter::First, handler->SplineDegree);
+        toolWidget->setParameterVisible(WParameter::First, true);
+    }
+    else {
+        // We still set the value in case user change of mode.
+        toolWidget->setParameterWithoutPassingFocus(WParameter::First, handler->SplineDegree);
+        toolWidget->setParameterVisible(WParameter::First, false);
+    }
 
     onViewParameters[OnViewParameter::First]->setLabelType(Gui::SoDatumLabel::DISTANCEX);
     onViewParameters[OnViewParameter::Second]->setLabelType(Gui::SoDatumLabel::DISTANCEY);
@@ -924,19 +981,25 @@ void DSHBSplineControllerBase::doEnforceControlParameters(Base::Vector2d& onSket
 {
     switch (handler->state()) {
         case SelectMode::SeekFirst: {
-            if (onViewParameters[OnViewParameter::First]->isSet) {
-                onSketchPos.x = onViewParameters[OnViewParameter::First]->getValue();
+            auto& firstParam = onViewParameters[OnViewParameter::First];
+            auto& secondParam = onViewParameters[OnViewParameter::Second];
+
+            if (firstParam->isSet) {
+                onSketchPos.x = firstParam->getValue();
             }
 
-            if (onViewParameters[OnViewParameter::Second]->isSet) {
-                onSketchPos.y = onViewParameters[OnViewParameter::Second]->getValue();
+            if (secondParam->isSet) {
+                onSketchPos.y = secondParam->getValue();
             }
         } break;
         case SelectMode::SeekSecond: {
+            auto& thirdParam = onViewParameters[OnViewParameter::Third];
+            auto& fourthParam = onViewParameters[OnViewParameter::Fourth];
+
             if (handler->resetSeekSecond) {
                 handler->resetSeekSecond = false;
-                unsetOnViewParameter(onViewParameters[OnViewParameter::Third].get());
-                unsetOnViewParameter(onViewParameters[OnViewParameter::Fourth].get());
+                unsetOnViewParameter(thirdParam.get());
+                unsetOnViewParameter(fourthParam.get());
                 setFocusToOnViewParameter(OnViewParameter::Third);
                 return;
             }
@@ -949,10 +1012,10 @@ void DSHBSplineControllerBase::doEnforceControlParameters(Base::Vector2d& onSket
             }
             double length = dir.Length();
 
-            if (onViewParameters[OnViewParameter::Third]->isSet) {
-                length = onViewParameters[OnViewParameter::Third]->getValue();
+            if (thirdParam->isSet) {
+                length = thirdParam->getValue();
                 if (length < Precision::Confusion()) {
-                    unsetOnViewParameter(onViewParameters[OnViewParameter::Third].get());
+                    unsetOnViewParameter(thirdParam.get());
                     return;
                 }
 
@@ -966,18 +1029,16 @@ void DSHBSplineControllerBase::doEnforceControlParameters(Base::Vector2d& onSket
                 }
             }
 
-            if (onViewParameters[OnViewParameter::Fourth]->isSet) {
-                double angle =
-                    Base::toRadians(onViewParameters[OnViewParameter::Fourth]->getValue());
+            if (fourthParam->isSet) {
+                double angle = Base::toRadians(fourthParam->getValue());
                 onSketchPos.x = prevPoint.x + cos(angle) * length;
                 onSketchPos.y = prevPoint.y + sin(angle) * length;
             }
 
-            if (onViewParameters[OnViewParameter::Third]->isSet
-                && onViewParameters[OnViewParameter::Fourth]->isSet
+            if (thirdParam->isSet && fourthParam->isSet
                 && (onSketchPos - prevPoint).Length() < Precision::Confusion()) {
-                unsetOnViewParameter(onViewParameters[OnViewParameter::Third].get());
-                unsetOnViewParameter(onViewParameters[OnViewParameter::Fourth].get());
+                unsetOnViewParameter(thirdParam.get());
+                unsetOnViewParameter(fourthParam.get());
             }
         } break;
         default:
@@ -990,23 +1051,27 @@ void DSHBSplineController::adaptParameters(Base::Vector2d onSketchPos)
 {
     switch (handler->state()) {
         case SelectMode::SeekFirst: {
-            if (!onViewParameters[OnViewParameter::First]->isSet) {
+            auto& firstParam = onViewParameters[OnViewParameter::First];
+            auto& secondParam = onViewParameters[OnViewParameter::Second];
+
+            if (!firstParam->isSet) {
                 setOnViewParameterValue(OnViewParameter::First, onSketchPos.x);
             }
 
-            if (!onViewParameters[OnViewParameter::Second]->isSet) {
+            if (!secondParam->isSet) {
                 setOnViewParameterValue(OnViewParameter::Second, onSketchPos.y);
             }
 
             bool sameSign = onSketchPos.x * onSketchPos.y > 0.;
-            onViewParameters[OnViewParameter::First]->setLabelAutoDistanceReverse(!sameSign);
-            onViewParameters[OnViewParameter::Second]->setLabelAutoDistanceReverse(sameSign);
-            onViewParameters[OnViewParameter::First]->setPoints(Base::Vector3d(),
-                                                                toVector3d(onSketchPos));
-            onViewParameters[OnViewParameter::Second]->setPoints(Base::Vector3d(),
-                                                                 toVector3d(onSketchPos));
+            firstParam->setLabelAutoDistanceReverse(!sameSign);
+            secondParam->setLabelAutoDistanceReverse(sameSign);
+            firstParam->setPoints(Base::Vector3d(), toVector3d(onSketchPos));
+            secondParam->setPoints(Base::Vector3d(), toVector3d(onSketchPos));
         } break;
         case SelectMode::SeekSecond: {
+            auto& thirdParam = onViewParameters[OnViewParameter::Third];
+            auto& fourthParam = onViewParameters[OnViewParameter::Fourth];
+
             Base::Vector2d prevPoint;
             if (!handler->points.empty()) {
                 prevPoint = handler->getLastPoint();
@@ -1016,20 +1081,20 @@ void DSHBSplineController::adaptParameters(Base::Vector2d onSketchPos)
             Base::Vector3d end = toVector3d(onSketchPos);
             Base::Vector3d vec = end - start;
 
-            if (!onViewParameters[OnViewParameter::Third]->isSet) {
+            if (!thirdParam->isSet) {
                 setOnViewParameterValue(OnViewParameter::Third, vec.Length());
             }
 
             double range = (onSketchPos - prevPoint).Angle();
-            if (!onViewParameters[OnViewParameter::Fourth]->isSet) {
+            if (!fourthParam->isSet) {
                 setOnViewParameterValue(OnViewParameter::Fourth,
                                         Base::toDegrees(range),
                                         Base::Unit::Angle);
             }
 
-            onViewParameters[OnViewParameter::Third]->setPoints(start, end);
-            onViewParameters[OnViewParameter::Fourth]->setPoints(start, Base::Vector3d());
-            onViewParameters[OnViewParameter::Fourth]->setLabelRange(range);
+            thirdParam->setPoints(start, end);
+            fourthParam->setPoints(start, Base::Vector3d());
+            fourthParam->setLabelRange(range);
         } break;
         default:
             break;
@@ -1041,20 +1106,24 @@ void DSHBSplineController::doChangeDrawSketchHandlerMode()
 {
     switch (handler->state()) {
         case SelectMode::SeekFirst: {
-            if (onViewParameters[OnViewParameter::First]->isSet
-                && onViewParameters[OnViewParameter::Second]->isSet) {
-                double x = onViewParameters[OnViewParameter::First]->getValue();
-                double y = onViewParameters[OnViewParameter::Second]->getValue();
+            auto& firstParam = onViewParameters[OnViewParameter::First];
+            auto& secondParam = onViewParameters[OnViewParameter::Second];
+
+            if (firstParam->hasFinishedEditing || secondParam->hasFinishedEditing) {
+                double x = firstParam->getValue();
+                double y = secondParam->getValue();
                 handler->onButtonPressed(Base::Vector2d(x, y));
             }
         } break;
         case SelectMode::SeekSecond: {
-            if (onViewParameters[OnViewParameter::Third]->isSet
-                && onViewParameters[OnViewParameter::Fourth]->isSet) {
+            auto& thirdParam = onViewParameters[OnViewParameter::Third];
+            auto& fourthParam = onViewParameters[OnViewParameter::Fourth];
+
+            if (thirdParam->hasFinishedEditing && fourthParam->hasFinishedEditing) {
                 handler->canGoToNextMode();  // its not going to next mode
 
-                unsetOnViewParameter(onViewParameters[OnViewParameter::Third].get());
-                unsetOnViewParameter(onViewParameters[OnViewParameter::Fourth].get());
+                unsetOnViewParameter(thirdParam.get());
+                unsetOnViewParameter(fourthParam.get());
             }
         } break;
         default:
@@ -1064,9 +1133,21 @@ void DSHBSplineController::doChangeDrawSketchHandlerMode()
 
 
 template<>
-bool DSHBSplineControllerBase::resetOnConstructionMethodeChanged()
+void DSHBSplineController::doConstructionMethodChanged()
 {
     handler->changeConstructionMethode();
+
+    syncConstructionMethodComboboxToHandler();
+    bool byCtrlPoints = handler->constructionMethod() == ConstructionMethod::ControlPoints;
+    toolWidget->setParameterVisible(WParameter::First, byCtrlPoints);
+
+    handler->updateHint();
+}
+
+
+template<>
+bool DSHBSplineControllerBase::resetOnConstructionMethodeChanged()
+{
     return false;
 }
 
@@ -1167,10 +1248,6 @@ void DSHBSplineController::addConstraints()
         constraintlengths(true);
     }
 }
-
-// TODO: On pressing, say, W, modify last pole's weight
-// TODO: On pressing, say, M, modify next knot's multiplicity
-
 
 }  // namespace SketcherGui
 

@@ -67,7 +67,7 @@ QVariant PropertyMeshKernelItem::value(const App::Property*) const
 
     const std::vector<App::Property*>& props = getPropertyData();
     for (auto prop : props) {
-        Mesh::PropertyMeshKernel* pPropMesh = (Mesh::PropertyMeshKernel*)prop;
+        Mesh::PropertyMeshKernel* pPropMesh = static_cast<Mesh::PropertyMeshKernel*>(prop);
         const MeshKernel& rMesh = pPropMesh->getValue().getKernel();
         ctP += (int)rMesh.CountPoints();
         ctE += (int)rMesh.CountEdges();
@@ -89,10 +89,12 @@ void PropertyMeshKernelItem::setValue(const QVariant& value)
 }
 
 QWidget* PropertyMeshKernelItem::createEditor(QWidget* parent,
-                                              const std::function<void()>& method) const
+                                              const std::function<void()>& method,
+                                              FrameOption frameOption) const
 {
     Q_UNUSED(parent);
     Q_UNUSED(method);
+    Q_UNUSED(frameOption);
     return nullptr;
 }
 
@@ -113,7 +115,7 @@ int PropertyMeshKernelItem::countPoints() const
     int ctP = 0;
     const std::vector<App::Property*>& props = getPropertyData();
     for (auto prop : props) {
-        Mesh::PropertyMeshKernel* pPropMesh = (Mesh::PropertyMeshKernel*)prop;
+        Mesh::PropertyMeshKernel* pPropMesh = static_cast<Mesh::PropertyMeshKernel*>(prop);
         const MeshKernel& rMesh = pPropMesh->getValue().getKernel();
         ctP += (int)rMesh.CountPoints();
     }
@@ -126,7 +128,7 @@ int PropertyMeshKernelItem::countEdges() const
     int ctE = 0;
     const std::vector<App::Property*>& props = getPropertyData();
     for (auto prop : props) {
-        Mesh::PropertyMeshKernel* pPropMesh = (Mesh::PropertyMeshKernel*)prop;
+        Mesh::PropertyMeshKernel* pPropMesh = static_cast<Mesh::PropertyMeshKernel*>(prop);
         const MeshKernel& rMesh = pPropMesh->getValue().getKernel();
         ctE += (int)rMesh.CountEdges();
     }
@@ -139,7 +141,7 @@ int PropertyMeshKernelItem::countFaces() const
     int ctF = 0;
     const std::vector<App::Property*>& props = getPropertyData();
     for (auto prop : props) {
-        Mesh::PropertyMeshKernel* pPropMesh = (Mesh::PropertyMeshKernel*)prop;
+        Mesh::PropertyMeshKernel* pPropMesh = static_cast<Mesh::PropertyMeshKernel*>(prop);
         const MeshKernel& rMesh = pPropMesh->getValue().getKernel();
         ctF += (int)rMesh.CountFacets();
     }

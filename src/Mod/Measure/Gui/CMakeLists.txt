@@ -3,16 +3,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_BINARY_DIR}/src
     ${CMAKE_CURRENT_BINARY_DIR}
-    ${Boost_INCLUDE_DIRS}
-    ${COIN3D_INCLUDE_DIRS}
-    ${OCC_INCLUDE_DIR}
-    ${PYTHON_INCLUDE_DIRS}
-    ${XercesC_INCLUDE_DIRS}
-    ${ZLIB_INCLUDE_DIR}
 )
-link_directories(${OCC_LIBRARY_DIR})
-
-link_directories(${OCC_LIBRARY_DIR})
 
 set(MeasureGui_LIBS
     Measure
@@ -38,6 +29,7 @@ SET(MeasureGui_UIC_SRCS
 )
 
 generate_from_xml(QuickMeasurePy)
+generate_from_py_(QuickMeasurePy)
 
 SET(MeasureGui_SRCS
     ${CMAKE_SOURCE_DIR}/src/Mod/Measure/InitGui.py
@@ -51,18 +43,18 @@ SET(MeasureGui_SRCS
     QuickMeasurePyImp.cpp
     QuickMeasure.cpp
     QuickMeasure.h
+    TaskMeasure.cpp
+    TaskMeasure.h
     ViewProviderMeasureBase.cpp
     ViewProviderMeasureBase.h
     ViewProviderMeasureAngle.cpp
     ViewProviderMeasureAngle.h
     ViewProviderMeasureDistance.cpp
     ViewProviderMeasureDistance.h
-    # Workbench.cpp
-    # Workbench.h
     DlgPrefsMeasureAppearanceImp.ui
     DlgPrefsMeasureAppearanceImp.cpp
     DlgPrefsMeasureAppearanceImp.h
-    
+
 )
 
 SET(MeasureGuiTaskDlgs_SRCS
@@ -97,4 +89,3 @@ fc_copy_sources(MeasureGui "${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_DATADIR}/Mod/Mea
 
 INSTALL(TARGETS MeasureGui DESTINATION ${CMAKE_INSTALL_LIBDIR})
 INSTALL(FILES ${MeasureGuiIcon_SVG} DESTINATION "${CMAKE_INSTALL_DATADIR}/Mod/Measure/Resources/icons")
-

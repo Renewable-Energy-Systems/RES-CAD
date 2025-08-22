@@ -31,6 +31,7 @@
 #include <Gui/Notifications.h>
 #include <Gui/Command.h>
 #include <Gui/CommandT.h>
+#include <Gui/InputHint.h>
 
 #include <Mod/Sketcher/App/SketchObject.h>
 
@@ -70,8 +71,8 @@ public:
     /// mode table
     enum SELECT_MODE
     {
-        STATUS_SEEK_First,  /**< enum value ----. */
-        STATUS_SEEK_Second, /**< enum value ----. */
+        STATUS_SEEK_First,
+        STATUS_SEEK_Second,
         STATUS_Do,
         STATUS_Close
     };
@@ -95,6 +96,7 @@ public:
         SNAP_MODE_Free,
         SNAP_MODE_45Degree
     };
+
 
     void registerPressedKey(bool pressed, int key) override
     {
@@ -188,13 +190,12 @@ public:
 
     void mouseMove(Base::Vector2d onSketchPos) override
     {
+        using std::numbers::pi;
+
         suppressTransition = false;
         if (Mode == STATUS_SEEK_First) {
             setPositionText(onSketchPos);
-            if (seekAutoConstraint(sugConstr1, onSketchPos, Base::Vector2d(0.f, 0.f))) {
-                renderSuggestConstraintsCursor(sugConstr1);
-                return;
-            }
+            seekAndRenderAutoConstraint(sugConstr1, onSketchPos, Base::Vector2d(0.f, 0.f));
         }
         else if (Mode == STATUS_SEEK_Second) {
             if (SegmentMode == SEGMENT_MODE_Line) {
@@ -225,16 +226,15 @@ public:
                 if (showCursorCoords()) {
                     SbString text;
                     std::string lengthString = lengthToDisplayFormat(length, 1);
-                    std::string angleString = angleToDisplayFormat(angle * 180.0 / M_PI, 1);
+                    std::string angleString = angleToDisplayFormat(angle * 180.0 / pi, 1);
                     text.sprintf(" (%s, %s)", lengthString.c_str(), angleString.c_str());
                     setPositionText(EditCurve[1], text);
                 }
 
                 if (TransitionMode == TRANSITION_MODE_Free) {
-                    if (seekAutoConstraint(sugConstr2, onSketchPos, onSketchPos - EditCurve[0])) {
-                        renderSuggestConstraintsCursor(sugConstr2);
-                        return;
-                    }
+                    seekAndRenderAutoConstraint(sugConstr2,
+                                                onSketchPos,
+                                                onSketchPos - EditCurve[0]);
                 }
             }
             else if (SegmentMode == SEGMENT_MODE_Arc) {
@@ -293,14 +293,14 @@ public:
                     arcAngle = 0.f;
                 }
                 if (arcRadius >= 0 && arcAngle > 0) {
-                    arcAngle -= 2 * M_PI;
+                    arcAngle -= 2 * pi;
                 }
                 if (arcRadius < 0 && arcAngle < 0) {
-                    arcAngle += 2 * M_PI;
+                    arcAngle += 2 * pi;
                 }
 
                 if (SnapMode == SNAP_MODE_45Degree) {
-                    arcAngle = round(arcAngle / (M_PI / 4)) * M_PI / 4;
+                    arcAngle = round(arcAngle / (pi / 4)) * pi / 4;
                 }
 
                 endAngle = startAngle + arcAngle;
@@ -320,22 +320,19 @@ public:
                 if (showCursorCoords()) {
                     SbString text;
                     std::string radiusString = lengthToDisplayFormat(std::abs(arcRadius), 1);
-                    std::string angleString = angleToDisplayFormat(arcAngle * 180.0 / M_PI, 1);
+                    std::string angleString = angleToDisplayFormat(arcAngle * 180.0 / pi, 1);
                     text.sprintf(" (R%s, %s)", radiusString.c_str(), angleString.c_str());
                     setPositionText(onSketchPos, text);
                 }
 
-                if (seekAutoConstraint(sugConstr2, onSketchPos, Base::Vector2d(0.f, 0.f))) {
-                    renderSuggestConstraintsCursor(sugConstr2);
-                    return;
-                }
+                seekAndRenderAutoConstraint(sugConstr2, onSketchPos, Base::Vector2d(0.f, 0.f));
             }
         }
-        applyCursor();
     }
 
     bool pressButton(Base::Vector2d onSketchPos) override
     {
+
         if (Mode == STATUS_SEEK_First) {
 
             EditCurve[0] = onSketchPos;  // this may be overwritten if previousCurve is found
@@ -442,6 +439,9 @@ public:
                 }
             }
         }
+
+        updateHint();
+
         return true;
     }
 
@@ -454,7 +454,7 @@ public:
                 try {
                     // open the transaction
                     Gui::Command::openCommand(
-                        QT_TRANSLATE_NOOP("Command", "Add line to sketch wire"));
+                        QT_TRANSLATE_NOOP("Command", "Add line to sketch polyline"));
                     Gui::cmdAppObjectArgs(
                         sketchgui->getObject(),
                         "addGeometry(Part.LineSegment(App.Vector(%f,%f,0),App.Vector(%f,%f,0)),%s)",
@@ -482,7 +482,7 @@ public:
 
                 try {
                     Gui::Command::openCommand(
-                        QT_TRANSLATE_NOOP("Command", "Add arc to sketch wire"));
+                        QT_TRANSLATE_NOOP("Command", "Add arc to sketch polyline"));
                     Gui::cmdAppObjectArgs(
                         sketchgui->getObject(),
                         "addGeometry(Part.ArcOfCircle"
@@ -544,8 +544,8 @@ public:
 
                     // #3974: if in radians, the printf %f defaults to six decimals, which leads to
                     // loss of precision
-                    double arcAngle =
-                        abs(round((endAngle - startAngle) / (M_PI / 4)) * 45);  // in degrees
+                    double arcAngle = abs(round((endAngle - startAngle) / (std::numbers::pi / 4))
+                                          * 45);  // in degrees
 
                     Gui::cmdAppObjectArgs(sketchgui->getObject(),
                                           "addConstraint(Sketcher.Constraint('Angle',%i,App.Units."
@@ -562,11 +562,11 @@ public:
                         static_cast<int>(lastEndPosId),
                         firstCurve,
                         static_cast<int>(firstPosId));
+                    firstsegment = true;
                 }
                 Gui::Command::commitCommand();
 
-                tryAutoRecomputeIfNotSolve(
-                    static_cast<Sketcher::SketchObject*>(sketchgui->getObject()));
+                tryAutoRecomputeIfNotSolve(sketchgui->getObject<Sketcher::SketchObject>());
             }
 
             ParameterGrp::handle hGrp = App::GetApplication().GetParameterGroupByPath(
@@ -580,13 +580,13 @@ public:
                     if (SegmentMode == SEGMENT_MODE_Line) {  // avoid redundant constraints.
                         if (sugConstr1.size() > 0) {
                             removeRedundantHorizontalVertical(
-                                static_cast<Sketcher::SketchObject*>(sketchgui->getObject()),
+                                sketchgui->getObject<Sketcher::SketchObject>(),
                                 sugConstr1,
                                 sugConstr2);
                         }
                         else {
                             removeRedundantHorizontalVertical(
-                                static_cast<Sketcher::SketchObject*>(sketchgui->getObject()),
+                                sketchgui->getObject<Sketcher::SketchObject>(),
                                 virtualsugConstr1,
                                 sugConstr2);
                         }
@@ -607,8 +607,7 @@ public:
                     sugConstr2.clear();
                 }
 
-                tryAutoRecomputeIfNotSolve(
-                    static_cast<Sketcher::SketchObject*>(sketchgui->getObject()));
+                tryAutoRecomputeIfNotSolve(sketchgui->getObject<Sketcher::SketchObject>());
 
                 unsetCursor();
 
@@ -661,13 +660,13 @@ public:
                     if (SegmentMode == SEGMENT_MODE_Line) {  // avoid redundant constraints.
                         if (sugConstr1.size() > 0) {
                             removeRedundantHorizontalVertical(
-                                static_cast<Sketcher::SketchObject*>(sketchgui->getObject()),
+                                sketchgui->getObject<Sketcher::SketchObject>(),
                                 sugConstr1,
                                 sugConstr2);
                         }
                         else {
                             removeRedundantHorizontalVertical(
-                                static_cast<Sketcher::SketchObject*>(sketchgui->getObject()),
+                                sketchgui->getObject<Sketcher::SketchObject>(),
                                 virtualsugConstr1,
                                 sugConstr2);
                         }
@@ -686,8 +685,7 @@ public:
                     sugConstr2.clear();
                 }
 
-                tryAutoRecomputeIfNotSolve(
-                    static_cast<Sketcher::SketchObject*>(sketchgui->getObject()));
+                tryAutoRecomputeIfNotSolve(sketchgui->getObject<Sketcher::SketchObject>());
 
                 // remember the vertex for the next rounds constraint..
                 previousCurve = getHighestCurveIndex();
@@ -716,6 +714,9 @@ public:
                 mouseMove(onSketchPos);  // trigger an update of EditCurve
             }
         }
+
+        updateHint();
+
         return true;
     }
 
@@ -761,7 +762,31 @@ public:
 private:
     QString getCrosshairCursorSVGName() const override
     {
-        return QString::fromLatin1("Sketcher_Pointer_Create_Lineset");
+        return QStringLiteral("Sketcher_Pointer_Create_Lineset");
+    }
+
+    std::list<Gui::InputHint> getToolHints() const override
+    {
+        using enum Gui::InputHint::UserInput;
+
+        // clang-format off
+        return Gui::lookupHints<SELECT_MODE>(
+            Mode,
+            {
+                {.state = STATUS_SEEK_First,
+                 .hints =
+                     {
+                         {tr("%1 pick first point"), {MouseLeft}},
+                     }},
+                {.state = STATUS_SEEK_Second,
+                 .hints =
+                     {
+                         {tr("%1 pick next point"), {MouseLeft}},
+                         {tr("%1 finish"), {MouseRight}},
+                         {tr("%1 switch mode"), {KeyM}},
+                     }},
+            });
+        // clang-format on
     }
 
 protected:
@@ -823,8 +848,6 @@ protected:
         dirVec.Normalize();
     }
 };
-
-
 }  // namespace SketcherGui
 
 

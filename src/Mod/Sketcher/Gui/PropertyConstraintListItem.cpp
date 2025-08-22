@@ -47,11 +47,10 @@ PropertyConstraintListItem::PropertyConstraintListItem()
 PropertyConstraintListItem::~PropertyConstraintListItem()
 {}
 
-QVariant PropertyConstraintListItem::toString(const QVariant& prop) const
+QString PropertyConstraintListItem::toString(const QVariant& prop) const
 {
     const QList<Base::Quantity>& value = prop.value<QList<Base::Quantity>>();
-    QString str;
-    QTextStream out(&str);
+    std::stringstream out;
     out << "[";
     for (QList<Base::Quantity>::const_iterator it = value.begin(); it != value.end(); ++it) {
         if (it != value.begin()) {
@@ -60,7 +59,7 @@ QVariant PropertyConstraintListItem::toString(const QVariant& prop) const
         out << it->getUserString();
     }
     out << "]";
-    return QVariant(str);
+    return QString::fromStdString(out.str());
 }
 
 void PropertyConstraintListItem::initialize()
@@ -84,7 +83,7 @@ void PropertyConstraintListItem::initialize()
             PropertyUnitItem* item = static_cast<PropertyUnitItem*>(PropertyUnitItem::create());
 
             // Get the name
-            QString internalName = QString::fromLatin1("Constraint%1").arg(id);
+            QString internalName = QStringLiteral("Constraint%1").arg(id);
             QString name = QString::fromUtf8((*it)->Name.c_str());
             if (name.isEmpty()) {
                 name = internalName;
@@ -110,6 +109,7 @@ void PropertyConstraintListItem::initialize()
 
             item->bind(list->createPath(id - 1));
             item->setAutoApply(false);
+            item->setReadOnly(!(*it)->isDriving);
         }
     }
 
@@ -202,7 +202,7 @@ void PropertyConstraintListItem::assignProperty(const App::Property* prop)
             else {
                 // search inside this item
                 if (namedIndex < numNamed) {
-                    child = dynamic_cast<PropertyUnitItem*>(this->child(namedIndex));
+                    child = qobject_cast<PropertyUnitItem*>(this->child(namedIndex));
                 }
 
                 if (!child) {
@@ -215,7 +215,7 @@ void PropertyConstraintListItem::assignProperty(const App::Property* prop)
             }
 
             // Get the name
-            QString internalName = QString::fromLatin1("Constraint%1").arg(id);
+            QString internalName = QStringLiteral("Constraint%1").arg(id);
             QString name = QString::fromUtf8((*it)->Name.c_str());
             if (name.isEmpty()) {
                 name = internalName;
@@ -274,7 +274,7 @@ QVariant PropertyConstraintListItem::value(const App::Property* prop) const
 
             // Use a 7-bit ASCII string for the internal name.
             // See also comment in PropertyConstraintListItem::initialize()
-            QString internalName = QString::fromLatin1("Constraint%1").arg(id);
+            QString internalName = QStringLiteral("Constraint%1").arg(id);
 
             if ((*it)->Name.empty() && !onlyUnnamed) {
                 onlyNamed = false;
@@ -343,7 +343,7 @@ bool PropertyConstraintListItem::event(QEvent* ev)
                     || (*it)->Type == Sketcher::Angle) {
 
                     // Get the internal name
-                    QString internalName = QString::fromLatin1("Constraint%1").arg(id + 1);
+                    QString internalName = QStringLiteral("Constraint%1").arg(id + 1);
                     if (internalName == propName) {
                         double datum = quant.getValue();
                         if ((*it)->Type == Sketcher::Angle) {
@@ -369,11 +369,12 @@ void PropertyConstraintListItem::setValue(const QVariant& value)
 }
 
 QWidget* PropertyConstraintListItem::createEditor(QWidget* parent,
-                                                  const std::function<void()>& method) const
+                                                  const std::function<void()>& method,
+                                                  FrameOption frameOption) const
 {
     Q_UNUSED(method);
     QLineEdit* le = new QLineEdit(parent);
-    le->setFrame(false);
+    le->setFrame(static_cast<bool>(frameOption));
     le->setReadOnly(true);
     return le;
 }
@@ -381,7 +382,7 @@ QWidget* PropertyConstraintListItem::createEditor(QWidget* parent,
 void PropertyConstraintListItem::setEditorData(QWidget* editor, const QVariant& data) const
 {
     QLineEdit* le = qobject_cast<QLineEdit*>(editor);
-    le->setText(toString(data).toString());
+    le->setText(toString(data));
 }
 
 QVariant PropertyConstraintListItem::editorData(QWidget* editor) const

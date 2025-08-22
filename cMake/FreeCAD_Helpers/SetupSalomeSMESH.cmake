@@ -1,8 +1,8 @@
 macro(SetupSalomeSMESH)
 # -------------------------------- Salome SMESH --------------------------
-
     # Salome SMESH sources are under src/3rdParty now
-    if(BUILD_SMESH)
+    if(FREECAD_USE_SMESH)
+
         # set the internal smesh version:
         # see src/3rdParty/salomonemesh/CMakeLists.txt and commit https://github.com/FreeCAD/FreeCAD/commit/666a3e5 and https://forum.freecad.org/viewtopic.php?f=10&t=30838
         set(SMESH_VERSION_MAJOR 7)
@@ -42,7 +42,7 @@ macro(SetupSalomeSMESH)
                     endif()
                 endforeach()
             else()
-                set(VTK_COMPONENTS "CommonCore;CommonDataModel;FiltersVerdict;IOXML;FiltersCore;FiltersGeneral;IOLegacy;FiltersExtraction;FiltersSources;FiltersGeometry")
+                set(VTK_COMPONENTS "CommonCore;CommonDataModel;FiltersVerdict;IOXML;FiltersCore;FiltersGeneral;IOLegacy;FiltersExtraction;FiltersSources;FiltersGeometry;WrappingPythonCore")
                 list(APPEND VTK_COMPONENTS "IOMPIParallel;ParallelMPI;hdf5;FiltersParallelDIY2;RenderingCore;InteractionStyle;RenderingFreeType;RenderingOpenGL2")
                 foreach(_module ${VTK_COMPONENTS})
                     list (FIND VTK_AVAILABLE_COMPONENTS ${_module} _index)
@@ -63,6 +63,17 @@ macro(SetupSalomeSMESH)
         endif()
 
         set(BUILD_FEM_VTK ON)
+
+        # Check if PythonWrapperCore was found
+        # Note: VTK 9 only, as the implementations use the VTK modules introduced in 8.1
+        #       VTK_WrappingPythonCore_FOUND is named differently for versions <9.0
+        if (${VTK_WrappingPythonCore_FOUND})
+            set(BUILD_FEM_VTK_PYTHON 1)
+            message(STATUS "VTK python wrapper: available")
+        else()
+            message(STATUS "VTK python wrapper: NOT available")
+        endif()
+
         if(${VTK_MAJOR_VERSION} LESS 6)
             message( FATAL_ERROR "Found VTK version is <6, this is not compatible" )
         endif()
@@ -102,10 +113,6 @@ macro(SetupSalomeSMESH)
                     add_compile_options(${HDF5_CFLAGS})
                     link_directories(${HDF5_LIBRARY_DIRS})
                     link_libraries(${HDF5_LIBRARIES})
-                    find_file(Hdf5dotH hdf5.h PATHS ${HDF5_INCLUDE_DIRS} NO_DEFAULT_PATH)
-                    if(NOT Hdf5dotH)
-                        message( FATAL_ERROR "${HDF5_VARIANT} development header not found.")
-                    endif()
                 endif()
                 check_include_file_cxx(hdf5.h HDF5_FOUND)
                 if(NOT HDF5_FOUND)
@@ -145,6 +152,6 @@ macro(SetupSalomeSMESH)
 
         set(SMESH_FOUND TRUE)
         configure_file(${CMAKE_SOURCE_DIR}/src/SMESH_Version.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/SMESH_Version.h)
-    endif(BUILD_SMESH)
+    endif(FREECAD_USE_SMESH)
 
 endmacro(SetupSalomeSMESH)

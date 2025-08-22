@@ -66,8 +66,6 @@ public:
     /// Returns the absolute file names of icons found in the given search paths
     QStringList findIconFiles() const;
     /// Adds a build in XPM pixmap under a given name
-    void addXPM(const char* name, const char** pXPM);
-    /// Adds a build in XPM pixmap under a given name
     void addPixmapToCache(const char* name, const QPixmap& icon);
     /// Checks whether the pixmap is already registered.
     bool findPixmapInCache(const char* name, QPixmap& icon) const;
@@ -75,6 +73,10 @@ public:
      * If no such icon is found in the current theme fallback is returned instead.
      */
     QIcon iconFromTheme(const char* name, const QIcon& fallback = QIcon());
+    /** Returns the QIcon corresponding to name in the default (FreeCAD's) icon theme.
+     * If no such icon is found in the current theme fallback is returned instead.
+     */
+    QIcon iconFromDefaultTheme(const char* name, const QIcon& fallback = QIcon());
     /// Retrieves a pixmap by name
     QPixmap pixmap(const char* name) const;
     /** Retrieves a pixmap by name and size created by an
@@ -84,14 +86,6 @@ public:
      * Can be used to customize icon color scheme, e.g. crosshair color
      */
     QPixmap pixmapFromSvg(const char* name, const QSizeF& size,
-                          const ColorMap& colorMapping = ColorMap()) const;
-    /** Retrieves a pixmap by name and size created by an
-     * scalable vector graphics (SVG) and a device pixel ratio
-     *
-     * @param colorMapping - a dictionary of substitute colors.
-     * Can be used to customize icon color scheme, e.g. crosshair color
-     */
-    QPixmap pixmapFromSvg(const char* name, const QSizeF& size, qreal dpr,
                           const ColorMap& colorMapping = ColorMap()) const;
     /** This method is provided for convenience and does the same
      * as the method above except that it creates the pixmap from
@@ -137,6 +131,11 @@ public:
      * of all opaque pixels to a higher value.
      */
     QPixmap disabled(const QPixmap& p) const;
+
+    /** Creates an empty pixmap, takes care of DPI and clearing out the image.
+     */
+    QPixmap empty(QSize size) const;
+
     /** Converts a QImage into a SoSFImage to use it inside a SoImage node.
      */
     void convert(const QImage& img, SoSFImage& out) const;
@@ -147,9 +146,12 @@ public:
     /// Helper method to merge a pixmap into one corner of a QIcon
     static QIcon mergePixmap (const QIcon &base, const QPixmap &px, Gui::BitmapFactoryInst::Position position);
 
+    static qreal getMaximumDPR();
+
 private:
     bool loadPixmap(const QString& path, QPixmap&) const;
     void restoreCustomPaths();
+    void configureUseIconTheme();
 
     static BitmapFactoryInst* _pcSingleton;
     BitmapFactoryInst();

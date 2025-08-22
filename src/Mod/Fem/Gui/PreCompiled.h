@@ -40,6 +40,7 @@
 // STL
 #include <algorithm>
 #include <bitset>
+#include <limits>
 #include <list>
 #include <map>
 #include <queue>
@@ -56,7 +57,9 @@
 
 #ifdef FC_OS_WIN32
 #define WIN32_LEAN_AND_MEAN
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <windows.h>
 #endif
 
@@ -79,6 +82,7 @@
 #include <QSlider>
 #include <QStackedWidget>
 #include <QString>
+#include <QStringList>
 #include <QTextCharFormat>
 #include <QTextStream>
 #include <QThread>

@@ -165,9 +165,7 @@ class OpTaskPanel:
             self.model.setData(self.model.index(i, 0), isset, QtCore.Qt.EditRole)
             self.model.setData(self.model.index(i, 1), name, QtCore.Qt.EditRole)
             self.model.setData(self.model.index(i, 2), prop, Delegate.PropertyRole)
-            self.model.setData(
-                self.model.index(i, 2), prop.displayString(), QtCore.Qt.DisplayRole
-            )
+            self.model.setData(self.model.index(i, 2), prop.displayString(), QtCore.Qt.DisplayRole)
 
             self.model.item(i, 0).setCheckable(True)
             self.model.item(i, 0).setText("")
@@ -201,9 +199,7 @@ class OpTaskPanel:
             propName = self.propertyName(name)
             enabled = self.model.item(i, 0).checkState() == QtCore.Qt.Checked
             if enabled and not prop.getValue() is None:
-                if prop.setupProperty(
-                    self.obj, propName, self.propertyGroup(), prop.getValue()
-                ):
+                if prop.setupProperty(self.obj, propName, self.propertyGroup(), prop.getValue()):
                     propertiesCreatedRemoved = True
             else:
                 if hasattr(self.obj, propName):
@@ -222,10 +218,7 @@ class OpsDefaultEditor:
         self.form = form
         self.obj = obj
         self.ops = sorted(
-            [
-                OpTaskPanel(self.obj, name, op)
-                for name, op in PathSetupSheet._RegisteredOps.items()
-            ],
+            [OpTaskPanel(self.obj, name, op) for name, op in PathSetupSheet._RegisteredOps.items()],
             key=lambda op: op.name,
         )
         if form:
@@ -305,9 +298,7 @@ class GlobalEditor(object):
         updateExpression("StartDepthExpression", self.form.setupStartDepthExpr)
         updateExpression("FinalDepthExpression", self.form.setupFinalDepthExpr)
         updateExpression("StepDownExpression", self.form.setupStepDownExpr)
-        updateExpression(
-            "ClearanceHeightExpression", self.form.setupClearanceHeightExpr
-        )
+        updateExpression("ClearanceHeightExpression", self.form.setupClearanceHeightExpr)
         updateExpression("SafeHeightExpression", self.form.setupSafeHeightExpr)
         self.clearanceHeightOffs.updateProperty()
         self.safeHeightOffs.updateProperty()
@@ -330,10 +321,10 @@ class GlobalEditor(object):
         self.form.setupStepDownExpr.setText(self.obj.StepDownExpression)
         self.form.setupClearanceHeightExpr.setText(self.obj.ClearanceHeightExpression)
         self.form.setupSafeHeightExpr.setText(self.obj.SafeHeightExpression)
-        self.clearanceHeightOffs.updateSpinBox()
-        self.safeHeightOffs.updateSpinBox()
-        self.rapidVertical.updateSpinBox()
-        self.rapidHorizontal.updateSpinBox()
+        self.clearanceHeightOffs.updateWidget()
+        self.safeHeightOffs.updateWidget()
+        self.rapidVertical.updateWidget()
+        self.rapidHorizontal.updateWidget()
         self.selectInComboBox(self.obj.CoolantMode, self.form.setupCoolantMode)
 
     def updateModel(self, recomp=True):

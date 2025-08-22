@@ -25,11 +25,10 @@
 #endif // #ifndef _PreComp_
 
 #include <Base/Console.h>
-#include <Base/Tools.h>
 #include <Gui/Application.h>
 #include <Gui/BitmapFactory.h>
 #include <Gui/Command.h>
-#include <Gui/Selection.h>
+#include <Gui/Selection/Selection.h>
 #include <Gui/ViewProvider.h>
 #include <Mod/TechDraw/App/DrawUtil.h>
 #include <Mod/TechDraw/App/DrawViewPart.h>
@@ -79,7 +78,7 @@ TaskLineDecor::~TaskLineDecor()
 void TaskLineDecor::initUi()
 {
     std::string viewName = m_partFeat->getNameInDocument();
-    ui->le_View->setText(Base::Tools::fromStdString(viewName));
+    ui->le_View->setText(QString::fromStdString(viewName));
 
     std::stringstream ss;
     for (auto& e: m_edges) {
@@ -90,7 +89,7 @@ void TaskLineDecor::initUi()
     if (!temp.empty()) {
         temp.resize(temp.length() - 2);
     }
-    ui->le_Lines->setText(Base::Tools::fromStdString(temp));
+    ui->le_Lines->setText(QString::fromStdString(temp));
 
     ui->cc_Color->setColor(m_color.asValue<QColor>());
     ui->dsb_Weight->setValue(m_weight);
@@ -109,7 +108,7 @@ TechDraw::LineFormat *TaskLineDecor::getFormatAccessPtr(const std::string &edgeN
     BaseGeomPtr bg = m_partFeat->getEdge(edgeName);
     if (bg) {
         if (bg->getCosmetic()) {
-            if (bg->source() == SourceType::COSEDGE) {
+            if (bg->source() == SourceType::COSMETICEDGE) {
                 TechDraw::CosmeticEdge *ce = m_partFeat->getCosmeticEdgeBySelection(edgeName);
                 if (ce) {
                     return &ce->m_format;
@@ -167,7 +166,7 @@ void TaskLineDecor::initializeRejectArrays()
 // get the current line tool appearance default
 void TaskLineDecor::getDefaults()
 {
-//    Base::Console().Message("TLD::getDefaults()\n");
+//    Base::Console().message("TLD::getDefaults()\n");
     m_color = LineFormat::getCurrentLineFormat().getColor();
     m_weight = LineFormat::getCurrentLineFormat().getWidth();
     m_visible = LineFormat::getCurrentLineFormat().getVisible();
@@ -214,7 +213,7 @@ void TaskLineDecor::onVisibleChanged()
 
 void TaskLineDecor::applyDecorations()
 {
-//    Base::Console().Message("TLD::applyDecorations()\n");
+//    Base::Console().message("TLD::applyDecorations()\n");
     for (auto& e: m_edges) {
         LineFormat *lf = getFormatAccessPtr(e);
         if (lf) {
@@ -229,7 +228,7 @@ void TaskLineDecor::applyDecorations()
 
 bool TaskLineDecor::accept()
 {
-//    Base::Console().Message("TLD::accept()\n");
+//    Base::Console().message("TLD::accept()\n");
     Gui::Document* doc = Gui::Application::Instance->getDocument(m_partFeat->getDocument());
     if (!doc)
         return false;
@@ -248,7 +247,7 @@ bool TaskLineDecor::accept()
 
 bool TaskLineDecor::reject()
 {
-//    Base::Console().Message("TLD::reject()\n");
+//    Base::Console().message("TLD::reject()\n");
     Gui::Document* doc = Gui::Application::Instance->getDocument(m_partFeat->getDocument());
     if (!doc)
         return false;
@@ -309,7 +308,7 @@ void TaskRestoreLines::initUi()
 
 void TaskRestoreLines::onAllPressed()
 {
-//    Base::Console().Message("TRL::onAllPressed()\n");
+//    Base::Console().message("TRL::onAllPressed()\n");
     onGeometryPressed();
     onCosmeticPressed();
     onCenterPressed();
@@ -317,7 +316,7 @@ void TaskRestoreLines::onAllPressed()
 
 void TaskRestoreLines::onGeometryPressed()
 {
-//    Base::Console().Message("TRL::onGeometryPressed()\n");
+//    Base::Console().message("TRL::onGeometryPressed()\n");
     restoreInvisibleGeoms();
     ui->l_Geometry->setText(QString::number(0));
     ui->l_All->setText(QString::number(countInvisibleLines()));
@@ -325,7 +324,7 @@ void TaskRestoreLines::onGeometryPressed()
 
 void TaskRestoreLines::onCosmeticPressed()
 {
-//    Base::Console().Message("TRL::onCosmeticPressed()\n");
+//    Base::Console().message("TRL::onCosmeticPressed()\n");
     restoreInvisibleCosmetics();
     ui->l_Cosmetic->setText(QString::number(0));
     ui->l_All->setText(QString::number(countInvisibleLines()));
@@ -333,7 +332,7 @@ void TaskRestoreLines::onCosmeticPressed()
 
 void TaskRestoreLines::onCenterPressed()
 {
-//    Base::Console().Message("TRL::onCenterPressed()\n");
+//    Base::Console().message("TRL::onCenterPressed()\n");
     restoreInvisibleCenters();
     ui->l_Center->setText(QString::number(0));
     ui->l_All->setText(QString::number(countInvisibleLines()));
@@ -430,13 +429,13 @@ void TaskRestoreLines::restoreInvisibleCenters()
 
 bool TaskRestoreLines::accept()
 {
-//    Base::Console().Message("TRL::accept()\n");
+//    Base::Console().message("TRL::accept()\n");
     return true;
 }
 
 bool TaskRestoreLines::reject()
 {
-//    Base::Console().Message("TRL::reject()\n");
+//    Base::Console().message("TRL::reject()\n");
     return false;
 }
 
@@ -461,11 +460,11 @@ TaskDlgLineDecor::TaskDlgLineDecor(TechDraw::DrawViewPart* partFeat,
         taskbox->hideGroupBox();
     }
 
-    TaskLineDecor* parent = dynamic_cast<TaskLineDecor*>(widget);
+    TaskLineDecor* parent = qobject_cast<TaskLineDecor*>(widget);
     if (parent) {
         restore = new TaskRestoreLines(partFeat, parent);
         restoreBox = new Gui::TaskView::TaskBox(Gui::BitmapFactory().pixmap("actions/TechDraw_DecorateLine"),
-                                             tr("Restore Invisible Lines"), true, nullptr);
+                                             tr("Restore invisible lines"), true, nullptr);
         restoreBox->groupLayout()->addWidget(restore);
         Content.push_back(restoreBox);
     }
@@ -488,14 +487,14 @@ void TaskDlgLineDecor::clicked(int i)
 
 bool TaskDlgLineDecor::accept()
 {
-//    Base::Console().Message("TDLD::accept()\n");
+//    Base::Console().message("TDLD::accept()\n");
     widget->accept();
     return true;
 }
 
 bool TaskDlgLineDecor::reject()
 {
-//    Base::Console().Message("TDLD::reject()\n");
+//    Base::Console().message("TDLD::reject()\n");
     widget->reject();
     return true;
 }

@@ -85,21 +85,12 @@ App::DocumentObjectExecReturn *Offset::execute()
     bool self = SelfIntersection.getValue();
     short mode = (short)Mode.getValue();
     bool fill = Fill.getValue();
-#ifndef FC_USE_TNP_FIX
-    short join = (short)Join.getValue();
-    const TopoShape& shape = Feature::getShape(source);
-    if (fabs(offset) > 2*tol)
-        this->Shape.setValue(shape.makeOffsetShape(offset, tol, inter, self, mode, join, fill));
-    else
-        this->Shape.setValue(shape);
-#else
-    auto shape = Feature::getTopoShape(source);
+    auto shape = Feature::getTopoShape(source, ShapeOption::ResolveLink | ShapeOption::Transform);
     if(shape.isNull())
         return new App::DocumentObjectExecReturn("Invalid source link");
     auto join = static_cast<JoinType>(Join.getValue());
     this->Shape.setValue(TopoShape(0).makeElementOffset(
         shape,offset,tol,inter,self,mode,join,fill ? FillType::fill : FillType::noFill));
-#endif
     return App::DocumentObject::StdReturn;
 }
 
@@ -141,18 +132,18 @@ App::DocumentObjectExecReturn *Offset2D::execute()
     if (!source) {
        return new App::DocumentObjectExecReturn("No source shape linked.");
     }
-    const TopoShape shape = Part::Feature::getTopoShape(source);
+    auto shape = Feature::getTopoShape(source, ShapeOption::ResolveLink | ShapeOption::Transform);
     if (shape.isNull()) {
         return new App::DocumentObjectExecReturn("No source shape linked.");
     }
     double offset = Value.getValue();
     short mode = (short)Mode.getValue();
-    short join = (short)Join.getValue();
-    bool fill = Fill.getValue();
-    bool inter = Intersection.getValue();
+    auto openresult = mode == 0 ? OpenResult::allowOpenResult : OpenResult::noOpenResult;
     if (mode == 2)
         return new App::DocumentObjectExecReturn("Mode 'Recto-Verso' is not supported for 2D offset.");
-
-    this->Shape.setValue(shape.makeOffset2D(offset, join, fill, mode == 0, inter));
+    auto join = static_cast<JoinType>(Join.getValue());
+    auto fill = Fill.getValue() ? FillType::fill : FillType::noFill;
+    bool inter = Intersection.getValue();
+    this->Shape.setValue(TopoShape(0).makeElementOffset2D(shape, offset, join, fill, openresult, inter));
     return App::DocumentObject::StdReturn;
 }

@@ -26,26 +26,12 @@
 #include "Texture.h"
 #include "Shader.h"
 #include "TextureLoader.h"
+#include "GlUtils.h"
+#include <QString>
 
 namespace MillSim
 {
 class MillSimulation;
-
-struct GuiItem
-{
-    unsigned int vbo, vao;
-    int sx, sy;     // screen location
-    int actionKey;  // action key when item pressed
-    bool hidden;    // is item hidden
-    bool mouseOver;
-    TextureItem texItem;
-};
-
-struct Vertex2D
-{
-    float x, y;
-    float tx, ty;
-};
 
 enum eGuiItems
 {
@@ -54,23 +40,72 @@ enum eGuiItems
     eGuiItemPause,
     eGuiItemPlay,
     eGuiItemSingleStep,
+    eGuiItemSlower,
     eGuiItemFaster,
+    eGuiItemX,
+    eGuiItem1,
+    eGuiItem5,
+    eGuiItem10,
+    eGuiItem25,
+    eGuiItem50,
     eGuiItemRotate,
-    eGuiItemCharXImg,
-    eGuiItemChar0Img,
-    eGuiItemChar1Img,
-    eGuiItemChar4Img,
-    eGuiItemMax
+    eGuiItemPath,
+    eGuiItemAmbientOclusion,
+    eGuiItemView,
+    eGuiItemHome,
+    eGuiItemMax  // this element must be the last item always
 };
 
+struct GuiItem
+{
+    eGuiItems name;
+    unsigned int vbo, vao;
+    int sx, sy;      // screen location
+    int actionKey;   // action key when item pressed
+    bool hidden {};  // is item hidden
+    unsigned int flags {};
+    bool mouseOver {};
+    TextureItem texItem {};
+    QString toolTip {};
+
+    int posx()
+    {
+        return sx >= 0 ? sx : gWindowSizeW + sx;
+    }
+    int posy()
+    {
+        return sy >= 0 ? sy : gWindowSizeH + sy;
+    }
+    void setPosx(int x)
+    {
+        sx = sx >= 0 ? x : x - gWindowSizeW;
+    }
+    void setPosy(int y)
+    {
+        sy = sy >= 0 ? y : y - gWindowSizeH;
+    }
+};
+
+#define GUIITEM_CHECKABLE 0x01
+#define GUIITEM_CHECKED 0x02
+#define GUIITEM_STRETCHED 0x04
+
+
+struct Vertex2D
+{
+    float x, y;
+    float tx, ty;
+};
 
 class GuiDisplay
 {
 public:
     // GuiDisplay() {};
-    bool InutGui();
+    bool InitGui();
+    void ResetGui();
     void Render(float progress);
     void MouseCursorPos(int x, int y);
+    void HandleActionItem(GuiItem* guiItem);
     void MousePressed(int button, bool isPressed, bool isRunning);
     void MouseDrag(int buttons, int dx, int dy);
     void SetMillSimulator(MillSimulation* millSim)
@@ -79,19 +114,31 @@ public:
     }
     void UpdatePlayState(bool isRunning);
     void UpdateSimSpeed(int speed);
+    void HandleKeyPress(int key);
+    bool IsChecked(eGuiItems item);
+    void UpdateWindowScale();
+
+public:
+    bool guiInitiated = false;
 
 private:
+    void UpdateProjection();
     bool GenerateGlItem(GuiItem* guiItem);
+    bool HStretchGlItem(GuiItem* guiItem, float newWidth, float edgeWidth);
+    void DestroyGlItem(GuiItem* guiItem);
     void RenderItem(int itemId);
+    void SetupTooltips();
 
     vec3 mStdColor = {0.8f, 0.8f, 0.4f};
+    vec3 mToggleColor = {0.9f, 0.6f, 0.2f};
     vec3 mHighlightColor = {1.0f, 1.0f, 0.9f};
     vec3 mPressedColor = {1.0f, 0.5f, 0.0f};
     vec3 mTextColor = {1.0f, 0.5f, 0.0f};
 
     Shader mShader;
     Texture mTexture;
-    eGuiItems mPressedItem = eGuiItemMax;
+    GuiItem* mPressedItem = nullptr;
+    GuiItem* mMouseOverItem = nullptr;
     MillSimulation* mMillSim = nullptr;
     unsigned int mIbo = 0;
     int mThumbStartX = 0;

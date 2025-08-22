@@ -4,19 +4,19 @@
   <context>
     <name>TestGui::UnitTest</name>
     <message>
-      <location filename="../../UnitTest.ui" line="17"/>
-      <source>FreeCAD UnitTest</source>
-      <translation>FreeCAD 유닛테스트</translation>
-    </message>
-    <message>
       <location filename="../../UnitTest.ui" line="32"/>
       <source>Test</source>
       <translation>테스트</translation>
     </message>
     <message>
+      <location filename="../../UnitTest.ui" line="17"/>
+      <source>FreeCAD Unit Test</source>
+      <translation type="unfinished">FreeCAD Unit Test</translation>
+    </message>
+    <message>
       <location filename="../../UnitTest.ui" line="44"/>
-      <source>Select test name:</source>
-      <translation>테스트 이름 선택:</translation>
+      <source>Select test name</source>
+      <translation type="unfinished">Select test name</translation>
     </message>
     <message>
       <location filename="../../UnitTest.ui" line="96"/>
@@ -65,28 +65,28 @@
     </message>
     <message>
       <location filename="../../UnitTest.ui" line="188"/>
-      <source>Run:</source>
-      <translation>실행:</translation>
+      <source>Run</source>
+      <translation>실행</translation>
     </message>
     <message>
       <location filename="../../UnitTest.ui" line="205"/>
-      <source>Failures:</source>
-      <translation>실패:</translation>
+      <source>Failures</source>
+      <translation type="unfinished">Failures</translation>
     </message>
     <message>
       <location filename="../../UnitTest.ui" line="222"/>
-      <source>Errors:</source>
-      <translation>오류:</translation>
+      <source>Errors</source>
+      <translation>오류</translation>
     </message>
     <message>
       <location filename="../../UnitTest.ui" line="239"/>
-      <source>Remaining:</source>
-      <translation>남음:</translation>
+      <source>Remaining</source>
+      <translation type="unfinished">Remaining</translation>
     </message>
     <message>
       <location filename="../../UnitTest.ui" line="259"/>
-      <source>Failures and errors</source>
-      <translation>실패와 오류</translation>
+      <source>Failures and Errors</source>
+      <translation type="unfinished">Failures and Errors</translation>
     </message>
     <message>
       <location filename="../../UnitTest.ui" line="275"/>
@@ -129,7 +129,7 @@ Double click on an error in the tree view to see more information about it, incl
 FreeCAD UnitTest is part of FreeCAD and supports writing Unit Tests for ones own modules.</source>
       <translation>저작권 (c) Werner Mayer
 
-FreeCAD 유닛테스트는 FreeCAD의 일부이며 모듈별로 유닛테스트를 작성할 수 있습니다.</translation>
+FreeCAD UnitTest는 FreeCAD의 일부이며 사용자가 소유한 모듈에 대한 단위 테스트를 작성할 수 있도록 지원합니다.</translation>
     </message>
   </context>
 </TS>

@@ -37,6 +37,7 @@
 #include "DrawTemplatePy.h"
 #include "DrawPage.h"
 #include "DrawUtil.h"
+#include "Preferences.h"
 
 
 using namespace TechDraw;
@@ -115,10 +116,9 @@ std::pair<int, int> DrawTemplate::getPageNumbers() const
     std::sort(pageNames.begin(), pageNames.end(), collator);
 
     int pos = 0;
-    DrawPage *page = getParentPage();
-    if (page) {
-        auto it = std::find(pageNames.begin(), pageNames.end(), QString::fromUtf8(page->Label.getValue()));
-        if (it != pageNames.end()) {
+    if (const DrawPage* page = getParentPage()) {
+        if (const auto it = std::ranges::find(pageNames, QString::fromUtf8(page->Label.getValue()));
+            it != pageNames.end()) {
             pos = it - pageNames.begin() + 1;
         }
     }
@@ -129,6 +129,7 @@ std::pair<int, int> DrawTemplate::getPageNumbers() const
 //! get replacement values from document
 QString DrawTemplate::getAutofillValue(const QString &id) const
 {
+    constexpr int ISODATELENGTH {10};
     auto doc = getDocument();
     if (!doc) {
         return QString();
@@ -142,11 +143,20 @@ QString DrawTemplate::getAutofillValue(const QString &id) const
     }
     // date
     else if (id.compare(QString::fromUtf8(Autofill::Date)) == 0) {
+        auto timeLocale = std::setlocale(LC_TIME, nullptr);
         QDateTime date = QDateTime::currentDateTime();
-        return date.toString(QLocale().dateFormat(QLocale::ShortFormat));
+        if (Preferences::enforceISODate()) {
+            auto rawDate = date.toString(Qt::ISODate);
+            return rawDate.left(ISODATELENGTH);
+        }
+        auto qTimeLocale = QString::fromUtf8(timeLocale);
+        return date.toString(QLocale(qTimeLocale).dateFormat(QLocale::ShortFormat));
     }
-    // organization
-    else if (id.compare(QString::fromUtf8(Autofill::Organization)) == 0) {
+    // organization ( also organisation/owner/company )
+    else if (id.compare(QString::fromUtf8(Autofill::Organization)) == 0 ||
+             id.compare(QString::fromUtf8(Autofill::Organisation)) == 0 ||
+             id.compare(QString::fromUtf8(Autofill::Owner)) == 0 ||
+             id.compare(QString::fromUtf8(Autofill::Company)) == 0 ) {
         auto value = QString::fromUtf8(doc->Company.getValue());
         if (!value.isEmpty()) {
             return value;

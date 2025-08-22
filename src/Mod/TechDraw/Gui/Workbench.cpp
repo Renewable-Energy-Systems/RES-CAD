@@ -136,9 +136,10 @@ Gui::MenuItem* Workbench::setupMenuBar() const
     *toolcenter << "TechDraw_ExtensionVertexAtIntersection";
     *toolcenter << "TechDraw_CommandAddOffsetVertex";
     *toolcenter << "Separator";
+    *toolcenter << "TechDraw_CosmeticCircle";
     *toolcenter << "TechDraw_ExtensionDrawCosmCircle";
-    *toolcenter << "TechDraw_ExtensionDrawCosmArc";
     *toolcenter << "TechDraw_ExtensionDrawCosmCircle3Points";
+    *toolcenter << "TechDraw_ExtensionDrawCosmArc";
     *toolcenter << "TechDraw_ExtensionLineParallel";
     *toolcenter << "TechDraw_ExtensionLinePerpendicular";
 
@@ -187,7 +188,6 @@ Gui::MenuItem* Workbench::setupMenuBar() const
     *lines << "TechDraw_2LineCenterLine";
     *lines << "TechDraw_2PointCenterLine";
     *lines << "TechDraw_2PointCosmeticLine";
-    *lines << "TechDraw_CosmeticCircle";
     *lines << "Separator";
     *lines << "TechDraw_DecorateLine";
     *lines << "TechDraw_ShowAll";
@@ -227,13 +227,13 @@ Gui::MenuItem* Workbench::setupMenuBar() const
     *views << "Separator";
     *views << "TechDraw_ShareView";
     *views << "Separator";
-    *views << "TechDraw_ToggleFrame";
     *views << "Separator";
     *views << "TechDraw_ProjectShape";
 
     // views from other workbenches
     Gui::MenuItem* other = new Gui::MenuItem;
     other->setCommand("Views From Other Workbenches");
+
     *other << "TechDraw_ActiveView";
     *other << "TechDraw_DraftView";
     *other << "TechDraw_ArchView";
@@ -252,6 +252,12 @@ Gui::MenuItem* Workbench::setupMenuBar() const
     *symbols << "TechDraw_SurfaceFinishSymbols";
     *symbols << "TechDraw_HoleShaftFit";
 
+
+    Gui::MenuItem* aligning = new Gui::MenuItem;
+    aligning->setCommand("Aligning");
+    *aligning << "TechDraw_AlignVertexesVertically";
+    *aligning << "TechDraw_AlignVertexesHorizontally";
+
     // main menu
     draw->setCommand("TechDraw");
     *draw << pages;
@@ -267,6 +273,7 @@ Gui::MenuItem* Workbench::setupMenuBar() const
     *draw << symbols;
     *draw << "Separator";
     *draw << stacking;
+    *draw << aligning;
     *draw << "Separator";
     *draw << toolattrib;
     *draw << toolcenter;
@@ -381,7 +388,6 @@ Gui::ToolBarItem* Workbench::setupToolBars() const
     decor->setCommand("TechDraw Decoration");
     *decor << "TechDraw_Hatch";
     *decor << "TechDraw_GeometricHatch";
-    *decor << "TechDraw_ToggleFrame";
 
     Gui::ToolBarItem* anno = new Gui::ToolBarItem(root);
     anno->setCommand("TechDraw Annotation");
@@ -391,7 +397,6 @@ Gui::ToolBarItem* Workbench::setupToolBars() const
     *anno << "TechDraw_CosmeticVertexGroup";
     *anno << "TechDraw_CenterLineGroup";
     *anno << "TechDraw_2PointCosmeticLine";
-    *anno << "TechDraw_CosmeticCircle";
     *anno << "TechDraw_DecorateLine";
     *anno << "TechDraw_ShowAll";
     *anno << "TechDraw_WeldSymbol";
@@ -481,7 +486,6 @@ Gui::ToolBarItem* Workbench::setupCommandBars() const
     decor->setCommand("TechDraw Decoration");
     *decor << "TechDraw_Hatch";
     *decor << "TechDraw_GeometricHatch";
-    *decor << "TechDraw_ToggleFrame";
 
     Gui::ToolBarItem* anno = new Gui::ToolBarItem(root);
     anno->setCommand("TechDraw Annotation");
@@ -491,7 +495,6 @@ Gui::ToolBarItem* Workbench::setupCommandBars() const
     *anno << "TechDraw_CosmeticVertexGroup";
     *anno << "TechDraw_CenterLineGroup";
     *anno << "TechDraw_2PointCosmeticLine";
-    *anno << "TechDraw_CosmeticCircle";
     *anno << "TechDraw_DecorateLine";
     *anno << "TechDraw_ShowAll";
     *anno << "TechDraw_WeldSymbol";

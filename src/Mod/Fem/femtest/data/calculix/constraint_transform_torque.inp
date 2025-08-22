@@ -10998,8 +10998,8 @@ ConstraintFixed,3
 
 ***********************************************************
 ** constraints force node loads
-*CLOAD
 ** ConstraintForce
+*CLOAD
 ** node loads on shape: Cut:Face1
 3,2,-0
 4,2,-0
@@ -13163,7 +13163,7 @@ RF
 
 *OUTPUT, FREQUENCY=1
 ***********************************************************
-*END STEP 
+*END STEP
 
 ***********************************************************
 ** CalculiX Input file

@@ -114,7 +114,7 @@ OverlayProxyWidget::HitTest OverlayProxyWidget::hitTest(const QPoint &globalPt, 
 
     QTabBar *tabbar = owner->tabBar();
     if (tabbar->isVisible() && tabbar->tabAt(pt)>=0) {
-        ToolTip::showText(globalPt, QObject::tr("Press ESC to hide hint"), this);
+        ToolTip::showText(globalPt, QObject::tr("Press Esc to hide hint"), this);
         return HitTest::HitOuter;
     }
 
@@ -144,7 +144,7 @@ OverlayProxyWidget::HitTest OverlayProxyWidget::hitTest(const QPoint &globalPt, 
     }
     if (rect.contains(pt)) {
         hit = HitTest::HitInner;
-        ToolTip::showText(globalPt, QObject::tr("Press ESC to hide hint"), this);
+        ToolTip::showText(globalPt, QObject::tr("Press Esc to hide hint"), this);
     } else if (drawLine)
         ToolTip::hideText();
 
@@ -169,8 +169,13 @@ OverlayProxyWidget::HitTest OverlayProxyWidget::hitTest(const QPoint &globalPt, 
             drawLine = true;
             update();
         }
+
+        auto view = getMainWindow()->activeWindow();
+        auto overlayOnHoverAllowed = view && view->onHasMsg("AllowsOverlayOnHover");
+
         if(owner->getState() != OverlayTabWidget::State::Hidden
                 && hit == HitTest::HitOuter
+                && overlayOnHoverAllowed
                 && OverlayParams::getDockOverlayActivateOnHover()) {
             if (owner->isVisible() && owner->tabBar()->isVisible()) {
                 QSize size = owner->tabBar()->size();
@@ -440,29 +445,34 @@ OverlayTabWidget::OverlayTabWidget(QWidget *parent, Qt::DockWidgetArea pos)
 
 void OverlayTabWidget::refreshIcons()
 {
-    actOverlay.setIcon(BitmapFactory().pixmap("qss:overlay/icons/overlay.svg"));
-    actNoAutoMode.setIcon(BitmapFactory().pixmap("qss:overlay/icons/mode.svg"));
-    actTaskShow.setIcon(BitmapFactory().pixmap("qss:overlay/icons/taskshow.svg"));
-    actEditShow.setIcon(BitmapFactory().pixmap("qss:overlay/icons/editshow.svg"));
-    actEditHide.setIcon(BitmapFactory().pixmap("qss:overlay/icons/edithide.svg"));
-    actTransparent.setIcon(BitmapFactory().pixmap("qss:overlay/icons/transparent.svg"));
-    QPixmap pxAutoHide = BitmapFactory().pixmap("qss:overlay/icons/autohide.svg");
-    switch(dockArea) {
-    case Qt::LeftDockWidgetArea:
-        actAutoHide.setIcon(pxAutoHide);
-        break;
-    case Qt::RightDockWidgetArea:
-        actAutoHide.setIcon(pxAutoHide.transformed(QTransform().scale(-1,1)));
-        break;
-    case Qt::TopDockWidgetArea:
-        actAutoHide.setIcon(pxAutoHide.transformed(QTransform().rotate(90)));
-        break;
-    case Qt::BottomDockWidgetArea:
-        actAutoHide.setIcon(pxAutoHide.transformed(QTransform().rotate(-90)));
-        break;
-    default:
-        break;
+    auto curStyleSheet =
+        App::GetApplication()
+            .GetParameterGroupByPath("User parameter:BaseApp/Preferences/MainWindow")
+            ->GetASCII("StyleSheet", "None");
+
+    QPixmap pxAutoHide;
+
+    if (isStyleSheetDark(curStyleSheet)) {
+        actOverlay.setIcon(BitmapFactory().pixmap("qss:overlay/icons/overlay_light.svg"));
+        actNoAutoMode.setIcon(BitmapFactory().pixmap("qss:overlay/icons/mode_light.svg"));
+        actTaskShow.setIcon(BitmapFactory().pixmap("qss:overlay/icons/taskshow_light.svg"));
+        actEditShow.setIcon(BitmapFactory().pixmap("qss:overlay/icons/editshow_light.svg"));
+        actEditHide.setIcon(BitmapFactory().pixmap("qss:overlay/icons/edithide_light.svg"));
+        actTransparent.setIcon(BitmapFactory().pixmap("qss:overlay/icons/transparent_light.svg"));
+        pxAutoHide = BitmapFactory().pixmap("qss:overlay/icons/autohide_light.svg");
     }
+    else {
+        actOverlay.setIcon(BitmapFactory().pixmap("qss:overlay/icons/overlay.svg"));
+        actNoAutoMode.setIcon(BitmapFactory().pixmap("qss:overlay/icons/mode.svg"));
+        actTaskShow.setIcon(BitmapFactory().pixmap("qss:overlay/icons/taskshow.svg"));
+        actEditShow.setIcon(BitmapFactory().pixmap("qss:overlay/icons/editshow.svg"));
+        actEditHide.setIcon(BitmapFactory().pixmap("qss:overlay/icons/edithide.svg"));
+        actTransparent.setIcon(BitmapFactory().pixmap("qss:overlay/icons/transparent.svg"));
+        pxAutoHide = BitmapFactory().pixmap("qss:overlay/icons/autohide.svg");
+    }
+
+    actAutoHide.setIcon(rotateAutoHideIcon(pxAutoHide, dockArea));
+
     syncAutoMode();
 }
 
@@ -489,8 +499,10 @@ void OverlayTabWidget::setAnimation(qreal t)
 
 void OverlayTabWidget::startShow()
 {
-    if (isVisible() || _state > State::Normal)
+    if (isVisible() || _state > State::Normal) {
         return;
+    }
+
     int duration = OverlayParams::getDockOverlayAnimationDuration();
     bool setmode = _state != State::Showing;
     if (duration) {
@@ -870,29 +882,162 @@ void OverlayTabWidget::retranslate()
 
 void OverlayTabWidget::syncAutoMode()
 {
-    QAction *action = nullptr;
-    switch(autoMode) {
-    case AutoMode::AutoHide:
-        action = &actAutoHide;
-        break;
-    case AutoMode::EditShow:
-        action = &actEditShow;
-        break;
-    case AutoMode::TaskShow:
-        action = &actTaskShow;
-        break;
-    case AutoMode::EditHide:
-        action = &actEditHide;
-        break;
-    default:
-        action = &actNoAutoMode;
-        break;
+    auto curStyleSheet =
+        App::GetApplication()
+            .GetParameterGroupByPath("User parameter:BaseApp/Preferences/MainWindow")
+            ->GetASCII("StyleSheet", "None");
+
+    QAction* action = nullptr;
+    switch (autoMode) {
+        case AutoMode::AutoHide:
+            action = &actAutoHide;
+            if (isStyleSheetDark(curStyleSheet)) {
+                QPixmap pxAutoHideMode =
+                    BitmapFactory().pixmap("qss:overlay/icons/autohide_lighter.svg");
+                pxAutoHideMode = rotateAutoHideIcon(pxAutoHideMode, dockArea);
+                action->setIcon(pxAutoHideMode);
+                actNoAutoMode.setIcon(BitmapFactory().pixmap("qss:overlay/icons/mode_light.svg"));
+                actTaskShow.setIcon(BitmapFactory().pixmap("qss:overlay/icons/taskshow_light.svg"));
+                actEditShow.setIcon(BitmapFactory().pixmap("qss:overlay/icons/editshow_light.svg"));
+                actEditHide.setIcon(BitmapFactory().pixmap("qss:overlay/icons/edithide_light.svg"));
+            }
+            else {
+                QPixmap pxAutoHideMode = BitmapFactory().pixmap("qss:overlay/icons/autohide.svg");
+                pxAutoHideMode = rotateAutoHideIcon(pxAutoHideMode, dockArea);
+                action->setIcon(pxAutoHideMode);
+                actNoAutoMode.setIcon(
+                    BitmapFactory().pixmap("qss:overlay/icons/mode_lightgray.svg"));
+                actTaskShow.setIcon(
+                    BitmapFactory().pixmap("qss:overlay/icons/taskshow_lightgray.svg"));
+                actEditShow.setIcon(
+                    BitmapFactory().pixmap("qss:overlay/icons/editshow_lightgray.svg"));
+                actEditHide.setIcon(
+                    BitmapFactory().pixmap("qss:overlay/icons/edithide_lightgray.svg"));
+            }
+            break;
+        case AutoMode::EditShow:
+            action = &actEditShow;
+            if (isStyleSheetDark(curStyleSheet)) {
+                QPixmap pxEditShowMode =
+                    BitmapFactory().pixmap("qss:overlay/icons/editshow_lighter.svg");
+                action->setIcon(pxEditShowMode);
+                QPixmap pxAutoHideMode =
+                    BitmapFactory().pixmap("qss:overlay/icons/autohide_light.svg");
+                pxAutoHideMode = rotateAutoHideIcon(pxAutoHideMode, dockArea);
+                actAutoHide.setIcon(pxAutoHideMode);
+                actNoAutoMode.setIcon(BitmapFactory().pixmap("qss:overlay/icons/mode_light.svg"));
+                actTaskShow.setIcon(BitmapFactory().pixmap("qss:overlay/icons/taskshow_light.svg"));
+                actEditHide.setIcon(BitmapFactory().pixmap("qss:overlay/icons/edithide_light.svg"));
+            }
+            else {
+                QPixmap pxEditShowMode = BitmapFactory().pixmap("qss:overlay/icons/editshow.svg");
+                action->setIcon(pxEditShowMode);
+                QPixmap pxAutoHideMode =
+                    BitmapFactory().pixmap("qss:overlay/icons/autohide_lightgray.svg");
+                pxAutoHideMode = rotateAutoHideIcon(pxAutoHideMode, dockArea);
+                actAutoHide.setIcon(pxAutoHideMode);
+                actNoAutoMode.setIcon(
+                    BitmapFactory().pixmap("qss:overlay/icons/mode_lightgray.svg"));
+                actTaskShow.setIcon(
+                    BitmapFactory().pixmap("qss:overlay/icons/taskshow_lightgray.svg"));
+                actEditHide.setIcon(
+                    BitmapFactory().pixmap("qss:overlay/icons/edithide_lightgray.svg"));
+            }
+            break;
+        case AutoMode::TaskShow:
+            action = &actTaskShow;
+            if (isStyleSheetDark(curStyleSheet)) {
+                QPixmap pxTaskShowMode =
+                    BitmapFactory().pixmap("qss:overlay/icons/taskshow_lighter.svg");
+                action->setIcon(pxTaskShowMode);
+                QPixmap pxAutoHideMode =
+                    BitmapFactory().pixmap("qss:overlay/icons/autohide_light.svg");
+                pxAutoHideMode = rotateAutoHideIcon(pxAutoHideMode, dockArea);
+                actNoAutoMode.setIcon(BitmapFactory().pixmap("qss:overlay/icons/mode_light.svg"));
+                actEditShow.setIcon(BitmapFactory().pixmap("qss:overlay/icons/editshow_light.svg"));
+                actAutoHide.setIcon(pxAutoHideMode);
+                actEditHide.setIcon(BitmapFactory().pixmap("qss:overlay/icons/edithide_light.svg"));
+            }
+            else {
+                QPixmap pxTaskShowMode = BitmapFactory().pixmap("qss:overlay/icons/taskshow.svg");
+                action->setIcon(pxTaskShowMode);
+                QPixmap pxAutoHideMode =
+                    BitmapFactory().pixmap("qss:overlay/icons/autohide_lightgray.svg");
+                pxAutoHideMode = rotateAutoHideIcon(pxAutoHideMode, dockArea);
+                actNoAutoMode.setIcon(
+                    BitmapFactory().pixmap("qss:overlay/icons/mode_lightgray.svg"));
+                actEditShow.setIcon(
+                    BitmapFactory().pixmap("qss:overlay/icons/editshow_lightgray.svg"));
+                actAutoHide.setIcon(pxAutoHideMode);
+                actEditHide.setIcon(
+                    BitmapFactory().pixmap("qss:overlay/icons/edithide_lightgray.svg"));
+            }
+            break;
+        case AutoMode::EditHide:
+            action = &actEditHide;
+            if (isStyleSheetDark(curStyleSheet)) {
+                QPixmap pxEditHideMode =
+                    BitmapFactory().pixmap("qss:overlay/icons/edithide_lighter.svg");
+                action->setIcon(pxEditHideMode);
+                QPixmap pxAutoHideMode =
+                    BitmapFactory().pixmap("qss:overlay/icons/autohide_light.svg");
+                pxAutoHideMode = rotateAutoHideIcon(pxAutoHideMode, dockArea);
+                actNoAutoMode.setIcon(BitmapFactory().pixmap("qss:overlay/icons/mode_light.svg"));
+                actEditShow.setIcon(BitmapFactory().pixmap("qss:overlay/icons/editshow_light.svg"));
+                actAutoHide.setIcon(pxAutoHideMode);
+                actTaskShow.setIcon(BitmapFactory().pixmap("qss:overlay/icons/taskshow_light.svg"));
+            }
+            else {
+                QPixmap pxEditHideMode = BitmapFactory().pixmap("qss:overlay/icons/edithide.svg");
+                action->setIcon(pxEditHideMode);
+                QPixmap pxAutoHideMode =
+                    BitmapFactory().pixmap("qss:overlay/icons/autohide_lightgray.svg");
+                pxAutoHideMode = rotateAutoHideIcon(pxAutoHideMode, dockArea);
+                actNoAutoMode.setIcon(
+                    BitmapFactory().pixmap("qss:overlay/icons/mode_lightgray.svg"));
+                actEditShow.setIcon(
+                    BitmapFactory().pixmap("qss:overlay/icons/editshow_lightgray.svg"));
+                actAutoHide.setIcon(pxAutoHideMode);
+                actTaskShow.setIcon(
+                    BitmapFactory().pixmap("qss:overlay/icons/taskshow_lightgray.svg"));
+            }
+            break;
+        default:
+            action = &actNoAutoMode;
+            if (isStyleSheetDark(curStyleSheet)) {
+                QPixmap pxNoAutoMode = BitmapFactory().pixmap("qss:overlay/icons/mode_lighter.svg");
+                action->setIcon(pxNoAutoMode);
+                QPixmap pxAutoHideMode =
+                    BitmapFactory().pixmap("qss:overlay/icons/autohide_light.svg");
+                pxAutoHideMode = rotateAutoHideIcon(pxAutoHideMode, dockArea);
+                actTaskShow.setIcon(BitmapFactory().pixmap("qss:overlay/icons/taskshow_light.svg"));
+                actEditShow.setIcon(BitmapFactory().pixmap("qss:overlay/icons/editshow_light.svg"));
+                actAutoHide.setIcon(pxAutoHideMode);
+                actEditHide.setIcon(BitmapFactory().pixmap("qss:overlay/icons/edithide_light.svg"));
+            }
+            else {
+                QPixmap pxNoAutoMode = BitmapFactory().pixmap("qss:overlay/icons/mode.svg");
+                action->setIcon(pxNoAutoMode);
+                QPixmap pxAutoHideMode =
+                    BitmapFactory().pixmap("qss:overlay/icons/autohide_lightgray.svg");
+                pxAutoHideMode = rotateAutoHideIcon(pxAutoHideMode, dockArea);
+                actTaskShow.setIcon(
+                    BitmapFactory().pixmap("qss:overlay/icons/taskshow_lightgray.svg"));
+                actEditShow.setIcon(
+                    BitmapFactory().pixmap("qss:overlay/icons/editshow_lightgray.svg"));
+                actAutoHide.setIcon(pxAutoHideMode);
+                actEditHide.setIcon(
+                    BitmapFactory().pixmap("qss:overlay/icons/edithide_lightgray.svg"));
+            }
+            break;
     }
     actAutoMode.setIcon(action->icon());
-    if (action == &actNoAutoMode)
+    if (action == &actNoAutoMode) {
         actAutoMode.setToolTip(tr("Select auto show/hide mode"));
-    else
+    }
+    else {
         actAutoMode.setToolTip(action->toolTip());
+    }
 }
 
 void OverlayTabWidget::onAction(QAction *action)
@@ -991,25 +1136,36 @@ void OverlayTabWidget::setState(State state)
 
 bool OverlayTabWidget::checkAutoHide() const
 {
-    if(autoMode == AutoMode::AutoHide)
+    if (autoMode == AutoMode::AutoHide) {
         return true;
-
-    if(OverlayParams::getDockOverlayAutoView()) {
-        auto view = getMainWindow()->activeWindow();
-        if (!view) return true;
-        if(!view->onHasMsg("CanPan")
-                && view->parentWidget()
-                && view->parentWidget()->isMaximized())
-            return true;
     }
 
-    if(autoMode == AutoMode::EditShow) {
+    if (OverlayParams::getDockOverlayAutoView()) {
+        auto view = getMainWindow()->activeWindow();
+
+        if (!view) {
+            return true;
+        }
+
+        if (!view->onHasMsg("AllowsOverlayOnHover")) {
+            return true;
+        }
+
+        if (!view->onHasMsg("CanPan")
+                && view->parentWidget()
+                && view->parentWidget()->isMaximized()) {
+            return true;
+        }
+    }
+
+    if (autoMode == AutoMode::EditShow) {
         return !Application::Instance->editDocument()
             && (!Control().taskPanel() || Control().taskPanel()->isEmpty(false));
     }
 
-    if(autoMode == AutoMode::EditHide && Application::Instance->editDocument())
+    if (autoMode == AutoMode::EditHide && Application::Instance->editDocument()) {
         return true;
+    }
 
     return false;
 }
@@ -1040,11 +1196,6 @@ void OverlayTabWidget::_setOverlayMode(QWidget *widget, OverlayOption option)
 {
     if(!widget)
         return;
-
-#if QT_VERSION>QT_VERSION_CHECK(5,12,2) && QT_VERSION < QT_VERSION_CHECK(5,12,6)
-    // Work around Qt bug https://bugreports.qt.io/browse/QTBUG-77006
-    widget->setStyleSheet(OverlayManager::instance()->getStyleSheet());
-#endif
 
     if (qobject_cast<QScrollBar*>(widget)) {
         auto parent = widget->parentWidget();
@@ -1122,7 +1273,6 @@ void OverlayTabWidget::setOverlayMode(QWidget *widget, OverlayOption option)
                         && !qobject_cast<Dialog::Clipping*>(widget))
                || qobject_cast<TaskView::TaskBox*>(widget))
         return;
-
     if(widget != tabBar()) {
         if(OverlayParams::getDockOverlayAutoMouseThrough()
                 && option == OverlayOption::ShowTab) {
@@ -1410,7 +1560,7 @@ void OverlayTabWidget::setRect(QRect rect)
         break;
     }
 
-    if(hGrp && rect.size() != rectOverlay.size()) {
+    if (hGrp && rect.size() != rectOverlay.size()) {
         Base::StateLocker lock(_saving);
         hGrp->SetInt("Width", rect.width());
         hGrp->SetInt("Height", rect.height());
@@ -1419,7 +1569,7 @@ void OverlayTabWidget::setRect(QRect rect)
 
     QPoint offset = getMainWindow()->getMdiArea()->pos();
 
-    if(getAutoHideRect(rect) || _state == State::Hint || _state == State::Hidden) {
+    if (getAutoHideRect(rect) || _state == State::Hint || _state == State::Hidden) {
         QRect rectHint = rect;
         if (_state != State::Hint && _state != State::Hidden)
             startHide();
@@ -1459,10 +1609,11 @@ void OverlayTabWidget::setRect(QRect rect)
     } else {
         setGeometry(rectOverlay.translated(offset));
 
-        for(int i=0, count=splitter->count(); i<count; ++i)
+        for (int i = 0, count = splitter->count(); i < count; ++i) {
             splitter->widget(i)->show();
+        }
 
-        if(!isVisible() && count()) {
+        if (!isVisible() && count()) {
             proxyWidget->hide();
             startShow();
         }
@@ -1770,6 +1921,36 @@ QLayoutItem *OverlayTabWidget::prepareTitleWidget(QWidget *widget, const QList<Q
     return spacer;
 }
 
+bool OverlayTabWidget::isStyleSheetDark(std::string curStyleSheet)
+{
+    if (curStyleSheet.find("dark") != std::string::npos
+        || curStyleSheet.find("Dark") != std::string::npos) {
+        return true;
+    }
+    return false;
+}
+
+QPixmap OverlayTabWidget::rotateAutoHideIcon(QPixmap pxAutoHide, Qt::DockWidgetArea dockArea)
+{
+    switch (dockArea) {
+        case Qt::LeftDockWidgetArea:
+            return pxAutoHide;
+            break;
+        case Qt::RightDockWidgetArea:
+            return pxAutoHide.transformed(QTransform().scale(-1, 1));
+            break;
+        case Qt::TopDockWidgetArea:
+            return pxAutoHide.transformed(QTransform().rotate(90));
+            break;
+        case Qt::BottomDockWidgetArea:
+            return pxAutoHide.transformed(QTransform().rotate(-90));
+            break;
+        default:
+            return pxAutoHide;
+            break;
+    }
+}
+
 // -----------------------------------------------------------
 
 OverlayTitleBar::OverlayTitleBar(QWidget * parent)
@@ -1834,7 +2015,7 @@ void OverlayTitleBar::paintEvent(QPaintEvent *)
     if (OverlayManager::instance()->isMouseTransparent()) {
         if (timerId == 0)
             timerId = startTimer(500);
-        title = blink ? tr("Mouse pass through, ESC to stop") : dock->windowTitle();
+        title = blink ? tr("Mouse pass through, Esc to stop") : dock->windowTitle();
     } else {
         if (timerId != 0) {
             killTimer(timerId);
@@ -2415,14 +2596,6 @@ void OverlayGraphicsEffect::draw(QPainter* painter)
     if (px.isNull())
         return;
 
-#if 0
-    if (FC_LOG_INSTANCE.isEnabled(FC_LOGLEVEL_LOG)) {
-        static int count;
-        getMainWindow()->showMessage(
-                QStringLiteral("dock overlay redraw %1").arg(count++));
-    }
-#endif
-
     QTransform restoreTransform = painter->worldTransform();
     painter->setWorldTransform(QTransform());
 
@@ -2494,27 +2667,6 @@ void OverlayGraphicsEffect::draw(QPainter* painter)
 
     // draw the actual pixmap...
     painter->drawPixmap(offset, px, QRectF());
-
-#if 0
-    QWidget *focus = qApp->focusWidget();
-    if (focus) {
-        QWidget *widget = qobject_cast<QWidget*>(this->parent());
-        if (auto *edit = qobject_cast<QPlainTextEdit*>(focus)) {
-            if (!edit->isReadOnly() && edit->isEnabled()) {
-                for(auto w=edit->parentWidget(); w; w=w->parentWidget()) {
-                    if (w == widget) {
-                        QRect r = edit->cursorRect();
-                        QRect rect(edit->viewport()->mapTo(widget, r.topLeft()),
-                                edit->viewport()->mapTo(widget, r.bottomRight()));
-                        // painter->fillRect(rect, edit->textColor());
-                        // painter->fillRect(rect, edit->currentCharFormat().foreground());
-                        painter->fillRect(rect.translated(offset), Qt::white);
-                    }
-                }
-            }
-        }
-    }
-#endif
 
     // restore world transform
     painter->setWorldTransform(restoreTransform);

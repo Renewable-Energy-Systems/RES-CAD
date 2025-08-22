@@ -24,8 +24,12 @@
 #include "PreCompiled.h"
 
 #ifndef _PreComp_
-#include <memory>
+#include <map>
+#include <vector>
+#include <iostream>
+#include <string>
 #include <xercesc/sax2/XMLReaderFactory.hpp>
+#include <xercesc/sax2/Attributes.hpp>
 #endif
 
 #include <locale>
@@ -34,6 +38,7 @@
 #include "Base64.h"
 #include "Base64Filter.h"
 #include "Console.h"
+#include "Exception.h"
 #include "InputSource.h"
 #include "Persistence.h"
 #include "Sequencer.h"
@@ -46,8 +51,12 @@
 #include <zipios++/zipinputstream.h>
 #include <boost/iostreams/filtering_stream.hpp>
 
-
+#ifndef XERCES_CPP_NAMESPACE_BEGIN
+#define XERCES_CPP_NAMESPACE_QUALIFIER
+using namespace XERCES_CPP_NAMESPACE;
+#else
 XERCES_CPP_NAMESPACE_USE
+#endif
 
 using namespace std;
 
@@ -109,57 +118,80 @@ unsigned int Base::XMLReader::getAttributeCount() const
     return static_cast<unsigned int>(AttrMap.size());
 }
 
-long Base::XMLReader::getAttributeAsInteger(const char* AttrName) const
+namespace
 {
-    AttrMapType::const_iterator pos = AttrMap.find(AttrName);
-
-    if (pos != AttrMap.end()) {
-        return atol(pos->second.c_str());
+template<typename T>
+T readerCast(const char* value)
+{
+    if constexpr (std::is_same_v<T, const char*>) {
+        return value;
     }
-    // wrong name, use hasAttribute if not sure!
-    std::ostringstream msg;
-    msg << "XML Attribute: \"" << AttrName << "\" not found";
-    throw Base::XMLAttributeError(msg.str());
+    if constexpr (std::is_same_v<T, long>) {
+        return stol(value);
+    }
+    if constexpr (std::is_same_v<T, int>) {
+        return stoi(value);
+    }
+    if constexpr (std::is_same_v<T, unsigned long>) {
+        return stoul(value, nullptr);
+    }
+    if constexpr (std::is_same_v<T, double>) {
+        return stod(value, nullptr);
+    }
+    if constexpr (std::is_same_v<T, bool>) {
+        return std::string_view(value) != "0";
+    }
+}
+}  // anonymous namespace
+
+template<typename T>
+    requires Base::XMLReader::instantiated<T>
+T Base::XMLReader::getAttribute(const char* AttrName, T defaultValue) const
+{
+    auto pos = AttrMap.find(AttrName);
+    if (pos == AttrMap.end()) {
+        return defaultValue;
+    }
+    const char* rawValue = pos->second.c_str();
+    return readerCast<T>(rawValue);
 }
 
-unsigned long Base::XMLReader::getAttributeAsUnsigned(const char* AttrName) const
+template<typename T>
+    requires Base::XMLReader::instantiated<T>
+T Base::XMLReader::getAttribute(const char* AttrName) const
 {
-    AttrMapType::const_iterator pos = AttrMap.find(AttrName);
-
-    if (pos != AttrMap.end()) {
-        return strtoul(pos->second.c_str(), nullptr, 10);
+    auto pos = AttrMap.find(AttrName);
+    if (pos == AttrMap.end()) {
+        // wrong name, use hasAttribute if not sure!
+        std::string msg = std::string("XML Attribute: \"") + AttrName + "\" not found";
+        throw Base::XMLAttributeError(msg);
     }
-    // wrong name, use hasAttribute if not sure!
-    std::ostringstream msg;
-    msg << "XML Attribute: \"" << AttrName << "\" not found";
-    throw Base::XMLAttributeError(msg.str());
+    const char* rawValue = pos->second.c_str();
+    return readerCast<T>(rawValue);
 }
 
-double Base::XMLReader::getAttributeAsFloat(const char* AttrName) const
-{
-    AttrMapType::const_iterator pos = AttrMap.find(AttrName);
-
-    if (pos != AttrMap.end()) {
-        return atof(pos->second.c_str());
-    }
-    // wrong name, use hasAttribute if not sure!
-    std::ostringstream msg;
-    msg << "XML Attribute: \"" << AttrName << "\" not found";
-    throw Base::XMLAttributeError(msg.str());
-}
-
-const char* Base::XMLReader::getAttribute(const char* AttrName) const
-{
-    AttrMapType::const_iterator pos = AttrMap.find(AttrName);
-
-    if (pos != AttrMap.end()) {
-        return pos->second.c_str();
-    }
-    // wrong name, use hasAttribute if not sure!
-    std::ostringstream msg;
-    msg << "XML Attribute: \"" << AttrName << "\" not found";
-    throw Base::XMLAttributeError(msg.str());
-}
+// Explicit template instantiation
+template BaseExport bool Base::XMLReader::getAttribute<bool>(const char* AttrName,
+                                                             bool defaultValue) const;
+template BaseExport bool Base::XMLReader::getAttribute<bool>(const char* AttrName) const;
+template BaseExport const char*
+Base::XMLReader::getAttribute<const char*>(const char* AttrName, const char* defaultValue) const;
+template BaseExport const char*
+Base::XMLReader::getAttribute<const char*>(const char* AttrName) const;
+template BaseExport double Base::XMLReader::getAttribute<double>(const char* AttrName,
+                                                                 double defaultValue) const;
+template BaseExport double Base::XMLReader::getAttribute<double>(const char* AttrName) const;
+template BaseExport int Base::XMLReader::getAttribute<int>(const char* AttrName,
+                                                           int defaultValue) const;
+template BaseExport int Base::XMLReader::getAttribute<int>(const char* AttrName) const;
+template BaseExport long Base::XMLReader::getAttribute<long>(const char* AttrName,
+                                                             long defaultValue) const;
+template BaseExport long Base::XMLReader::getAttribute<long>(const char* AttrName) const;
+template BaseExport unsigned long
+Base::XMLReader::getAttribute<unsigned long>(const char* AttrName,
+                                             unsigned long defaultValue) const;
+template BaseExport unsigned long
+Base::XMLReader::getAttribute<unsigned long>(const char* AttrName) const;
 
 bool Base::XMLReader::hasAttribute(const char* AttrName) const
 {
@@ -196,6 +228,8 @@ bool Base::XMLReader::read()
 void Base::XMLReader::readElement(const char* ElementName)
 {
     bool ok {};
+
+    endCharStream();
     int currentLevel = Level;
     std::string currentName = LocalName;
     do {
@@ -263,6 +297,8 @@ bool Base::XMLReader::isEndOfDocument() const
 
 void Base::XMLReader::readEndElement(const char* ElementName, int level)
 {
+    endCharStream();
+
     // if we are already at the end of the current element
     if ((ReadType == EndElement || ReadType == StartEndElement) && ElementName
         && LocalName == ElementName && (level < 0 || level == Level)) {
@@ -446,8 +482,9 @@ void Base::XMLReader::readFiles(zipios::ZipInputStream& zipstream) const
                 // less data than the file size would allow.
                 // All what we need to do is to notify the user about the
                 // failure.
-                Base::Console().Error("Reading failed from embedded file: %s\n",
+                Base::Console().error("Reading failed from embedded file: %s\n",
                                       entry->toString().c_str());
+                FailedFiles.push_back(jt->FileName);
             }
             // Go to the next registered file name
             it = jt + 1;
@@ -473,14 +510,18 @@ const char* Base::XMLReader::addFile(const char* Name, Base::Persistence* Object
     temp.Object = Object;
 
     FileList.push_back(temp);
-    FileNames.push_back(temp.FileName);
 
     return Name;
 }
 
-const std::vector<std::string>& Base::XMLReader::getFilenames() const
+bool Base::XMLReader::hasFilenames() const
 {
-    return FileNames;
+    return !FileList.empty();
+}
+
+bool Base::XMLReader::hasReadFailed(const std::string& filename) const
+{
+    return std::ranges::find(FailedFiles, filename) != FailedFiles.end();
 }
 
 bool Base::XMLReader::isRegistered(Base::Persistence* Object) const

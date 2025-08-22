@@ -23,7 +23,7 @@
 import FreeCAD
 import Path
 import Path.Main.Stock as PathStock
-from Path.Post.Processor import PostProcessor
+from Path.Post.Processor import PostProcessor, PostProcessorFactory
 import json
 
 from FreeCAD import Units
@@ -41,9 +41,7 @@ class JobPreferencesPage:
         self.form.toolBox.setCurrentIndex(0)  # Take that qt designer!
 
         self.postProcessorDefaultTooltip = self.form.defaultPostProcessor.toolTip()
-        self.postProcessorArgsDefaultTooltip = (
-            self.form.defaultPostProcessorArgs.toolTip()
-        )
+        self.postProcessorArgsDefaultTooltip = self.form.defaultPostProcessorArgs.toolTip()
         self.processor = {}
 
     def saveSettings(self):
@@ -51,9 +49,7 @@ class JobPreferencesPage:
         jobTemplate = self.form.leDefaultJobTemplate.text()
         geometryTolerance = Units.Quantity(self.form.geometryTolerance.text())
         curveAccuracy = Units.Quantity(self.form.curveAccuracy.text())
-        Path.Preferences.setJobDefaults(
-            filePath, jobTemplate, geometryTolerance, curveAccuracy
-        )
+        Path.Preferences.setJobDefaults(filePath, jobTemplate, geometryTolerance, curveAccuracy)
 
         if curveAccuracy:
             Path.Area.setDefaultParams(Accuracy=curveAccuracy)
@@ -71,7 +67,6 @@ class JobPreferencesPage:
         policy = str(self.form.cboOutputPolicy.currentText())
         Path.Preferences.setOutputFileDefaults(path, policy)
         self.saveStockSettings()
-        self.saveToolsSettings()
 
     def saveStockSettings(self):
         if self.form.stockGroup.isChecked():
@@ -84,15 +79,9 @@ class JobPreferencesPage:
             ][self.form.stock.currentIndex()]
             attrs["create"] = typ
             if typ == PathStock.StockType.CreateBox:
-                attrs["length"] = FreeCAD.Units.Quantity(
-                    self.form.stockBoxLength.text()
-                ).UserString
-                attrs["width"] = FreeCAD.Units.Quantity(
-                    self.form.stockBoxWidth.text()
-                ).UserString
-                attrs["height"] = FreeCAD.Units.Quantity(
-                    self.form.stockBoxHeight.text()
-                ).UserString
+                attrs["length"] = FreeCAD.Units.Quantity(self.form.stockBoxLength.text()).UserString
+                attrs["width"] = FreeCAD.Units.Quantity(self.form.stockBoxWidth.text()).UserString
+                attrs["height"] = FreeCAD.Units.Quantity(self.form.stockBoxHeight.text()).UserString
             if typ == PathStock.StockType.CreateCylinder:
                 attrs["radius"] = FreeCAD.Units.Quantity(
                     self.form.stockCylinderRadius.text()
@@ -101,24 +90,12 @@ class JobPreferencesPage:
                     self.form.stockCylinderHeight.text()
                 ).UserString
             if typ == PathStock.StockType.FromBase:
-                attrs["xneg"] = FreeCAD.Units.Quantity(
-                    self.form.stockExtXneg.text()
-                ).UserString
-                attrs["xpos"] = FreeCAD.Units.Quantity(
-                    self.form.stockExtXpos.text()
-                ).UserString
-                attrs["yneg"] = FreeCAD.Units.Quantity(
-                    self.form.stockExtYneg.text()
-                ).UserString
-                attrs["ypos"] = FreeCAD.Units.Quantity(
-                    self.form.stockExtYpos.text()
-                ).UserString
-                attrs["zneg"] = FreeCAD.Units.Quantity(
-                    self.form.stockExtZneg.text()
-                ).UserString
-                attrs["zpos"] = FreeCAD.Units.Quantity(
-                    self.form.stockExtZpos.text()
-                ).UserString
+                attrs["xneg"] = FreeCAD.Units.Quantity(self.form.stockExtXneg.text()).UserString
+                attrs["xpos"] = FreeCAD.Units.Quantity(self.form.stockExtXpos.text()).UserString
+                attrs["yneg"] = FreeCAD.Units.Quantity(self.form.stockExtYneg.text()).UserString
+                attrs["ypos"] = FreeCAD.Units.Quantity(self.form.stockExtYpos.text()).UserString
+                attrs["zneg"] = FreeCAD.Units.Quantity(self.form.stockExtZneg.text()).UserString
+                attrs["zpos"] = FreeCAD.Units.Quantity(self.form.stockExtZpos.text()).UserString
             if self.form.stockPlacementGroup.isChecked():
                 angle = FreeCAD.Units.Quantity(self.form.stockAngle.text()).Value
                 axis = FreeCAD.Vector(
@@ -131,21 +108,12 @@ class JobPreferencesPage:
                 attrs["rotY"] = rot.Q[1]
                 attrs["rotZ"] = rot.Q[2]
                 attrs["rotW"] = rot.Q[3]
-                attrs["posX"] = FreeCAD.Units.Quantity(
-                    self.form.stockPositionX.text()
-                ).Value
-                attrs["posY"] = FreeCAD.Units.Quantity(
-                    self.form.stockPositionY.text()
-                ).Value
-                attrs["posZ"] = FreeCAD.Units.Quantity(
-                    self.form.stockPositionZ.text()
-                ).Value
+                attrs["posX"] = FreeCAD.Units.Quantity(self.form.stockPositionX.text()).Value
+                attrs["posY"] = FreeCAD.Units.Quantity(self.form.stockPositionY.text()).Value
+                attrs["posZ"] = FreeCAD.Units.Quantity(self.form.stockPositionZ.text()).Value
             Path.Preferences.setDefaultStockTemplate(json.dumps(attrs))
         else:
             Path.Preferences.setDefaultStockTemplate("")
-
-    def saveToolsSettings(self):
-        Path.Preferences.setToolsSettings(self.form.toolsAbsolutePaths.isChecked())
 
     def selectComboEntry(self, widget, text):
         index = widget.findText(text, QtCore.Qt.MatchFixedString)
@@ -194,42 +162,29 @@ class JobPreferencesPage:
                 | QtCore.Qt.ItemFlag.ItemIsUserCheckable
             )
             self.form.postProcessorList.addItem(item)
-        self.verifyAndUpdateDefaultPostProcessorWith(
-            Path.Preferences.defaultPostProcessor()
-        )
+        self.verifyAndUpdateDefaultPostProcessorWith(Path.Preferences.defaultPostProcessor())
 
-        self.form.defaultPostProcessorArgs.setText(
-            Path.Preferences.defaultPostProcessorArgs()
-        )
+        self.form.defaultPostProcessorArgs.setText(Path.Preferences.defaultPostProcessorArgs())
 
-        geomTol = Units.Quantity(
-            Path.Preferences.defaultGeometryTolerance(), Units.Length
-        )
+        geomTol = Units.Quantity(Path.Preferences.defaultGeometryTolerance(), Units.Length)
         self.form.geometryTolerance.setText(geomTol.UserString)
         self.form.curveAccuracy.setText(
-            Units.Quantity(
-                Path.Preferences.defaultLibAreaCurveAccuracy(), Units.Length
-            ).UserString
+            Units.Quantity(Path.Preferences.defaultLibAreaCurveAccuracy(), Units.Length).UserString
         )
 
         self.form.leOutputFile.setText(Path.Preferences.defaultOutputFile())
-        self.selectComboEntry(
-            self.form.cboOutputPolicy, Path.Preferences.defaultOutputPolicy()
-        )
+        self.selectComboEntry(self.form.cboOutputPolicy, Path.Preferences.defaultOutputPolicy())
 
         self.form.tbDefaultFilePath.clicked.connect(self.browseDefaultFilePath)
         self.form.tbDefaultJobTemplate.clicked.connect(self.browseDefaultJobTemplate)
         self.form.postProcessorList.itemEntered.connect(self.setProcessorListTooltip)
-        self.form.postProcessorList.itemChanged.connect(
-            self.verifyAndUpdateDefaultPostProcessor
-        )
+        self.form.postProcessorList.itemChanged.connect(self.verifyAndUpdateDefaultPostProcessor)
         self.form.defaultPostProcessor.currentIndexChanged.connect(
             self.updateDefaultPostProcessorToolTip
         )
         self.form.tbOutputFile.clicked.connect(self.browseOutputFile)
 
         self.loadStockSettings()
-        self.loadToolSettings()
 
     def loadStockSettings(self):
         stock = Path.Preferences.defaultStockTemplate()
@@ -323,14 +278,9 @@ class JobPreferencesPage:
             self.form.stockCreateBox.hide()
             self.form.stockCreateCylinder.hide()
 
-    def loadToolSettings(self):
-        self.form.toolsAbsolutePaths.setChecked(
-            Path.Preferences.toolsStoreAbsolutePaths()
-        )
-
     def getPostProcessor(self, name):
         if not name in self.processor:
-            processor = PostProcessor.load(name)
+            processor = PostProcessorFactory.get_post_processor(None, name)
             self.processor[name] = processor
             return processor
         return self.processor[name]
@@ -355,14 +305,10 @@ class JobPreferencesPage:
             if processor.tooltipArgs:
                 self.form.defaultPostProcessorArgs.setToolTip(processor.tooltipArgs)
             else:
-                self.form.defaultPostProcessorArgs.setToolTip(
-                    self.postProcessorArgsDefaultTooltip
-                )
+                self.form.defaultPostProcessorArgs.setToolTip(self.postProcessorArgsDefaultTooltip)
         else:
             self.form.defaultPostProcessor.setToolTip(self.postProcessorDefaultTooltip)
-            self.form.defaultPostProcessorArgs.setToolTip(
-                self.postProcessorArgsDefaultTooltip
-            )
+            self.form.defaultPostProcessorArgs.setToolTip(self.postProcessorArgsDefaultTooltip)
 
     def bestGuessForFilePath(self):
         path = self.form.leDefaultFilePath.text()

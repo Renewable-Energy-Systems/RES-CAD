@@ -29,11 +29,12 @@
 #include <QAction>
 #include <QMessageBox>
 #include <sstream>
+#include <limits>
 #endif
 
 #include "Mod/Fem/App/FemConstraintContact.h"
 #include <Gui/Command.h>
-#include <Gui/SelectionObject.h>
+#include <Gui/Selection/SelectionObject.h>
 #include <Mod/Part/App/PartFeature.h>
 
 #include "TaskFemConstraintContact.h"
@@ -86,8 +87,7 @@ TaskFemConstraintContact::TaskFemConstraintContact(ViewProviderFemConstraintCont
 
     /* Note: */
     // Get the feature data
-    Fem::ConstraintContact* pcConstraint =
-        static_cast<Fem::ConstraintContact*>(ConstraintView->getObject());
+    Fem::ConstraintContact* pcConstraint = ConstraintView->getObject<Fem::ConstraintContact>();
 
     std::vector<App::DocumentObject*> Objects = pcConstraint->References.getValues();
     std::vector<std::string> SubElements = pcConstraint->References.getSubValues();
@@ -97,27 +97,27 @@ TaskFemConstraintContact::TaskFemConstraintContact(ViewProviderFemConstraintCont
     // Fill data into dialog elements
     ui->spbSlope->setUnit(pcConstraint->Slope.getUnit());
     ui->spbSlope->setMinimum(0);
-    ui->spbSlope->setMaximum(FLOAT_MAX);
+    ui->spbSlope->setMaximum(std::numeric_limits<float>::max());
     ui->spbSlope->setValue(pcConstraint->Slope.getQuantityValue());
     ui->spbSlope->bind(pcConstraint->Slope);
 
     ui->spbAdjust->setUnit(pcConstraint->Adjust.getUnit());
     ui->spbAdjust->setMinimum(0);
-    ui->spbAdjust->setMaximum(FLOAT_MAX);
+    ui->spbAdjust->setMaximum(std::numeric_limits<float>::max());
     ui->spbAdjust->setValue(pcConstraint->Adjust.getQuantityValue());
     ui->spbAdjust->bind(pcConstraint->Adjust);
 
     ui->ckbFriction->setChecked(friction);
 
     ui->spbFrictionCoeff->setMinimum(0);
-    ui->spbFrictionCoeff->setMaximum(FLOAT_MAX);
+    ui->spbFrictionCoeff->setMaximum(std::numeric_limits<float>::max());
     ui->spbFrictionCoeff->setValue(pcConstraint->FrictionCoefficient.getValue());
     ui->spbFrictionCoeff->setEnabled(friction);
     ui->spbFrictionCoeff->bind(pcConstraint->FrictionCoefficient);
 
     ui->spbStickSlope->setUnit(pcConstraint->StickSlope.getUnit());
     ui->spbStickSlope->setMinimum(0);
-    ui->spbStickSlope->setMaximum(FLOAT_MAX);
+    ui->spbStickSlope->setMaximum(std::numeric_limits<float>::max());
     ui->spbStickSlope->setValue(pcConstraint->StickSlope.getQuantityValue());
     ui->spbStickSlope->setEnabled(friction);
     ui->spbStickSlope->bind(pcConstraint->StickSlope);
@@ -206,8 +206,7 @@ void TaskFemConstraintContact::addToSelectionSlave()
         Gui::Selection().clearSelection();
         return;
     }
-    Fem::ConstraintContact* pcConstraint =
-        static_cast<Fem::ConstraintContact*>(ConstraintView->getObject());
+    Fem::ConstraintContact* pcConstraint = ConstraintView->getObject<Fem::ConstraintContact>();
     std::vector<App::DocumentObject*> Objects = pcConstraint->References.getValues();
     std::vector<std::string> SubElements = pcConstraint->References.getSubValues();
 
@@ -232,9 +231,7 @@ void TaskFemConstraintContact::addToSelectionSlave()
                 QMessageBox::warning(this, tr("Selection error"), tr("Only faces can be picked"));
                 return;
             }
-            for (std::vector<std::string>::iterator itr =
-                     std::find(SubElements.begin(), SubElements.end(), subName);
-                 itr != SubElements.end();
+            for (auto itr = std::ranges::find(SubElements, subName); itr != SubElements.end();
                  itr = std::find(++itr,
                                  SubElements.end(),
                                  subName)) {  // for every sub element in selection that
@@ -268,8 +265,7 @@ void TaskFemConstraintContact::removeFromSelectionSlave()
         QMessageBox::warning(this, tr("Selection error"), tr("Nothing selected!"));
         return;
     }
-    Fem::ConstraintContact* pcConstraint =
-        static_cast<Fem::ConstraintContact*>(ConstraintView->getObject());
+    Fem::ConstraintContact* pcConstraint = ConstraintView->getObject<Fem::ConstraintContact>();
     std::vector<App::DocumentObject*> Objects = pcConstraint->References.getValues();
     std::vector<std::string> SubElements = pcConstraint->References.getSubValues();
     std::vector<size_t> itemsToDel;
@@ -282,9 +278,7 @@ void TaskFemConstraintContact::removeFromSelectionSlave()
         const App::DocumentObject* obj = it.getObject();
 
         for (const auto& subName : subNames) {  // for every selected sub element
-            for (std::vector<std::string>::iterator itr =
-                     std::find(SubElements.begin(), SubElements.end(), subName);
-                 itr != SubElements.end();
+            for (auto itr = std::ranges::find(SubElements, subName); itr != SubElements.end();
                  itr = std::find(++itr,
                                  SubElements.end(),
                                  subName)) {  // for every sub element in selection that
@@ -338,8 +332,7 @@ void TaskFemConstraintContact::addToSelectionMaster()
         Gui::Selection().clearSelection();
         return;
     }
-    Fem::ConstraintContact* pcConstraint =
-        static_cast<Fem::ConstraintContact*>(ConstraintView->getObject());
+    Fem::ConstraintContact* pcConstraint = ConstraintView->getObject<Fem::ConstraintContact>();
     std::vector<App::DocumentObject*> Objects = pcConstraint->References.getValues();
     std::vector<std::string> SubElements = pcConstraint->References.getSubValues();
 
@@ -363,8 +356,7 @@ void TaskFemConstraintContact::addToSelectionMaster()
                 QMessageBox::warning(this, tr("Selection error"), tr("Only faces can be picked"));
                 return;
             }
-            for (std::vector<std::string>::iterator itr =
-                     std::find(SubElements.begin(), SubElements.end(), subName);
+            for (auto itr = std::ranges::find(SubElements.begin(), SubElements.end(), subName);
                  itr != SubElements.end();
                  itr = std::find(++itr,
                                  SubElements.end(),
@@ -399,8 +391,7 @@ void TaskFemConstraintContact::removeFromSelectionMaster()
         QMessageBox::warning(this, tr("Selection error"), tr("Nothing selected!"));
         return;
     }
-    Fem::ConstraintContact* pcConstraint =
-        static_cast<Fem::ConstraintContact*>(ConstraintView->getObject());
+    Fem::ConstraintContact* pcConstraint = ConstraintView->getObject<Fem::ConstraintContact>();
     std::vector<App::DocumentObject*> Objects = pcConstraint->References.getValues();
     std::vector<std::string> SubElements = pcConstraint->References.getSubValues();
     std::vector<size_t> itemsToDel;
@@ -413,9 +404,7 @@ void TaskFemConstraintContact::removeFromSelectionMaster()
         const App::DocumentObject* obj = it.getObject();
 
         for (const auto& subName : subNames) {  // for every selected sub element
-            for (std::vector<std::string>::iterator itr =
-                     std::find(SubElements.begin(), SubElements.end(), subName);
-                 itr != SubElements.end();
+            for (auto itr = std::ranges::find(SubElements, subName); itr != SubElements.end();
                  itr = std::find(++itr,
                                  SubElements.end(),
                                  subName)) {  // for every sub element in selection that
@@ -478,12 +467,12 @@ const std::string TaskFemConstraintContact::getReferences() const
 
 const std::string TaskFemConstraintContact::getSlope() const
 {
-    return ui->spbSlope->value().getSafeUserString().toStdString();
+    return ui->spbSlope->value().getSafeUserString();
 }
 
 const std::string TaskFemConstraintContact::getAdjust() const
 {
-    return ui->spbAdjust->value().getSafeUserString().toStdString();
+    return ui->spbAdjust->value().getSafeUserString();
 }
 
 bool TaskFemConstraintContact::getFriction() const
@@ -498,7 +487,7 @@ double TaskFemConstraintContact::getFrictionCoeff() const
 
 const std::string TaskFemConstraintContact::getStickSlope() const
 {
-    return ui->spbStickSlope->value().getSafeUserString().toStdString();
+    return ui->spbStickSlope->value().getSafeUserString();
 }
 
 void TaskFemConstraintContact::changeEvent(QEvent*)
@@ -519,21 +508,6 @@ TaskDlgFemConstraintContact::TaskDlgFemConstraintContact(
 }
 
 //==== calls from the TaskView ===============================================================
-
-void TaskDlgFemConstraintContact::open()
-{
-    // a transaction is already open at creation time of the panel
-    if (!Gui::Command::hasPendingCommand()) {
-        QString msg = QObject::tr("Contact constraint");
-        Gui::Command::openCommand(static_cast<const char*>(msg.toUtf8()));
-        ConstraintView->setVisible(true);
-        Gui::Command::runCommand(
-            Gui::Command::Doc,
-            ViewProviderFemConstraint::gethideMeshShowPartStr(
-                (static_cast<Fem::Constraint*>(ConstraintView->getObject()))->getNameInDocument())
-                .c_str());  // OvG: Hide meshes and show parts
-    }
-}
 
 bool TaskDlgFemConstraintContact::accept()
 {
@@ -563,11 +537,6 @@ bool TaskDlgFemConstraintContact::accept()
                                 "App.ActiveDocument.%s.StickSlope = \"%s\"",
                                 name.c_str(),
                                 parameterContact->getStickSlope().c_str());
-        std::string scale = parameterContact->getScale();  // OvG: determine modified scale
-        Gui::Command::doCommand(Gui::Command::Doc,
-                                "App.ActiveDocument.%s.Scale = %s",
-                                name.c_str(),
-                                scale.c_str());  // OvG: implement modified scale
     }
     catch (const Base::Exception& e) {
         QMessageBox::warning(parameter, tr("Input error"), QString::fromLatin1(e.what()));
@@ -577,12 +546,4 @@ bool TaskDlgFemConstraintContact::accept()
     return TaskDlgFemConstraint::accept();
 }
 
-bool TaskDlgFemConstraintContact::reject()
-{
-    Gui::Command::abortCommand();
-    Gui::Command::doCommand(Gui::Command::Gui, "Gui.activeDocument().resetEdit()");
-    Gui::Command::updateActive();
-
-    return true;
-}
 #include "moc_TaskFemConstraintContact.cpp"

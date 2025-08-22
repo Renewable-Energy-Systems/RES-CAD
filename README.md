@@ -1,8 +1,8 @@
 <a href="https://RES-CAD.org"><img src="https://resindia.co.in/img/logo.webp" height="100px" width="100px"></a>
 
-### Your own 3D parametric modeler
+### Your own 3D Parametric Modeler
 
-<img src="https://user-images.githubusercontent.com/1828501/174066870-1692005b-f8d7-43fb-a289-6d2f07f73d7f.png" width="800"/>
+<img src="/.github/images/partdesign-dark.png" width="800"/>
 
 Overview
 --------

@@ -83,6 +83,31 @@ public:
 
     ~DrawSketchHandlerRotate() override = default;
 
+    std::list<Gui::InputHint> getToolHints() const override
+    {
+        using enum Gui::InputHint::UserInput;
+
+        return Gui::lookupHints<SelectMode>(
+            state(),
+            {
+                {.state = SelectMode::SeekFirst,
+                 .hints =
+                     {
+                         {tr("%1 pick center point", "Sketcher Rotate: hint"), {MouseLeft}},
+                     }},
+                {.state = SelectMode::SeekSecond,
+                 .hints =
+                     {
+                         {tr("%1 set start angle", "Sketcher Rotate: hint"), {MouseLeft}},
+                     }},
+                {.state = SelectMode::SeekThird,
+                 .hints =
+                     {
+                         {tr("%1 set rotation angle", "Sketcher Rotate: hint"), {MouseLeft}},
+                     }},
+            });
+    }
+
 private:
     void updateDataAndDrawToPosition(Base::Vector2d onSketchPos) override
     {
@@ -103,7 +128,7 @@ private:
                 endpoint = centerPoint + length * Base::Vector2d(cos(endAngle), sin(endAngle));
 
                 double angle1 = endAngle - startAngle;
-                double angle2 = angle1 + (angle1 < 0. ? 2 : -2) * M_PI;
+                double angle2 = angle1 + (angle1 < 0. ? 2 : -2) * std::numbers::pi;
                 totalAngle = abs(angle1 - totalAngle) < abs(angle2 - totalAngle) ? angle1 : angle2;
 
                 CreateAndDrawShapeGeometry();
@@ -129,7 +154,7 @@ private:
             Gui::Command::commitCommand();
         }
         catch (const Base::Exception& e) {
-            e.ReportException();
+            e.reportException();
             Gui::NotifyError(sketchgui,
                              QT_TRANSLATE_NOOP("Notifications", "Error"),
                              QT_TRANSLATE_NOOP("Notifications", "Failed to rotate"));
@@ -155,7 +180,7 @@ private:
 
     QString getCrosshairCursorSVGName() const override
     {
-        return QString::fromLatin1("Sketcher_Pointer_Create_Rotate");
+        return QStringLiteral("Sketcher_Pointer_Create_Rotate");
     }
 
     std::unique_ptr<QWidget> createWidget() const override
@@ -175,7 +200,7 @@ private:
 
     QString getToolWidgetText() const override
     {
-        return QString(QObject::tr("Rotate parameters"));
+        return QString(tr("Rotate parameters"));
     }
 
     void activated() override
@@ -225,7 +250,7 @@ private:
                                   stream.str().c_str());
         }
         catch (const Base::Exception& e) {
-            Base::Console().Error("%s\n", e.what());
+            Base::Console().error("%s\n", e.what());
         }
     }
 
@@ -397,8 +422,32 @@ private:
                             newConstr->Second = secondIndexi;
                             geoIdsWhoAlreadyHasEqual.push_back(secondIndexi);
                         }
-                        else {
+                        else if (cstr->Type == Distance) {
                             newConstr->Second = secondIndexi;
+                        }
+                        else {
+                            // We should be able to handle cases where rotation is 90 or 180, but
+                            // this is segfaulting. The same is reported in
+                            // SketchObject::addSymmetric. There's apparently a problem with
+                            // creation of DistanceX/Y. On top of the segfault the DistanceX/Y flips
+                            // the new geometry.
+                            /*if (cstr->Type == DistanceX || cstr->Type == DistanceY) {
+                                //DistanceX/Y can be applied only if the rotation if 90 or 180.
+                                if (fabs(fmod(individualAngle, std::numbers::pi)) <
+                            Precision::Confusion()) {
+                                    // ok and nothing to do actually
+                                }
+                                else if (fabs(fmod(individualAngle, std::numbers::pi * 0.5)) <
+                            Precision::Confusion()) { cstr->Type = cstr->Type == DistanceX ?
+                            DistanceY : DistanceX;
+                                }
+                                else {
+                                    // cannot apply for random angles
+                                    continue;
+                                }
+                            }*/
+                            // So for now we just ignore all DistanceX/Y
+                            continue;
                         }
                     }
                     else if ((cstr->Type == Block) && firstIndex >= 0) {
@@ -474,15 +523,16 @@ void DSHRotateController::configureToolWidget()
     if (!init) {  // Code to be executed only upon initialisation
         toolWidget->setCheckboxLabel(
             WCheckbox::FirstBox,
-            QApplication::translate("TaskSketcherTool_c1_offset", "Clone constraints"));
+            QApplication::translate("TaskSketcherTool_c1_offset", "Apply equal constraints"));
         toolWidget->setCheckboxToolTip(
             WCheckbox::FirstBox,
-            QString::fromLatin1("<p>")
+            QStringLiteral("<p>")
                 + QApplication::translate("TaskSketcherTool_c1_offset",
-                                          "This concerns the datum constraints (e.g. distance)."
-                                          "If you activate Clone, the tool will copy the datum."
-                                          "Else it will try to replace them with equalities.")
-                + QString::fromLatin1("</p>"));
+                                          "If this option is selected dimensional constraints are "
+                                          "excluded from the operation.\n"
+                                          "Instead equal constraints are applied between the "
+                                          "original objects and their copies.")
+                + QStringLiteral("</p>"));
     }
 
     onViewParameters[OnViewParameter::First]->setLabelType(Gui::SoDatumLabel::DISTANCEX);
@@ -530,21 +580,24 @@ void DSHRotateControllerBase::doEnforceControlParameters(Base::Vector2d& onSketc
 
     switch (handler->state()) {
         case SelectMode::SeekFirst: {
-            if (onViewParameters[OnViewParameter::First]->isSet) {
-                onSketchPos.x = onViewParameters[OnViewParameter::First]->getValue();
+            auto& firstParam = onViewParameters[OnViewParameter::First];
+            auto& secondParam = onViewParameters[OnViewParameter::Second];
+
+            if (firstParam->isSet) {
+                onSketchPos.x = firstParam->getValue();
             }
 
-            if (onViewParameters[OnViewParameter::Second]->isSet) {
-                onSketchPos.y = onViewParameters[OnViewParameter::Second]->getValue();
+            if (secondParam->isSet) {
+                onSketchPos.y = secondParam->getValue();
             }
         } break;
         case SelectMode::SeekSecond: {
-            if (onViewParameters[OnViewParameter::Third]->isSet) {
+            auto& thirdParam = onViewParameters[OnViewParameter::Third];
 
-                double arcAngle =
-                    Base::toRadians(onViewParameters[OnViewParameter::Third]->getValue());
-                if (fmod(fabs(arcAngle), 2 * M_PI) < Precision::Confusion()) {
-                    unsetOnViewParameter(onViewParameters[OnViewParameter::Third].get());
+            if (thirdParam->isSet) {
+                double arcAngle = Base::toRadians(thirdParam->getValue());
+                if (fmod(fabs(arcAngle), 2 * std::numbers::pi) < Precision::Confusion()) {
+                    unsetOnViewParameter(thirdParam.get());
                     return;
                 }
                 onSketchPos.x = handler->centerPoint.x + 1;
@@ -552,12 +605,12 @@ void DSHRotateControllerBase::doEnforceControlParameters(Base::Vector2d& onSketc
             }
         } break;
         case SelectMode::SeekThird: {
-            if (onViewParameters[OnViewParameter::Fourth]->isSet) {
+            auto& fourthParam = onViewParameters[OnViewParameter::Fourth];
 
-                double arcAngle =
-                    Base::toRadians(onViewParameters[OnViewParameter::Fourth]->getValue());
-                if (fmod(fabs(arcAngle), 2 * M_PI) < Precision::Confusion()) {
-                    unsetOnViewParameter(onViewParameters[OnViewParameter::Fourth].get());
+            if (fourthParam->isSet) {
+                double arcAngle = Base::toRadians(fourthParam->getValue());
+                if (fmod(fabs(arcAngle), 2 * std::numbers::pi) < Precision::Confusion()) {
+                    unsetOnViewParameter(fourthParam.get());
                     return;
                 }
 
@@ -575,45 +628,50 @@ void DSHRotateController::adaptParameters(Base::Vector2d onSketchPos)
 {
     switch (handler->state()) {
         case SelectMode::SeekFirst: {
-            if (!onViewParameters[OnViewParameter::First]->isSet) {
+            auto& firstParam = onViewParameters[OnViewParameter::First];
+            auto& secondParam = onViewParameters[OnViewParameter::Second];
+
+            if (!firstParam->isSet) {
                 setOnViewParameterValue(OnViewParameter::First, onSketchPos.x);
             }
 
-            if (!onViewParameters[OnViewParameter::Second]->isSet) {
+            if (!secondParam->isSet) {
                 setOnViewParameterValue(OnViewParameter::Second, onSketchPos.y);
             }
 
             bool sameSign = onSketchPos.x * onSketchPos.y > 0.;
-            onViewParameters[OnViewParameter::First]->setLabelAutoDistanceReverse(!sameSign);
-            onViewParameters[OnViewParameter::Second]->setLabelAutoDistanceReverse(sameSign);
-            onViewParameters[OnViewParameter::First]->setPoints(Base::Vector3d(),
-                                                                toVector3d(onSketchPos));
-            onViewParameters[OnViewParameter::Second]->setPoints(Base::Vector3d(),
-                                                                 toVector3d(onSketchPos));
+            firstParam->setLabelAutoDistanceReverse(!sameSign);
+            secondParam->setLabelAutoDistanceReverse(sameSign);
+            firstParam->setPoints(Base::Vector3d(), toVector3d(onSketchPos));
+            secondParam->setPoints(Base::Vector3d(), toVector3d(onSketchPos));
         } break;
         case SelectMode::SeekSecond: {
+            auto& thirdParam = onViewParameters[OnViewParameter::Third];
+
             double range = Base::toDegrees(handler->startAngle);
-            if (!onViewParameters[OnViewParameter::Third]->isSet) {
+            if (!thirdParam->isSet) {
                 setOnViewParameterValue(OnViewParameter::Third, range, Base::Unit::Angle);
             }
 
             Base::Vector3d start = toVector3d(handler->centerPoint);
 
-            onViewParameters[OnViewParameter::Third]->setPoints(start, Base::Vector3d());
-            onViewParameters[OnViewParameter::Third]->setLabelRange(handler->startAngle);
+            thirdParam->setPoints(start, Base::Vector3d());
+            thirdParam->setLabelRange(handler->startAngle);
         } break;
         case SelectMode::SeekThird: {
+            auto& fourthParam = onViewParameters[OnViewParameter::Fourth];
+
             double range = Base::toDegrees(handler->totalAngle);
 
-            if (!onViewParameters[OnViewParameter::Fourth]->isSet) {
+            if (!fourthParam->isSet) {
                 setOnViewParameterValue(OnViewParameter::Fourth, range, Base::Unit::Angle);
             }
 
             Base::Vector3d start = toVector3d(handler->centerPoint);
-            onViewParameters[OnViewParameter::Fourth]->setPoints(start, Base::Vector3d());
+            fourthParam->setPoints(start, Base::Vector3d());
 
-            onViewParameters[OnViewParameter::Fourth]->setLabelStartAngle(handler->startAngle);
-            onViewParameters[OnViewParameter::Fourth]->setLabelRange(handler->totalAngle);
+            fourthParam->setLabelStartAngle(handler->startAngle);
+            fourthParam->setLabelRange(handler->totalAngle);
         } break;
         default:
             break;
@@ -625,23 +683,25 @@ void DSHRotateController::doChangeDrawSketchHandlerMode()
 {
     switch (handler->state()) {
         case SelectMode::SeekFirst: {
-            if (onViewParameters[OnViewParameter::First]->isSet
-                && onViewParameters[OnViewParameter::Second]->isSet) {
+            auto& firstParam = onViewParameters[OnViewParameter::First];
+            auto& secondParam = onViewParameters[OnViewParameter::Second];
 
+            if (firstParam->hasFinishedEditing && secondParam->hasFinishedEditing) {
                 handler->setState(SelectMode::SeekSecond);
             }
         } break;
         case SelectMode::SeekSecond: {
-            if (onViewParameters[OnViewParameter::Third]->isSet) {
-                handler->totalAngle =
-                    Base::toRadians(onViewParameters[OnViewParameter::Third]->getValue());
+            auto& thirdParam = onViewParameters[OnViewParameter::Third];
 
+            if (thirdParam->hasFinishedEditing) {
+                handler->totalAngle = Base::toRadians(thirdParam->getValue());
                 handler->setState(SelectMode::End);
             }
         } break;
         case SelectMode::SeekThird: {
-            if (onViewParameters[OnViewParameter::Fourth]->isSet) {
+            auto& fourthParam = onViewParameters[OnViewParameter::Fourth];
 
+            if (fourthParam->hasFinishedEditing) {
                 handler->setState(SelectMode::End);
             }
         } break;

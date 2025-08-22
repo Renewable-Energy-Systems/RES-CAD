@@ -27,7 +27,7 @@
 #include <QPointer>
 
 #include <Gui/ViewProviderDocumentObject.h>
-#include <Gui/ViewProviderPythonFeature.h>
+#include <Gui/ViewProviderFeaturePython.h>
 #include <Mod/Spreadsheet/SpreadsheetGlobal.h>
 #include <Mod/Spreadsheet/Gui/SpreadsheetView.h>
 
@@ -46,12 +46,10 @@ public:
     /// destructor.
     ~ViewProviderSheet() override;
 
-    void setDisplayMode(const char* ModeName) override;
     bool useNewSelectionModel() const override
     {
         return false;
     }
-    std::vector<std::string> getDisplayModes() const override;
 
     bool doubleClicked() override;
     void setupContextMenu(QMenu* menu, QObject* receiver, const char* member) override;
@@ -90,7 +88,7 @@ private:
     QPointer<SheetView> view;
 };
 
-using ViewProviderSheetPython = Gui::ViewProviderPythonFeatureT<ViewProviderSheet>;
+using ViewProviderSheetPython = Gui::ViewProviderFeaturePythonT<ViewProviderSheet>;
 
 }  // namespace SpreadsheetGui
 

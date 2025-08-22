@@ -33,8 +33,12 @@ else:
 class AdvancedPreferencesPage:
     def __init__(self, parent=None):
         self.form = FreeCADGui.PySideUic.loadUi(":preferences/Advanced.ui")
-        self.form.WarningSuppressAllSpeeds.stateChanged.connect(self.updateSelection)
-        self.form.EnableAdvancedOCLFeatures.stateChanged.connect(self.updateSelection)
+        if hasattr(self.form.WarningSuppressAllSpeeds, "checkStateChanged"):  # Qt version >= 6.7.0
+            self.form.WarningSuppressAllSpeeds.checkStateChanged.connect(self.updateSelection)
+            self.form.EnableAdvancedOCLFeatures.checkStateChanged.connect(self.updateSelection)
+        else:  # Qt version < 6.7.0
+            self.form.WarningSuppressAllSpeeds.stateChanged.connect(self.updateSelection)
+            self.form.EnableAdvancedOCLFeatures.stateChanged.connect(self.updateSelection)
 
     def saveSettings(self):
         Path.Preferences.setPreferencesAdvanced(
@@ -48,9 +52,7 @@ class AdvancedPreferencesPage:
 
     def loadSettings(self):
         Path.Log.track()
-        self.form.WarningSuppressAllSpeeds.setChecked(
-            Path.Preferences.suppressAllSpeedsWarning()
-        )
+        self.form.WarningSuppressAllSpeeds.setChecked(Path.Preferences.suppressAllSpeedsWarning())
         self.form.WarningSuppressRapidSpeeds.setChecked(
             Path.Preferences.suppressRapidSpeedsWarning(False)
         )
@@ -60,12 +62,8 @@ class AdvancedPreferencesPage:
         self.form.EnableAdvancedOCLFeatures.setChecked(
             Path.Preferences.advancedOCLFeaturesEnabled()
         )
-        self.form.WarningSuppressOpenCamLib.setChecked(
-            Path.Preferences.suppressOpenCamLibWarning()
-        )
-        self.form.WarningSuppressVelocity.setChecked(
-            Path.Preferences.suppressVelocity()
-        )
+        self.form.WarningSuppressOpenCamLib.setChecked(Path.Preferences.suppressOpenCamLibWarning())
+        self.form.WarningSuppressVelocity.setChecked(Path.Preferences.suppressVelocity())
         self.updateSelection()
 
     def updateSelection(self, state=None):

@@ -1,28 +1,31 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+
 # ***************************************************************************
 # *                                                                         *
 # *   Copyright (c) 2017 Yorik van Havre <yorik@uncreated.net>              *
 # *                                                                         *
-# *   This program is free software; you can redistribute it and/or modify  *
-# *   it under the terms of the GNU Lesser General Public License (LGPL)    *
-# *   as published by the Free Software Foundation; either version 2 of     *
-# *   the License, or (at your option) any later version.                   *
-# *   for detail see the LICENCE text file.                                 *
+# *   This file is part of FreeCAD.                                         *
 # *                                                                         *
-# *   This program is distributed in the hope that it will be useful,       *
-# *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
-# *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
-# *   GNU Library General Public License for more details.                  *
+# *   FreeCAD is free software: you can redistribute it and/or modify it    *
+# *   under the terms of the GNU Lesser General Public License as           *
+# *   published by the Free Software Foundation, either version 2.1 of the  *
+# *   License, or (at your option) any later version.                       *
 # *                                                                         *
-# *   You should have received a copy of the GNU Library General Public     *
-# *   License along with this program; if not, write to the Free Software   *
-# *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  *
-# *   USA                                                                   *
+# *   FreeCAD is distributed in the hope that it will be useful, but        *
+# *   WITHOUT ANY WARRANTY; without even the implied warranty of            *
+# *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU      *
+# *   Lesser General Public License for more details.                       *
+# *                                                                         *
+# *   You should have received a copy of the GNU Lesser General Public      *
+# *   License along with FreeCAD. If not, see                               *
+# *   <https://www.gnu.org/licenses/>.                                      *
 # *                                                                         *
 # ***************************************************************************
 
 """The BIM workbench"""
 
 import os
+
 import FreeCAD
 import FreeCADGui
 import Arch_rc
@@ -53,7 +56,7 @@ class BIMWorkbench(Workbench):
         # Load Arch & Draft preference pages
         self.loadPreferences()
 
-        Log("Loading BIM module... done\n")
+        Log("Loading BIM module… done\n")
         FreeCADGui.updateLocale()
 
 
@@ -95,14 +98,19 @@ class BIMWorkbench(Workbench):
             "BIM_DimensionVertical",
             "BIM_Leader",
             "Draft_Label",
+            "Draft_Hatch",
             "Arch_Axis",
             "Arch_AxisSystem",
             "Arch_Grid",
             "Arch_SectionPlane",
-            "Draft_Hatch",
             "BIM_TDPage",
             "BIM_TDView",
-            "BIM_Shape2DView",
+        ]
+
+        self.create_2dviews = [
+             "BIM_DrawingView",
+             "BIM_Shape2DView",
+             "BIM_Shape2DCut",
         ]
 
         self.bimtools = [
@@ -168,7 +176,7 @@ class BIMWorkbench(Workbench):
         self.modify_3d = [
             "Draft_OrthoArray",
             "Draft_PathArray",
-            "Draft_CircularArray",
+            "Draft_PolarArray",
             "Draft_PointArray",
             "Arch_CutPlane",
             "Draft_Mirror",
@@ -217,6 +225,7 @@ class BIMWorkbench(Workbench):
             "Arch_Survey",
             "BIM_Diff",
             "BIM_IfcExplorer",
+            "Arch_IfcSpreadsheet",
             "BIM_ImagePlane",
             "BIM_Unclone",
             "BIM_Rewire",
@@ -243,26 +252,42 @@ class BIMWorkbench(Workbench):
         from draftutils import init_tools
         self.snapbar = init_tools.get_draft_snap_commands()
         self.snapmenu = self.snapbar + [
-            "BIM_SetWPTop",
             "BIM_SetWPFront",
+            "BIM_SetWPTop",
             "BIM_SetWPSide",
+            "Draft_SelectPlane",
         ]
 
         # create generic tools command
-
         class BIM_GenericTools:
             def __init__(self, tools):
                 self.tools = tools
             def GetCommands(self):
                 return self.tools
             def GetResources(self):
-                t = QT_TRANSLATE_NOOP("BIM_GenericTools", "Generic 3D tools")
+                t = QT_TRANSLATE_NOOP("BIM_GenericTools", "Generic 3D Tools")
                 return { "MenuText": t, "ToolTip": t, "Icon": "BIM_Box"}
             def IsActive(self):
                 v = hasattr(FreeCADGui.getMainWindow().getActiveWindow(), "getSceneGraph")
                 return v
         FreeCADGui.addCommand("BIM_GenericTools", BIM_GenericTools(self.generictools))
         self.bimtools.append("BIM_GenericTools")
+
+        # create create 2D views command
+        class BIM_Create2DViews:
+            def __init__(self, tools):
+                self.tools = tools
+            def GetCommands(self):
+                return self.tools
+            def GetResources(self):
+                t = QT_TRANSLATE_NOOP("BIM_Create2DViews", "Create 2D Views")
+                return { "MenuText": t, "ToolTip": t, "Icon": "BIM_DrawingView"}
+            def IsActive(self):
+                v = hasattr(FreeCADGui.getMainWindow().getActiveWindow(), "getSceneGraph")
+                return v
+        FreeCADGui.addCommand("BIM_Create2DViews", BIM_Create2DViews(self.create_2dviews))
+        insert_at_index = self.annotationtools.index("BIM_TDPage")
+        self.annotationtools.insert(insert_at_index, "BIM_Create2DViews")
 
         # load rebar tools (Reinforcement addon)
 
@@ -279,7 +304,7 @@ class BIMWorkbench(Workbench):
                 def GetResources(self):
                     return {
                         "MenuText": QT_TRANSLATE_NOOP(
-                            "Arch_RebarTools", "Reinforcement tools"
+                            "Arch_RebarTools", "Reinforcement Tools"
                         ),
                         "ToolTip": QT_TRANSLATE_NOOP(
                             "Arch_RebarTools", "Reinforcement tools"
@@ -294,7 +319,7 @@ class BIMWorkbench(Workbench):
             FreeCADGui.addCommand("Arch_RebarTools", RebarGroupCommand())
             self.bimtools[self.bimtools.index("Arch_Rebar")] = "Arch_RebarTools"
             RebarTools.load_translations()
-            Log("Load Reinforcement Module...done\n")
+            Log("Load Reinforcement Module… done\n")
             if hasattr(RebarTools, "updateLocale"):
                 RebarTools.updateLocale()
             #self.rebar = RebarTools.RebarCommands + ["Arch_Rebar"]
@@ -312,7 +337,9 @@ class BIMWorkbench(Workbench):
         # load webtools
 
         try:
-            import BIMServer, Git, Sketchfab
+            import BIMServer
+            import Git
+            import Sketchfab
         except ImportError:
             pass
         else:
@@ -327,7 +354,9 @@ class BIMWorkbench(Workbench):
         # load flamingo
 
         try:
-            import CommandsPolar, CommandsFrame, CommandsPipe
+            import CommandsPolar
+            import CommandsFrame
+            import CommandsPipe
         except ImportError:
             flamingo = None
         else:
@@ -366,7 +395,8 @@ class BIMWorkbench(Workbench):
         # load fasteners
 
         try:
-            import FastenerBase, FastenersCmd
+            import FastenerBase
+            import FastenersCmd
         except ImportError:
             fasteners = None
         else:
@@ -382,15 +412,15 @@ class BIMWorkbench(Workbench):
 
         # create toolbars
 
-        t1 = QT_TRANSLATE_NOOP("Workbench", "Drafting tools")
-        t2 = QT_TRANSLATE_NOOP("Workbench", "Draft snap")
-        t3 = QT_TRANSLATE_NOOP("Workbench", "3D/BIM tools")
-        t4 = QT_TRANSLATE_NOOP("Workbench", "Annotation tools")
-        t5 = QT_TRANSLATE_NOOP("Workbench", "2D modification tools")
-        t6 = QT_TRANSLATE_NOOP("Workbench", "Manage tools")
-        t7 = QT_TRANSLATE_NOOP("Workbench", "General modification tools")
-        t8 = QT_TRANSLATE_NOOP("Workbench", "Object modification tools")
-        t9 = QT_TRANSLATE_NOOP("Workbench", "3D modification tools")
+        t1 = QT_TRANSLATE_NOOP("Workbench", "Drafting Tools")
+        t2 = QT_TRANSLATE_NOOP("Workbench", "Draft Snap")
+        t3 = QT_TRANSLATE_NOOP("Workbench", "3D/BIM Tools")
+        t4 = QT_TRANSLATE_NOOP("Workbench", "Annotation Tools")
+        t5 = QT_TRANSLATE_NOOP("Workbench", "2D Tools")
+        t6 = QT_TRANSLATE_NOOP("Workbench", "Manage Tools")
+        t7 = QT_TRANSLATE_NOOP("Workbench", "General Tools")
+        t8 = QT_TRANSLATE_NOOP("Workbench", "Object Tools")
+        t9 = QT_TRANSLATE_NOOP("Workbench", "3D Tools")
         self.appendToolbar(t1, self.draftingtools)
         self.appendToolbar(t2, self.snapbar)
         self.appendToolbar(t3, self.bimtools)
@@ -405,7 +435,7 @@ class BIMWorkbench(Workbench):
 
         t1 =  QT_TRANSLATE_NOOP("Workbench", "&2D Drafting")
         t2 =  QT_TRANSLATE_NOOP("Workbench", "&3D/BIM")
-        t3 =  QT_TRANSLATE_NOOP("Workbench", "Reinforcement tools")
+        t3 =  QT_TRANSLATE_NOOP("Workbench", "Reinforcement Tools")
         t4 =  QT_TRANSLATE_NOOP("Workbench", "&Annotation")
         t5 =  QT_TRANSLATE_NOOP("Workbench", "&Snapping")
         t6 =  QT_TRANSLATE_NOOP("Workbench", "&Modify")
@@ -473,8 +503,8 @@ class BIMWorkbench(Workbench):
     def Activated(self):
 
         import WorkingPlane
-        from DraftGui import todo
-        import BimStatusBar
+        from draftutils import todo
+        import BimStatus
         from nativeifc import ifc_observer
         from draftutils import grid_observer
 
@@ -488,8 +518,8 @@ class BIMWorkbench(Workbench):
         grid_observer._view_observer_setup()
 
         if PARAMS.GetBool("FirstTime", True) and (not hasattr(FreeCAD, "TestEnvironment")):
-            todo.delay(FreeCADGui.runCommand, "BIM_Welcome")
-        todo.delay(BimStatusBar.setStatusIcons, True)
+            todo.ToDo.delay(FreeCADGui.runCommand, "BIM_Welcome")
+        todo.ToDo.delay(BimStatus.setStatusIcons, True)
         FreeCADGui.Control.clearTaskWatcher()
 
         class BimWatcher:
@@ -542,17 +572,19 @@ class BIMWorkbench(Workbench):
                     {"insert": "BIM_Help", "menuItem": "Std_ReportBug", "after": ""},
                     {"insert": "BIM_Welcome", "menuItem": "Std_ReportBug", "after": ""},
                 ]
-        if not hasattr(Gui, "BIM_WBManipulator"):
+        reload = hasattr(Gui, "BIM_WBManipulator")  # BIM WB has previously been loaded.
+        if not getattr(Gui, "BIM_WBManipulator", None):
             Gui.BIM_WBManipulator = BIM_WBManipulator()
         Gui.addWorkbenchManipulator(Gui.BIM_WBManipulator)
+        if reload:
+            Gui.activeWorkbench().reloadActive()
 
         Log("BIM workbench activated\n")
 
-
     def Deactivated(self):
 
-        from DraftGui import todo
-        import BimStatusBar
+        from draftutils import todo
+        import BimStatus
         from bimcommands import BimViews
         import WorkingPlane
         from nativeifc import ifc_observer
@@ -572,13 +604,13 @@ class BIMWorkbench(Workbench):
         grid_observer._view_observer_setup()
 
         # print("Deactivating status icon")
-        todo.delay(BimStatusBar.setStatusIcons, False)
+        todo.ToDo.delay(BimStatus.setStatusIcons, False)
         FreeCADGui.Control.clearTaskWatcher()
 
         # store views widget state and vertical size
         w = BimViews.findWidget()
-        PARAMS.SetBool("RestoreBimViews", bool(w))
         if w:
+            PARAMS.SetBool("RestoreBimViews", w.isVisible())
             PARAMS.SetInt("BimViewsSize", w.height())
             w.hide()
             w.toggleViewAction().setVisible(False)
@@ -596,7 +628,7 @@ class BIMWorkbench(Workbench):
         # remove manipulator
         if hasattr(Gui, "BIM_WBManipulator"):
             Gui.removeWorkbenchManipulator(Gui.BIM_WBManipulator)
-            del Gui.BIM_WBManipulator
+            Gui.BIM_WBManipulator = None
             Gui.activeWorkbench().reloadActive()
 
         Log("BIM workbench deactivated\n")
@@ -674,8 +706,10 @@ t = QT_TRANSLATE_NOOP("QObject", "Import-Export")
 FreeCADGui.addPreferencePage(":/ui/preferences-ifc.ui", t)
 FreeCADGui.addPreferencePage(":/ui/preferences-ifc-export.ui", t)
 FreeCADGui.addPreferencePage(":/ui/preferences-dae.ui", t)
+FreeCADGui.addPreferencePage(":/ui/preferences-sh3d-import.ui", t)
+FreeCADGui.addPreferencePage(":/ui/preferences-webgl.ui", t)
 
 # Add unit tests
-FreeCAD.__unit_test__ += ["TestArch"]
+FreeCAD.__unit_test__ += ["TestArchGui"]
 # The NativeIFC tests require internet connection and file download
 # FreeCAD.__unit_test__ += ["nativeifc.ifc_selftest"]

@@ -24,11 +24,11 @@
 #ifndef PARTGUI_ViewProviderLoft_H
 #define PARTGUI_ViewProviderLoft_H
 
-#include "ViewProviderAddSub.h"
+#include "ViewProvider.h"
 
 namespace PartDesignGui {
 
-class PartDesignGuiExport ViewProviderLoft : public ViewProviderAddSub
+class PartDesignGuiExport ViewProviderLoft : public ViewProvider
 {
     PROPERTY_HEADER_WITH_OVERRIDE(PartDesignGui::ViewProviderLoft);
 
@@ -55,15 +55,13 @@ public:
 
 protected:
     QIcon getIcon() const override;
-    bool setEdit(int ModNum) override;
-    void unsetEdit(int ModNum) override;
     TaskDlgFeatureParameters* getEditDialog() override;
 
 private:
     void highlightReferences(Part::Feature*, const std::vector<std::string>&, bool);
 
 private:
-    std::map<long, std::vector<App::Color>> originalLineColors;
+    std::map<long, std::vector<Base::Color>> originalLineColors;
 };
 
 

@@ -101,9 +101,6 @@ private:
     void exitSelectionMode();
     void setVisibilityOfSpineAndProfile();
 
-    ViewProviderPipe* getPipeView() const
-    { return static_cast<ViewProviderPipe*>(vp); }
-
     bool spineShow = false;
     bool profileShow = false;
     bool auxSpineShow = false;
@@ -128,7 +125,7 @@ private Q_SLOTS:
     void onOrientationChanged(int);
     void updateUI(int idx);
     void onClearButton();
-    void onCurvelinearChanged(bool checked);
+    void onCurvilinearChanged(bool checked);
     void onBinormalChanged(double);
     void onDeleteItem();
 

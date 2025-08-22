@@ -31,6 +31,7 @@ import Path
 import argparse
 import datetime
 import shlex
+import Path.Base.Util as PathUtil
 import Path.Post.Utils as PostUtils
 import PathScripts.PathUtils as PathUtils
 from builtins import open as pyopen
@@ -49,27 +50,21 @@ delta_4060_post.export(object,"/path/to/file.ncc","")
 
 parser = argparse.ArgumentParser(prog="delta_4060", add_help=False)
 parser.add_argument("--no-header", action="store_true", help="suppress header output")
-parser.add_argument(
-    "--no-comments", action="store_true", help="suppress comment output"
-)
-parser.add_argument(
-    "--line-numbers", action="store_true", help="prefix with line numbers"
-)
+parser.add_argument("--no-comments", action="store_true", help="suppress comment output")
+parser.add_argument("--line-numbers", action="store_true", help="prefix with line numbers")
 parser.add_argument(
     "--no-show-editor",
     action="store_true",
     help="don't pop up editor before writing output",
 )
-parser.add_argument(
-    "--precision", default="3", help="number of digits of precision, default=3"
-)
+parser.add_argument("--precision", default="3", help="number of digits of precision, default=3")
 parser.add_argument(
     "--preamble",
-    help='set commands to be issued before the first command, default="G17\nG90\nG80\nG40"',
+    help='set commands to be issued before the first command, default="G17\\nG90\\nG80\\nG40\\n"',
 )
 parser.add_argument(
     "--postamble",
-    help='set commands to be issued after the last command, default="M09\nM05\nG80\nG40\nG17\nG90\nM30"',
+    help='set commands to be issued after the last command, default="M09\\nM05\\nG80\\nG40\\nG17\\nG90\\nM30\\n"',
 )
 parser.add_argument(
     "--inches", action="store_true", help="Convert output for US imperial mode (G70)"
@@ -95,9 +90,7 @@ OUTPUT_HEADER = True
 OUTPUT_LINE_NUMBERS = False
 SHOW_EDITOR = True
 MODAL = False  # if true commands are suppressed if the same as previous line.
-OUTPUT_DOUBLES = (
-    True  # if false duplicate axis values are suppressed if the same as previous line.
-)
+OUTPUT_DOUBLES = True  # if false duplicate axis values are suppressed if the same as previous line.
 COMMAND_SPACE = ""
 LINENR = 0  # Line number starting value.
 DWELL_TIME = 1  # Number of seconds to allow spindle to come up to speed.
@@ -153,8 +146,6 @@ M30
 clearanceHeight = None
 
 
-
-
 def processArguments(argstring):
     global OUTPUT_HEADER
     global OUTPUT_COMMENTS
@@ -181,11 +172,11 @@ def processArguments(argstring):
             SHOW_EDITOR = False
             print("Show editor = %r" % (SHOW_EDITOR))
         if args.precision is not None:
-            PRECISION = args.precision
+            PRECISION = int(args.precision)
         if args.preamble is not None:
-            PREAMBLE = args.preamble
+            PREAMBLE = args.preamble.replace("\\n", "\n")
         if args.postamble is not None:
-            POSTAMBLE = args.postamble
+            POSTAMBLE = args.postamble.replace("\\n", "\n")
         if args.inches:
             UNITS = "G70"
             UNIT_SPEED_FORMAT = "in/min"
@@ -215,9 +206,7 @@ def export(objectslist, filename, argstring):
     for obj in objectslist:
         if not hasattr(obj, "Path"):
             print(
-                "the object "
-                + obj.Name
-                + " is not a path. Please select only path and Compounds."
+                "the object " + obj.Name + " is not a path. Please select only path and Compounds."
             )
             return None
 
@@ -237,19 +226,16 @@ def export(objectslist, filename, argstring):
     # Write the preamble
     if OUTPUT_COMMENTS:
         gcode += linenumber() + "(T)" + "BEGIN PREAMBLE$\n"
-    for line in PREAMBLE.splitlines(True):
-        gcode += linenumber() + line
+    for line in PREAMBLE.splitlines():
+        gcode += linenumber() + line + "\n"
     gcode += linenumber() + UNITS + "\n"
 
     for obj in objectslist:
 
         # Skip inactive operations
-        if hasattr(obj, "Active"):
-            if not obj.Active:
-                continue
-        if hasattr(obj, "Base") and hasattr(obj.Base, "Active"):
-            if not obj.Base.Active:
-                continue
+        if not PathUtil.activeForOp(obj):
+            continue
+
         if hasattr(obj, "ClearanceHeight"):
             clearanceHeight = obj.ClearanceHeight.Value
 
@@ -259,12 +245,7 @@ def export(objectslist, filename, argstring):
 
         # do the pre_op. Inserts "(T)" in comment to signify textfield.
         if OUTPUT_COMMENTS:
-            gcode += (
-                linenumber()
-                + "(T)"
-                + str.upper("begin operation: " + obj.Label)
-                + "$\n"
-            )
+            gcode += linenumber() + "(T)" + str.upper("begin operation: " + obj.Label) + "$\n"
             gcode += (
                 linenumber()
                 + "(T)"
@@ -274,26 +255,12 @@ def export(objectslist, filename, argstring):
             )
 
         # get coolant mode
-        coolantMode = "None"
-        if (
-            hasattr(obj, "CoolantMode")
-            or hasattr(obj, "Base")
-            and hasattr(obj.Base, "CoolantMode")
-        ):
-            if hasattr(obj, "CoolantMode"):
-                coolantMode = obj.CoolantMode
-            else:
-                coolantMode = obj.Base.CoolantMode
+        coolantMode = PathUtil.coolantModeForOp(obj)
 
         # turn coolant on if required
         if OUTPUT_COMMENTS:
             if not coolantMode == "None":
-                gcode += (
-                    linenumber()
-                    + "(T)"
-                    + str.upper("Coolant On:" + coolantMode)
-                    + "$\n"
-                )
+                gcode += linenumber() + "(T)" + str.upper("Coolant On:" + coolantMode) + "$\n"
         if coolantMode == "Flood":
             gcode += linenumber() + "M8" + "\n"
         if coolantMode == "Mist":
@@ -304,29 +271,19 @@ def export(objectslist, filename, argstring):
 
         # do the post_op
         if OUTPUT_COMMENTS:
-            gcode += (
-                linenumber()
-                + "(T)"
-                + str.upper("finish operation: " + obj.Label)
-                + "$\n"
-            )
+            gcode += linenumber() + "(T)" + str.upper("finish operation: " + obj.Label) + "$\n"
 
         # turn coolant off if required
         if not coolantMode == "None":
             if OUTPUT_COMMENTS:
-                gcode += (
-                    linenumber()
-                    + "(T)"
-                    + str.upper("Coolant Off:" + coolantMode)
-                    + "$\n"
-                )
+                gcode += linenumber() + "(T)" + str.upper("Coolant Off:" + coolantMode) + "$\n"
             gcode += linenumber() + "M9" + "\n"
 
     # do the post_amble
     if OUTPUT_COMMENTS:
         gcode += linenumber() + "(T)" + "BEGIN POSTAMBLE$\n"
-    for line in POSTAMBLE.splitlines(True):
-        gcode += linenumber() + line
+    for line in POSTAMBLE.splitlines():
+        gcode += linenumber() + line + "\n"
     # Following is required by Dynapath Controls to signify "EOF" when loading in to control
     # from external media. The control strips the "E" off as part of the load process.
     gcode += "E\n"
@@ -408,9 +365,7 @@ def parse(pathobj):
 
     if hasattr(pathobj, "Group"):  # We have a compound or project.
         if OUTPUT_COMMENTS:
-            out += (
-                linenumber() + "(T)" + str.upper("compound: " + pathobj.Label) + "$\n"
-            )
+            out += linenumber() + "(T)" + str.upper("compound: " + pathobj.Label) + "$\n"
         for p in pathobj.Group:
             out += parse(p)
         return out
@@ -439,7 +394,7 @@ def parse(pathobj):
                 if command == lastcommand:
                     outstring.pop(0)
 
-            if c.Name[0] == "(" and not OUTPUT_COMMENTS:  # command is a comment
+            if c.Name.startswith("(") and not OUTPUT_COMMENTS:  # command is a comment
                 continue
 
             # Now add the remaining parameters in order
@@ -448,9 +403,7 @@ def parse(pathobj):
                     if param == "F" and (
                         currLocation[param] != c.Parameters[param] or OUTPUT_DOUBLES
                     ):
-                        speed = Units.Quantity(
-                            c.Parameters["F"], FreeCAD.Units.Velocity
-                        )
+                        speed = Units.Quantity(c.Parameters["F"], FreeCAD.Units.Velocity)
                         if speed.getValueAs(UNIT_SPEED_FORMAT) > 0.0:
                             outstring.append(
                                 param
@@ -463,8 +416,7 @@ def parse(pathobj):
                     # This fixes an error thrown by Dynapath due to missing and
                     # required XYZ move after Tool change.
                     elif param == "Z" and (
-                        c.Parameters["Z"] == clearanceHeight
-                        and c.Parameters["Z"] != lastZ
+                        c.Parameters["Z"] == clearanceHeight and c.Parameters["Z"] != lastZ
                     ):
                         x = 0
                         y = 0
@@ -475,24 +427,16 @@ def parse(pathobj):
                             + "Y"
                             + PostUtils.fmt(y, PRECISION, UNITS),
                         )
-                        outstring.append(
-                            param + PostUtils.fmt(c.Parameters["Z"], PRECISION, UNITS)
-                        )
+                        outstring.append(param + PostUtils.fmt(c.Parameters["Z"], PRECISION, UNITS))
                     elif param == "X" and (command in QCYCLE_RANGE):
                         pos = Units.Quantity(c.Parameters["X"], FreeCAD.Units.Length)
                         outstring.append(
-                            param
-                            + format(
-                                float(pos.getValueAs(UNIT_FORMAT)), precision_string
-                            )
+                            param + format(float(pos.getValueAs(UNIT_FORMAT)), precision_string)
                         )
                     elif param == "Y" and (command in QCYCLE_RANGE):
                         pos = Units.Quantity(c.Parameters["Y"], FreeCAD.Units.Length)
                         outstring.append(
-                            param
-                            + format(
-                                float(pos.getValueAs(UNIT_FORMAT)), precision_string
-                            )
+                            param + format(float(pos.getValueAs(UNIT_FORMAT)), precision_string)
                         )
                     # Remove X and Y between QCYCLE's since we already included them.
                     # This is needed to prevent Path of inserting additional XY codes between
@@ -534,32 +478,21 @@ def parse(pathobj):
                     elif param == "Q":
                         pos = Units.Quantity(c.Parameters["Q"], FreeCAD.Units.Length)
                         outstring.append(
-                            "K"
-                            + format(
-                                float(pos.getValueAs(UNIT_FORMAT)), precision_string
-                            )
+                            "K" + format(float(pos.getValueAs(UNIT_FORMAT)), precision_string)
                         )
                     # Following inserts a 2nd reference plane in all canned cycles (dynapath).
                     # This provides the ability to manually go in and bump up the "O" offset in
                     # order to avoid obstacles. The "O" overrides "R", so set them both equal if you
                     # don't need the 2nd reference plane.
                     elif (param == "R") and ((command in QCYCLE_RANGE)):
-                        pos = Units.Quantity(
-                            pathobj.ClearanceHeight.Value, FreeCAD.Units.Length
-                        )
+                        pos = Units.Quantity(pathobj.ClearanceHeight.Value, FreeCAD.Units.Length)
                         outstring.insert(
                             6,
-                            "O"
-                            + format(
-                                float(pos.getValueAs(UNIT_FORMAT)), precision_string
-                            ),
+                            "O" + format(float(pos.getValueAs(UNIT_FORMAT)), precision_string),
                         )  # Insert "O" param for 2nd reference plane (Clearance Height)
                         pos = Units.Quantity(c.Parameters["R"], FreeCAD.Units.Length)
                         outstring.append(
-                            param
-                            + format(
-                                float(pos.getValueAs(UNIT_FORMAT)), precision_string
-                            )
+                            param + format(float(pos.getValueAs(UNIT_FORMAT)), precision_string)
                         )  # First Reference plan (Safe Height)
                     elif param == "P":
                         outstring.append(
@@ -573,14 +506,9 @@ def parse(pathobj):
                         ):
                             continue
                         else:
-                            pos = Units.Quantity(
-                                c.Parameters[param], FreeCAD.Units.Length
-                            )
+                            pos = Units.Quantity(c.Parameters[param], FreeCAD.Units.Length)
                             outstring.append(
-                                param
-                                + format(
-                                    float(pos.getValueAs(UNIT_FORMAT)), precision_string
-                                )
+                                param + format(float(pos.getValueAs(UNIT_FORMAT)), precision_string)
                             )
             # save the last X, Y values
             if "X" in c.Parameters:

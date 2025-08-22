@@ -48,55 +48,38 @@ ViewProviderHelix::~ViewProviderHelix() = default;
 
 void ViewProviderHelix::setupContextMenu(QMenu* menu, QObject* receiver, const char* member)
 {
-    addDefaultAction(menu, QObject::tr("Edit helix"));
-    PartDesignGui::ViewProviderAddSub::setupContextMenu(menu, receiver, member);
+    addDefaultAction(menu, QObject::tr("Edit Helix"));
+    ViewProvider::setupContextMenu(menu, receiver, member);
 }
 
 TaskDlgFeatureParameters *ViewProviderHelix::getEditDialog()
 {
-    return new TaskDlgHelixParameters( this );
+    return new TaskDlgHelixParameters(this);
 }
 
 QIcon ViewProviderHelix::getIcon() const {
-    QString str = QString::fromLatin1("PartDesign_");
-    auto* prim = static_cast<PartDesign::Helix*>(getObject());
+    QString str = QStringLiteral("PartDesign_");
+    auto* prim = getObject<PartDesign::Helix>();
     if(prim->getAddSubType() == PartDesign::FeatureAddSub::Additive)
-        str += QString::fromLatin1("Additive");
+        str += QStringLiteral("Additive");
     else
-        str += QString::fromLatin1("Subtractive");
+        str += QStringLiteral("Subtractive");
 
-    str += QString::fromLatin1("Helix.svg");
+    str += QStringLiteral("Helix.svg");
     return PartDesignGui::ViewProvider::mergeGreyableOverlayIcons(Gui::BitmapFactory().pixmap(str.toStdString().c_str()));
-}
-
-bool ViewProviderHelix::setEdit(int ModNum)
-{
-    if (ModNum == ViewProvider::Default ) {
-        auto* prim = static_cast<PartDesign::Helix*>(getObject());
-        setPreviewDisplayMode(TaskHelixParameters::showPreview(prim));
-    }
-    return ViewProviderAddSub::setEdit(ModNum);
-}
-
-void ViewProviderHelix::unsetEdit(int ModNum)
-{
-    setPreviewDisplayMode(false);
-    // Rely on parent class to:
-    // restitute old workbench (set setEdit above) and close the dialog if exiting editing
-    PartDesignGui::ViewProvider::unsetEdit(ModNum);
 }
 
 std::vector<App::DocumentObject*> ViewProviderHelix::claimChildren() const {
     std::vector<App::DocumentObject*> temp;
-    App::DocumentObject* sketch = static_cast<PartDesign::ProfileBased*>(getObject())->Profile.getValue();
-    if (sketch && sketch->isDerivedFrom(Part::Part2DObject::getClassTypeId()))
+    App::DocumentObject* sketch = getObject<PartDesign::ProfileBased>()->Profile.getValue();
+    if (sketch && sketch->isDerivedFrom<Part::Part2DObject>())
         temp.push_back(sketch);
 
     return temp;
 }
 
 bool ViewProviderHelix::onDelete(const std::vector<std::string> &s) {
-    PartDesign::ProfileBased* feature = static_cast<PartDesign::ProfileBased*>(getObject());
+    PartDesign::ProfileBased* feature = getObject<PartDesign::ProfileBased>();
 
     // get the Sketch
     Sketcher::SketchObject *pcSketch = nullptr;

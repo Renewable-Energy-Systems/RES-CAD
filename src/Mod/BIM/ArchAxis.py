@@ -1,46 +1,26 @@
-#***************************************************************************
-#*   Copyright (c) 2011 Yorik van Havre <yorik@uncreated.net>              *
-#*                                                                         *
-#*   This program is free software; you can redistribute it and/or modify  *
-#*   it under the terms of the GNU Lesser General Public License (LGPL)    *
-#*   as published by the Free Software Foundation; either version 2 of     *
-#*   the License, or (at your option) any later version.                   *
-#*   for detail see the LICENCE text file.                                 *
-#*                                                                         *
-#*   This program is distributed in the hope that it will be useful,       *
-#*   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
-#*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
-#*   GNU Library General Public License for more details.                  *
-#*                                                                         *
-#*   You should have received a copy of the GNU Library General Public     *
-#*   License along with this program; if not, write to the Free Software   *
-#*   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  *
-#*   USA                                                                   *
-#*                                                                         *
-#***************************************************************************
+# SPDX-License-Identifier: LGPL-2.1-or-later
 
-import math
-
-import FreeCAD
-import ArchCommands
-import Draft
-import Part
-from FreeCAD import Vector
-from draftutils import params
-
-if FreeCAD.GuiUp:
-    import FreeCADGui, re
-    from PySide import QtCore, QtGui
-    from draftutils.translate import translate
-    from pivy import coin
-    from PySide.QtCore import QT_TRANSLATE_NOOP
-else:
-    # \cond
-    def translate(ctxt,txt):
-        return txt
-    def QT_TRANSLATE_NOOP(ctxt,txt):
-        return txt
-    # \endcond
+# ***************************************************************************
+# *                                                                         *
+# *   Copyright (c) 2011 Yorik van Havre <yorik@uncreated.net>              *
+# *                                                                         *
+# *   This file is part of FreeCAD.                                         *
+# *                                                                         *
+# *   FreeCAD is free software: you can redistribute it and/or modify it    *
+# *   under the terms of the GNU Lesser General Public License as           *
+# *   published by the Free Software Foundation, either version 2.1 of the  *
+# *   License, or (at your option) any later version.                       *
+# *                                                                         *
+# *   FreeCAD is distributed in the hope that it will be useful, but        *
+# *   WITHOUT ANY WARRANTY; without even the implied warranty of            *
+# *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU      *
+# *   Lesser General Public License for more details.                       *
+# *                                                                         *
+# *   You should have received a copy of the GNU Lesser General Public      *
+# *   License along with FreeCAD. If not, see                               *
+# *   <https://www.gnu.org/licenses/>.                                      *
+# *                                                                         *
+# ***************************************************************************
 
 __title__  = "FreeCAD Axis System"
 __author__ = "Yorik van Havre"
@@ -53,6 +33,31 @@ __url__    = "https://www.freecad.org"
 #  This module provides tools to build axis
 #  An axis is a collection of planar axes with a number/tag
 
+import math
+
+import FreeCAD
+import ArchCommands
+import Draft
+import Part
+
+from FreeCAD import Vector
+from draftutils import params
+
+if FreeCAD.GuiUp:
+    import re
+    from pivy import coin
+    from PySide import QtCore, QtGui
+    from PySide.QtCore import QT_TRANSLATE_NOOP
+    import FreeCADGui
+    from draftutils.translate import translate
+else:
+    # \cond
+    def translate(ctxt,txt):
+        return txt
+    def QT_TRANSLATE_NOOP(ctxt,txt):
+        return txt
+    # \endcond
+
 
 class _Axis:
 
@@ -61,30 +66,30 @@ class _Axis:
     def __init__(self,obj):
 
         obj.Proxy = self
+        self.Type = "Axis"
         self.setProperties(obj)
 
     def setProperties(self,obj):
 
         pl = obj.PropertiesList
         if not "Distances" in pl:
-            obj.addProperty("App::PropertyFloatList","Distances","Axis", QT_TRANSLATE_NOOP("App::Property","The intervals between axes"))
+            obj.addProperty("App::PropertyFloatList","Distances","Axis", QT_TRANSLATE_NOOP("App::Property","The intervals between axes"), locked=True)
         if not "Angles" in pl:
-            obj.addProperty("App::PropertyFloatList","Angles","Axis", QT_TRANSLATE_NOOP("App::Property","The angles of each axis"))
+            obj.addProperty("App::PropertyFloatList","Angles","Axis", QT_TRANSLATE_NOOP("App::Property","The angles of each axis"), locked=True)
         if not "Labels" in pl:
-            obj.addProperty("App::PropertyStringList","Labels","Axis", QT_TRANSLATE_NOOP("App::Property","The label of each axis"))
+            obj.addProperty("App::PropertyStringList","Labels","Axis", QT_TRANSLATE_NOOP("App::Property","The label of each axis"), locked=True)
         if not "CustomNumber" in pl:
-            obj.addProperty("App::PropertyString","CustomNumber","Axis", QT_TRANSLATE_NOOP("App::Property","An optional custom bubble number"))
+            obj.addProperty("App::PropertyString","CustomNumber","Axis", QT_TRANSLATE_NOOP("App::Property","An optional custom bubble number"), locked=True)
         if not "Length" in pl:
-            obj.addProperty("App::PropertyLength","Length","Axis", QT_TRANSLATE_NOOP("App::Property","The length of the axes"))
+            obj.addProperty("App::PropertyLength","Length","Axis", QT_TRANSLATE_NOOP("App::Property","The length of the axes"), locked=True)
             obj.Length=3000
         if not "Placement" in pl:
-            obj.addProperty("App::PropertyPlacement","Placement","Base","")
+            obj.addProperty("App::PropertyPlacement","Placement","Base","", locked=True)
         if not "Shape" in pl:
-            obj.addProperty("Part::PropertyPartShape","Shape","Base","")
+            obj.addProperty("Part::PropertyPartShape","Shape","Base","", locked=True)
         if not "Limit" in pl:
-            obj.addProperty("App::PropertyLength","Limit","Axis", QT_TRANSLATE_NOOP("App::Property","If not zero, the axes are not represented as one full line but as two lines of the given length"))
+            obj.addProperty("App::PropertyLength","Limit","Axis", QT_TRANSLATE_NOOP("App::Property","If not zero, the axes are not represented as one full line but as two lines of the given length"), locked=True)
             obj.Limit=0
-        self.Type = "Axis"
 
     def onDocumentRestored(self,obj):
 
@@ -95,28 +100,29 @@ class _Axis:
         pl = obj.Placement
         geoms = []
         dist = 0
-        if obj.Distances and obj.Length.Value:
-            if len(obj.Distances) == len(obj.Angles):
-                for i in range(len(obj.Distances)):
-                    if hasattr(obj.Length,"Value"):
-                        l = obj.Length.Value
-                    else:
-                        l = obj.Length
-                    dist += obj.Distances[i]
-                    ang = math.radians(obj.Angles[i])
-                    p1 = Vector(dist,0,0)
-                    p2 = Vector(dist+(l/math.cos(ang))*math.sin(ang),l,0)
+        distances = [0]
+        angles = [0]
+        if hasattr(obj, "Distances"):
+            distances = obj.Distances
+        if hasattr(obj, "Angles"):
+            angles = obj.Angles
+        if distances and obj.Length.Value:
+            if angles and len(distances) == len(angles):
+                for i in range(len(distances)):
+                    dist += distances[i]
+                    ang = math.radians(angles[i])
+                    ln = obj.Length.Value
+                    ln = 100 * ln if abs(math.cos(ang)) < 0.01 else ln / math.cos(ang)
+                    unitvec = Vector(math.sin(ang), math.cos(ang), 0)
+                    p1 = Vector(dist, 0, 0)
+                    p2 = p1 + unitvec * ln
                     if hasattr(obj,"Limit") and obj.Limit.Value:
-                        p3 = p2.sub(p1)
-                        p3.normalize()
-                        p3.multiply(-obj.Limit.Value)
-                        p4 = p1.sub(p2)
-                        p4.normalize()
-                        p4.multiply(-obj.Limit.Value)
-                        geoms.append(Part.LineSegment(p1,p1.add(p4)).toShape())
-                        geoms.append(Part.LineSegment(p2,p2.add(p3)).toShape())
+                        p3 = unitvec * obj.Limit.Value
+                        p4 = unitvec * -obj.Limit.Value
+                        geoms.append(Part.LineSegment(p1, p1 + p3).toShape())
+                        geoms.append(Part.LineSegment(p2, p2 + p4).toShape())
                     else:
-                        geoms.append(Part.LineSegment(p1,p2).toShape())
+                        geoms.append(Part.LineSegment(p1, p2).toShape())
         if geoms:
             sh = Part.Compound(geoms)
             obj.Shape = sh
@@ -133,7 +139,7 @@ class _Axis:
 
     def loads(self,state):
 
-        return None
+        self.Type = "Axis"
 
     def getPoints(self,obj):
 
@@ -174,38 +180,38 @@ class _ViewProviderAxis:
         ts = params.get_param("textheight") * params.get_param("DefaultAnnoScaleMultiplier")
         pl = vobj.PropertiesList
         if not "BubbleSize" in pl:
-            vobj.addProperty("App::PropertyLength","BubbleSize","Axis", QT_TRANSLATE_NOOP("App::Property","The size of the axis bubbles"))
+            vobj.addProperty("App::PropertyLength","BubbleSize","Axis", QT_TRANSLATE_NOOP("App::Property","The size of the axis bubbles"), locked=True)
             vobj.BubbleSize = ts * 1.42
         if not "NumberingStyle" in pl:
-            vobj.addProperty("App::PropertyEnumeration","NumberingStyle","Axis", QT_TRANSLATE_NOOP("App::Property","The numbering style"))
+            vobj.addProperty("App::PropertyEnumeration","NumberingStyle","Axis", QT_TRANSLATE_NOOP("App::Property","The numbering style"), locked=True)
             vobj.NumberingStyle = ["1,2,3","01,02,03","001,002,003","A,B,C","a,b,c","I,II,III","L0,L1,L2"]
             vobj.NumberingStyle = "1,2,3"
         if not "DrawStyle" in pl:
-            vobj.addProperty("App::PropertyEnumeration","DrawStyle","Axis",QT_TRANSLATE_NOOP("App::Property","The type of line to draw this axis"))
+            vobj.addProperty("App::PropertyEnumeration","DrawStyle","Axis",QT_TRANSLATE_NOOP("App::Property","The type of line to draw this axis"), locked=True)
             vobj.DrawStyle = ["Solid","Dashed","Dotted","Dashdot"]
         vobj.DrawStyle = "Dashdot"
         if not "BubblePosition" in pl:
-            vobj.addProperty("App::PropertyEnumeration","BubblePosition","Axis",QT_TRANSLATE_NOOP("App::Property","Where to add bubbles to this axis: Start, end, both or none"))
+            vobj.addProperty("App::PropertyEnumeration","BubblePosition","Axis",QT_TRANSLATE_NOOP("App::Property","Where to add bubbles to this axis: Start, end, both or none"), locked=True)
             vobj.BubblePosition = ["Start","End","Both","None","Arrow left","Arrow right","Bar left","Bar right"]
         if not "LineWidth" in pl:
-            vobj.addProperty("App::PropertyFloat","LineWidth","Axis",QT_TRANSLATE_NOOP("App::Property","The line width to draw this axis"))
+            vobj.addProperty("App::PropertyFloat","LineWidth","Axis",QT_TRANSLATE_NOOP("App::Property","The line width to draw this axis"), locked=True)
             vobj.LineWidth = 1
         if not "LineColor" in pl:
-            vobj.addProperty("App::PropertyColor","LineColor","Axis",QT_TRANSLATE_NOOP("App::Property","The color of this axis"))
+            vobj.addProperty("App::PropertyColor","LineColor","Axis",QT_TRANSLATE_NOOP("App::Property","The color of this axis"), locked=True)
         vobj.LineColor = ArchCommands.getDefaultColor("Helpers")
         if not "StartNumber" in pl:
-            vobj.addProperty("App::PropertyInteger","StartNumber","Axis",QT_TRANSLATE_NOOP("App::Property","The number of the first axis"))
+            vobj.addProperty("App::PropertyInteger","StartNumber","Axis",QT_TRANSLATE_NOOP("App::Property","The number of the first axis"), locked=True)
             vobj.StartNumber = 1
         if not "FontName" in pl:
-            vobj.addProperty("App::PropertyFont","FontName","Axis",QT_TRANSLATE_NOOP("App::Property","The font to use for texts"))
+            vobj.addProperty("App::PropertyFont","FontName","Axis",QT_TRANSLATE_NOOP("App::Property","The font to use for texts"), locked=True)
             vobj.FontName = params.get_param("textfont")
         if not "FontSize" in pl:
-            vobj.addProperty("App::PropertyLength","FontSize","Axis",QT_TRANSLATE_NOOP("App::Property","The font size"))
+            vobj.addProperty("App::PropertyLength","FontSize","Axis",QT_TRANSLATE_NOOP("App::Property","The font size"), locked=True)
             vobj.FontSize = ts
         if not "ShowLabel" in pl:
             vobj.addProperty("App::PropertyBool","ShowLabel","Axis",QT_TRANSLATE_NOOP("App::Property","If true, show the labels"))
         if not "LabelOffset" in pl:
-            vobj.addProperty("App::PropertyPlacement","LabelOffset","Axis",QT_TRANSLATE_NOOP("App::Property","A transformation to apply to each label"))
+            vobj.addProperty("App::PropertyPlacement","LabelOffset","Axis",QT_TRANSLATE_NOOP("App::Property","A transformation to apply to each label"), locked=True)
 
     def onDocumentRestored(self,vobj):
 
@@ -274,8 +280,29 @@ class _ViewProviderAxis:
                     self.linecoords.point.setValues(verts)
                     self.lineset.coordIndex.setValues(0,len(vset),vset)
                     self.lineset.coordIndex.setNum(len(vset))
-            self.onChanged(obj.ViewObject,"BubbleSize")
-            self.onChanged(obj.ViewObject,"ShowLabel")
+        elif prop in ["Placement", "Length"] and not hasattr(obj, "Distances"):
+            # copy values from FlatLines/Wireframe nodes
+            rn = obj.ViewObject.RootNode
+            if rn.getNumChildren() < 3:
+                return
+            coords = rn.getChild(1)
+            pts = coords.point.getValues()
+            self.linecoords.point.setValues(pts)
+            #self.linecoords.point.setNum(len(pts))
+            sw = rn.getChild(2)
+            if sw.getNumChildren() < 4:
+                return
+            edges = sw.getChild(sw.getNumChildren()-2)
+            if not edges.getNumChildren():
+                return
+            if edges.getChild(0).getNumChildren() < 4:
+                return
+            eset = edges.getChild(0).getChild(3)
+            vset = eset.coordIndex.getValues()
+            self.lineset.coordIndex.setValues(0,len(vset),vset)
+            self.lineset.coordIndex.setNum(len(vset))
+        self.onChanged(obj.ViewObject,"BubbleSize")
+        self.onChanged(obj.ViewObject,"ShowLabel")
 
     def onChanged(self, vobj, prop):
 
@@ -317,11 +344,15 @@ class _ViewProviderAxis:
                                 pos = []
                             else:
                                 pos = [vobj.BubblePosition]
-                        for i in range(len(vobj.Object.Distances)):
+                        e = len(vobj.Object.Shape.Edges)
+                        if getattr(vobj.Object,"Limit",0):
+                            e //= 2
+                        n = len(getattr(vobj.Object,"Distances",[]))
+                        for i in range(min(e,n)):
                             for p in pos:
-                                if hasattr(vobj.Object,"Limit") and vobj.Object.Limit.Value:
-                                    verts = [vobj.Object.Placement.inverse().multVec(vobj.Object.Shape.Edges[i].Vertexes[0].Point),
-                                             vobj.Object.Placement.inverse().multVec(vobj.Object.Shape.Edges[i+1].Vertexes[0].Point)]
+                                if getattr(vobj.Object,"Limit",0):
+                                    verts = [vobj.Object.Placement.inverse().multVec(vobj.Object.Shape.Edges[i*2].Vertexes[0].Point),
+                                             vobj.Object.Placement.inverse().multVec(vobj.Object.Shape.Edges[i*2+1].Vertexes[0].Point)]
                                 else:
                                     verts = [vobj.Object.Placement.inverse().multVec(v.Point) for v in vobj.Object.Shape.Edges[i].Vertexes]
                                 arrow = None
@@ -398,7 +429,7 @@ class _ViewProviderAxis:
                                     except Exception:
                                         # workaround for pivy SoInput.setBuffer() bug
                                         buf = buf.replace("\n","")
-                                        pts = re.findall("point \[(.*?)\]",buf)[0]
+                                        pts = re.findall(r"point \[(.*?)\]",buf)[0]
                                         pts = pts.split(",")
                                         pc = []
                                         for point in pts:
@@ -578,6 +609,8 @@ class _ViewProviderAxis:
         return True
 
     def setupContextMenu(self, vobj, menu):
+        if FreeCADGui.activeWorkbench().name() != 'BIMWorkbench':
+            return
         actionEdit = QtGui.QAction(translate("Arch", "Edit"),
                                    menu)
         QtCore.QObject.connect(actionEdit,
@@ -677,7 +710,7 @@ class _AxisTaskPanel:
         'fills the treewidget'
         self.updating = True
         self.tree.clear()
-        if self.obj:
+        if self.obj and hasattr(self.obj, "Distances"):
             for i in range(len(self.obj.Distances)):
                 item = QtGui.QTreeWidgetItem(self.tree)
                 item.setText(0,str(i+1))
@@ -756,4 +789,3 @@ class _AxisTaskPanel:
                                    QtGui.QApplication.translate("Arch", "Distance", None),
                                    QtGui.QApplication.translate("Arch", "Angle", None),
                                    QtGui.QApplication.translate("Arch", "Label", None)])
-

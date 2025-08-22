@@ -43,6 +43,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
+#include <limits>
 
 // STL
 #include <array>
@@ -52,6 +53,7 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <numbers>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -65,6 +67,7 @@
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/core/ignore_unused.hpp>
 #include <boost/math/special_functions/fpclassify.hpp>
+#include <boost/random.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 

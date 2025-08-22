@@ -26,6 +26,8 @@
 
 #include <QApplication>
 
+#include <Base/Tools.h>
+
 #include <Gui/BitmapFactory.h>
 #include <Gui/Notifications.h>
 #include <Gui/Command.h>
@@ -124,7 +126,7 @@ private:
             Gui::Command::commitCommand();
         }
         catch (const Base::Exception& e) {
-            e.ReportException();
+            e.reportException();
             Gui::NotifyError(sketchgui,
                              QT_TRANSLATE_NOOP("Notifications", "Error"),
                              QT_TRANSLATE_NOOP("Notifications", "Failed to translate"));
@@ -150,7 +152,7 @@ private:
 
     QString getCrosshairCursorSVGName() const override
     {
-        return QString::fromLatin1("Sketcher_Pointer_Create_Translate");
+        return QStringLiteral("Sketcher_Pointer_Create_Translate");
     }
 
     std::unique_ptr<QWidget> createWidget() const override
@@ -170,7 +172,7 @@ private:
 
     QString getToolWidgetText() const override
     {
-        return QString(QObject::tr("Translate parameters"));
+        return QString(tr("Translate parameters"));
     }
 
     void onButtonPressed(Base::Vector2d onSketchPos) override
@@ -238,7 +240,7 @@ private:
                                   stream.str().c_str());
         }
         catch (const Base::Exception& e) {
-            Base::Console().Error("%s\n", e.what());
+            Base::Console().error("%s\n", e.what());
         }
     }
 
@@ -424,6 +426,23 @@ private:
             }
         }
     }
+
+public:
+    std::list<Gui::InputHint> getToolHints() const override
+    {
+        using enum Gui::InputHint::UserInput;
+
+        return Gui::lookupHints<SelectMode>(
+            state(),
+            {{.state = SelectMode::SeekFirst,
+              .hints = {{tr("%1 pick reference point", "Sketcher Translate: hint"), {MouseLeft}}}},
+             {.state = SelectMode::SeekSecond,
+              .hints = {{tr("%1 set translation vector", "Sketcher Translate: hint"),
+                         {MouseLeft}}}},
+             {.state = SelectMode::SeekThird,
+              .hints = {{tr("%1 set second translation vector", "Sketcher Translate: hint"),
+                         {MouseLeft}}}}});
+    }
 };
 
 template<>
@@ -485,14 +504,14 @@ void DSHTranslateController::configureToolWidget()
     if (!init) {  // Code to be executed only upon initialisation
         toolWidget->setCheckboxLabel(
             WCheckbox::FirstBox,
-            QApplication::translate("TaskSketcherTool_c1_translate", "Clone constraints"));
+            QApplication::translate("TaskSketcherTool_c1_translate", "Apply equal constraints"));
         toolWidget->setCheckboxToolTip(
             WCheckbox::FirstBox,
-            QApplication::translate(
-                "TaskSketcherTool_c1_translate",
-                "This concerns the datum constraints like distances. If you activate Clone, "
-                "then the tool will copy the datum. Else it will try to replace them with "
-                "equalities between the initial geometries and the new copies."));
+            QApplication::translate("TaskSketcherTool_c1_translate",
+                                    "If this option is selected dimensional constraints are "
+                                    "excluded from the operation.\n"
+                                    "Instead equal constraints are applied between the original "
+                                    "objects and their copies."));
     }
 
     onViewParameters[OnViewParameter::First]->setLabelType(Gui::SoDatumLabel::DISTANCEX);
@@ -558,56 +577,65 @@ void DSHTranslateControllerBase::doEnforceControlParameters(Base::Vector2d& onSk
 {
     switch (handler->state()) {
         case SelectMode::SeekFirst: {
-            if (onViewParameters[OnViewParameter::First]->isSet) {
-                onSketchPos.x = onViewParameters[OnViewParameter::First]->getValue();
+            auto& firstParam = onViewParameters[OnViewParameter::First];
+            auto& secondParam = onViewParameters[OnViewParameter::Second];
+
+            if (firstParam->isSet) {
+                onSketchPos.x = firstParam->getValue();
             }
 
-            if (onViewParameters[OnViewParameter::Second]->isSet) {
-                onSketchPos.y = onViewParameters[OnViewParameter::Second]->getValue();
+            if (secondParam->isSet) {
+                onSketchPos.y = secondParam->getValue();
             }
         } break;
         case SelectMode::SeekSecond: {
+            auto& thirdParam = onViewParameters[OnViewParameter::Third];
+            auto& fourthParam = onViewParameters[OnViewParameter::Fourth];
+
             Base::Vector2d dir = onSketchPos - handler->referencePoint;
             if (dir.Length() < Precision::Confusion()) {
                 dir.x = 1.0;  // if direction null, default to (1,0)
             }
             double length = dir.Length();
 
-            if (onViewParameters[OnViewParameter::Third]->isSet) {
-                length = onViewParameters[OnViewParameter::Third]->getValue();
+            if (thirdParam->isSet) {
+                length = thirdParam->getValue();
                 if (length < Precision::Confusion()) {
-                    unsetOnViewParameter(onViewParameters[OnViewParameter::Third].get());
+                    unsetOnViewParameter(thirdParam.get());
                     return;
                 }
 
                 onSketchPos = handler->referencePoint + length * dir.Normalize();
             }
 
-            if (onViewParameters[OnViewParameter::Fourth]->isSet) {
-                double angle = onViewParameters[OnViewParameter::Fourth]->getValue() * M_PI / 180;
+            if (fourthParam->isSet) {
+                double angle = Base::toRadians(fourthParam->getValue());
                 onSketchPos.x = handler->referencePoint.x + cos(angle) * length;
                 onSketchPos.y = handler->referencePoint.y + sin(angle) * length;
             }
         } break;
         case SelectMode::SeekThird: {
+            auto& fifthParam = onViewParameters[OnViewParameter::Fifth];
+            auto& sixthParam = onViewParameters[OnViewParameter::Sixth];
+
             Base::Vector2d dir = onSketchPos - handler->referencePoint;
             if (dir.Length() < Precision::Confusion()) {
                 dir.x = 1.0;  // if direction null, default to (1,0)
             }
             double length = dir.Length();
 
-            if (onViewParameters[OnViewParameter::Fifth]->isSet) {
-                length = onViewParameters[OnViewParameter::Fifth]->getValue();
+            if (fifthParam->isSet) {
+                length = fifthParam->getValue();
                 if (length < Precision::Confusion()) {
-                    unsetOnViewParameter(onViewParameters[OnViewParameter::Fifth].get());
+                    unsetOnViewParameter(fifthParam.get());
                     return;
                 }
 
                 onSketchPos = handler->referencePoint + length * dir.Normalize();
             }
 
-            if (onViewParameters[OnViewParameter::Sixth]->isSet) {
-                double angle = onViewParameters[OnViewParameter::Sixth]->getValue() * M_PI / 180;
+            if (sixthParam->isSet) {
+                double angle = Base::toRadians(sixthParam->getValue());
                 onSketchPos.x = handler->referencePoint.x + cos(angle) * length;
                 onSketchPos.y = handler->referencePoint.y + sin(angle) * length;
             }
@@ -622,66 +650,72 @@ void DSHTranslateController::adaptParameters(Base::Vector2d onSketchPos)
 {
     switch (handler->state()) {
         case SelectMode::SeekFirst: {
-            if (!onViewParameters[OnViewParameter::First]->isSet) {
+            auto& firstParam = onViewParameters[OnViewParameter::First];
+            auto& secondParam = onViewParameters[OnViewParameter::Second];
+
+            if (!firstParam->isSet) {
                 setOnViewParameterValue(OnViewParameter::First, onSketchPos.x);
             }
 
-            if (!onViewParameters[OnViewParameter::Second]->isSet) {
+            if (!secondParam->isSet) {
                 setOnViewParameterValue(OnViewParameter::Second, onSketchPos.y);
             }
 
             bool sameSign = onSketchPos.x * onSketchPos.y > 0.;
-            onViewParameters[OnViewParameter::First]->setLabelAutoDistanceReverse(!sameSign);
-            onViewParameters[OnViewParameter::Second]->setLabelAutoDistanceReverse(sameSign);
-            onViewParameters[OnViewParameter::First]->setPoints(Base::Vector3d(),
-                                                                toVector3d(onSketchPos));
-            onViewParameters[OnViewParameter::Second]->setPoints(Base::Vector3d(),
-                                                                 toVector3d(onSketchPos));
+            firstParam->setLabelAutoDistanceReverse(!sameSign);
+            secondParam->setLabelAutoDistanceReverse(sameSign);
+            firstParam->setPoints(Base::Vector3d(), toVector3d(onSketchPos));
+            secondParam->setPoints(Base::Vector3d(), toVector3d(onSketchPos));
         } break;
         case SelectMode::SeekSecond: {
-            if (!onViewParameters[OnViewParameter::Third]->isSet) {
-                onViewParameters[OnViewParameter::Third]->setSpinboxValue(
-                    (onSketchPos - handler->referencePoint).Length());
+            auto& thirdParam = onViewParameters[OnViewParameter::Third];
+            auto& fourthParam = onViewParameters[OnViewParameter::Fourth];
+
+            if (!thirdParam->isSet) {
+                double length = (onSketchPos - handler->referencePoint).Length();
+                setOnViewParameterValue(OnViewParameter::Third, length);
             }
 
             Base::Vector2d vec2d = Base::Vector2d(handler->firstTranslationVector.x,
                                                   handler->firstTranslationVector.y);
             double angle = vec2d.Angle();
-            double range = angle * 180 / M_PI;
+            double range = angle * 180 / std::numbers::pi;
 
-            if (!onViewParameters[OnViewParameter::Fourth]->isSet) {
-                onViewParameters[OnViewParameter::Fourth]->setSpinboxValue(range,
-                                                                           Base::Unit::Angle);
+            if (!fourthParam->isSet) {
+                setOnViewParameterValue(OnViewParameter::Fourth, range, Base::Unit::Angle);
             }
 
             Base::Vector3d start = toVector3d(handler->referencePoint);
             Base::Vector3d end = toVector3d(onSketchPos);
 
-            onViewParameters[OnViewParameter::Third]->setPoints(start, end);
-            onViewParameters[OnViewParameter::Fourth]->setPoints(start, Base::Vector3d());
-            onViewParameters[OnViewParameter::Fourth]->setLabelRange(angle);
+            thirdParam->setPoints(start, end);
+            fourthParam->setPoints(start, Base::Vector3d());
+            fourthParam->setLabelRange(angle);
         } break;
         case SelectMode::SeekThird: {
-            if (!onViewParameters[OnViewParameter::Fifth]->isSet) {
-                onViewParameters[OnViewParameter::Fifth]->setSpinboxValue(
-                    (onSketchPos - handler->referencePoint).Length());
+            auto& fifthParam = onViewParameters[OnViewParameter::Fifth];
+            auto& sixthParam = onViewParameters[OnViewParameter::Sixth];
+
+            if (!fifthParam->isSet) {
+                double length = (onSketchPos - handler->referencePoint).Length();
+                setOnViewParameterValue(OnViewParameter::Fifth, length);
             }
 
             Base::Vector2d vec2d = Base::Vector2d(handler->secondTranslationVector.x,
                                                   handler->secondTranslationVector.y);
             double angle = vec2d.Angle();
-            double range = angle * 180 / M_PI;
+            double range = angle * 180 / std::numbers::pi;
 
-            if (!onViewParameters[OnViewParameter::Sixth]->isSet) {
+            if (!sixthParam->isSet) {
                 setOnViewParameterValue(OnViewParameter::Sixth, range, Base::Unit::Angle);
             }
 
             Base::Vector3d start = toVector3d(handler->referencePoint);
             Base::Vector3d end = toVector3d(onSketchPos);
 
-            onViewParameters[OnViewParameter::Fifth]->setPoints(start, end);
-            onViewParameters[OnViewParameter::Sixth]->setPoints(start, Base::Vector3d());
-            onViewParameters[OnViewParameter::Sixth]->setLabelRange(angle);
+            fifthParam->setPoints(start, end);
+            sixthParam->setPoints(start, Base::Vector3d());
+            sixthParam->setLabelRange(angle);
         } break;
         default:
             break;
@@ -693,16 +727,18 @@ void DSHTranslateController::doChangeDrawSketchHandlerMode()
 {
     switch (handler->state()) {
         case SelectMode::SeekFirst: {
-            if (onViewParameters[OnViewParameter::First]->isSet
-                && onViewParameters[OnViewParameter::Second]->isSet) {
+            auto& firstParam = onViewParameters[OnViewParameter::First];
+            auto& secondParam = onViewParameters[OnViewParameter::Second];
 
+            if (firstParam->hasFinishedEditing && secondParam->hasFinishedEditing) {
                 handler->setState(SelectMode::SeekSecond);
             }
         } break;
         case SelectMode::SeekSecond: {
-            if (onViewParameters[OnViewParameter::Third]->isSet
-                && onViewParameters[OnViewParameter::Fourth]->isSet) {
+            auto& thirdParam = onViewParameters[OnViewParameter::Third];
+            auto& fourthParam = onViewParameters[OnViewParameter::Fourth];
 
+            if (thirdParam->hasFinishedEditing && fourthParam->hasFinishedEditing) {
                 if (handler->secondNumberOfCopies == 1) {
                     handler->setState(SelectMode::End);
                 }
@@ -712,9 +748,10 @@ void DSHTranslateController::doChangeDrawSketchHandlerMode()
             }
         } break;
         case SelectMode::SeekThird: {
-            if (onViewParameters[OnViewParameter::Fifth]->isSet
-                && onViewParameters[OnViewParameter::Sixth]->isSet) {
+            auto& fifthParam = onViewParameters[OnViewParameter::Fifth];
+            auto& sixthParam = onViewParameters[OnViewParameter::Sixth];
 
+            if (fifthParam->hasFinishedEditing && sixthParam->hasFinishedEditing) {
                 handler->setState(SelectMode::End);
             }
         } break;

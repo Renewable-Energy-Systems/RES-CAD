@@ -47,7 +47,7 @@
 #include <Gui/Document.h>
 #include <Gui/MainWindow.h>
 #include <Gui/MenuManager.h>
-#include <Gui/Selection.h>
+#include <Gui/Selection/Selection.h>
 #include <Gui/ViewProviderDocumentObject.h>
 
 #include "DAGModel.h"
@@ -125,15 +125,15 @@ Model::Model(QObject *parentIn, const Gui::Document &documentIn) : QGraphicsScen
 
   renameAction = new QAction(this);
   renameAction->setText(tr("Rename"));
-  renameAction->setStatusTip(tr("Rename object"));
+  renameAction->setStatusTip(tr("Renames the object"));
 #ifndef Q_OS_MAC
   renameAction->setShortcut(Qt::Key_F2);
 #endif
   connect(renameAction, &QAction::triggered, this, &Model::renameAcceptedSlot);
 
   editingFinishedAction = new QAction(this);
-  editingFinishedAction->setText(tr("Finish editing"));
-  editingFinishedAction->setStatusTip(tr("Finish editing object"));
+  editingFinishedAction->setText(tr("Finish Editing"));
+  editingFinishedAction->setStatusTip(tr("Finishes editing the object"));
   connect(this->editingFinishedAction, &QAction::triggered,
           this, &Model::editingFinishedSlot);
 
@@ -146,7 +146,7 @@ Model::Model(QObject *parentIn, const Gui::Document &documentIn) : QGraphicsScen
   //NOLINTEND
 
   for (auto obj : documentIn.getDocument()->getObjects()) {
-    auto vpd = Base::freecad_dynamic_cast<Gui::ViewProviderDocumentObject>(documentIn.getViewProvider(obj));
+    auto vpd = freecad_cast<Gui::ViewProviderDocumentObject*>(documentIn.getViewProvider(obj));
     if (vpd)
       slotNewObject(*vpd);
   }
@@ -308,15 +308,21 @@ void Model::slotChangeObject(const ViewProviderDocumentObject &VPDObjectIn, cons
   //renaming of objects.
   if (std::string("Label") == name)
   {
-    const GraphLinkRecord &record = findRecord(&VPDObjectIn, *graphLink);
-    auto text = (*theGraph)[record.vertex].text.get();
-    text->setPlainText(QString::fromUtf8(record.DObject->Label.getValue()));
+    if (hasRecord(&VPDObjectIn, *graphLink))
+    {
+      const GraphLinkRecord &record = findRecord(&VPDObjectIn, *graphLink);
+      auto text = (*theGraph)[record.vertex].text.get();
+      text->setPlainText(QString::fromUtf8(record.DObject->Label.getValue()));
+    }
   }
-  else if (propertyIn.isDerivedFrom(App::PropertyLinkBase::getClassTypeId()))
+  else if (propertyIn.isDerivedFrom<App::PropertyLinkBase>())
   {
-    const GraphLinkRecord &record = findRecord(&VPDObjectIn, *graphLink);
-    boost::clear_vertex(record.vertex, *theGraph);
-    graphDirty = true;
+    if (hasRecord(&VPDObjectIn, *graphLink))
+    {
+      const GraphLinkRecord &record = findRecord(&VPDObjectIn, *graphLink);
+      boost::clear_vertex(record.vertex, *theGraph);
+      graphDirty = true;
+    }
   }
 }
 
@@ -540,7 +546,7 @@ void Model::updateSlot()
   }
   catch(const boost::not_a_dag &)
   {
-    Base::Console().Error("not a dag exception in DAGView::Model::updateSlot()\n");
+    Base::Console().error("not a dag exception in DAGView::Model::updateSlot()\n");
     //do not continuously report an error for cyclic graphs
     graphDirty = false;
     return;
@@ -557,7 +563,7 @@ void Model::updateSlot()
   int currentRow = 0;
   int currentColumn = -1; //we know first column is going to be root so will be kicked up to 0.
   int maxColumn = currentColumn; //used for determining offset of icons and text.
-  float maxTextLength = 0;
+  qreal maxTextLength = 0;
   for (const auto &currentVertex : sorted)
   {
     if (!(*theGraph)[currentVertex].dagVisible)
@@ -646,11 +652,11 @@ void Model::updateSlot()
 
     auto point = (*theGraph)[currentVertex].point.get();
     point->setRect(0.0, 0.0, pointSize, pointSize);
-    point->setTransform(QTransform::fromTranslate(pointSpacing * currentColumn,
+    point->setTransform(QTransform::fromTranslate(pointSpacing * static_cast<qreal>(currentColumn),
       rowHeight * currentRow + rowHeight / 2.0 - pointSize / 2.0));
     point->setBrush(currentBrush);
 
-    float cheat = 0.0;
+    qreal cheat = 0.0;
     if (direction == -1)
       cheat = rowHeight;
 
@@ -666,7 +672,7 @@ void Model::updateSlot()
     auto text = (*theGraph)[currentVertex].text.get();
     text->setPlainText(QString::fromUtf8(findRecord(currentVertex, *graphLink).DObject->Label.getValue()));
     text->setDefaultTextColor(currentBrush.color());
-    maxTextLength = std::max(maxTextLength, static_cast<float>(text->boundingRect().width()));
+    maxTextLength = std::max(maxTextLength, text->boundingRect().width());
     text->setTransform(QTransform::fromTranslate
       (0.0, rowHeight * currentRow - verticalSpacing * 2.0 + cheat)); //calculate x location later.
     (*theGraph)[currentVertex].lastVisibleState = VisibilityState::None; //force visual update for color.
@@ -677,8 +683,8 @@ void Model::updateSlot()
 
     //our list is topo sorted so all dependents should be located, so we can build the connectors.
     //will have some more logic for connector path, simple for now.
-    float currentX = pointSpacing * currentColumn + pointSize / 2.0;
-    float currentY = rowHeight * currentRow + rowHeight / 2.0;
+    qreal currentX = pointSpacing * currentColumn + pointSize / 2.0;
+    qreal currentY = rowHeight * currentRow + rowHeight / 2.0;
     OutEdgeIterator it, itEnd;
     boost::tie(it, itEnd) = boost::out_edges(currentVertex, *theGraph);
     for (; it != itEnd; ++it)
@@ -686,9 +692,9 @@ void Model::updateSlot()
       Vertex target = boost::target(*it, *theGraph);
       if (!(*theGraph)[target].dagVisible)
         continue; //we don't make it here if source isn't visible. So don't have to worry about that.
-      float dependentX = pointSpacing * static_cast<int>(columnFromMask((*theGraph)[target].column)) + pointSize / 2.0; //on center.
+      qreal dependentX = pointSpacing * static_cast<int>(columnFromMask((*theGraph)[target].column)) + pointSize / 2.0; //on center.
       columnFromMask((*theGraph)[target].column);
-      float dependentY = rowHeight * (*theGraph)[target].row + rowHeight / 2.0;
+      qreal dependentY = rowHeight * (*theGraph)[target].row + rowHeight / 2.0;
 
       QGraphicsPathItem *pathItem = (*theGraph)[*it].connector.get();
       pathItem->setBrush(Qt::NoBrush);
@@ -699,17 +705,17 @@ void Model::updateSlot()
       else
       {
         //connector with bend.
-        float radius = pointSpacing / 1.9; //no zero length line.
+        qreal radius = pointSpacing / 1.9; //no zero length line.
 
         path.lineTo(currentX, dependentY + radius * direction);
 
-        float yPosition;
+        qreal yPosition;
         if (direction == -1.0)
           yPosition = dependentY - 2.0 * radius;
         else
           yPosition = dependentY;
-        float width = 2.0 * radius;
-        float height = width;
+        qreal width = 2.0 * radius;
+        qreal height = width;
         if (dependentX > currentX) //radius to the right.
         {
           QRectF arcRect(currentX, yPosition, width, height);
@@ -729,10 +735,10 @@ void Model::updateSlot()
   }
 
   //now that we have the graph drawn we know where to place icons and text.
-  float columnSpacing = (maxColumn * pointSpacing);
+  qreal columnSpacing = (maxColumn * pointSpacing);
   for (const auto &currentVertex : sorted)
   {
-    float localCurrentX = columnSpacing;
+    qreal localCurrentX = columnSpacing;
     localCurrentX += pointToIcon;
     auto visiblePixmap = (*theGraph)[currentVertex].visibleIcon.get();
     QTransform visibleIconTransform = QTransform::fromTranslate(localCurrentX, 0.0);
@@ -1090,7 +1096,7 @@ void Model::contextMenuEvent(QGraphicsSceneContextMenuEvent* event)
         contextMenu.addAction(editingFinishedAction);
     }
 
-    if (contextMenu.actions().count() > 0)
+    if (!contextMenu.actions().isEmpty())
         contextMenu.exec(event->screenPos());
   }
 
@@ -1124,7 +1130,7 @@ void Model::renameAcceptedSlot()
   assert(selections.size() == 1);
   const GraphLinkRecord &record = findRecord(selections.front(), *graphLink);
 
-  auto lineEdit = dynamic_cast<LineEdit*>(proxy->widget());
+  auto lineEdit = qobject_cast<LineEdit*>(proxy->widget());
   assert(lineEdit);
   const_cast<App::DocumentObject*>(record.DObject)->Label.setValue(lineEdit->text().toUtf8().constData()); //const hack
 
@@ -1180,11 +1186,11 @@ void Model::visiblyIsolate(Gui::DAG::Vertex sourceIn)
     std::vector<Base::Type> out;
     Base::Type type;
     type = Base::Type::fromName("App::DocumentObjectGroup");
-    if (type != Base::Type::badType()) out.push_back(type);
+    if (!type.isBad()) out.push_back(type);
     type = Base::Type::fromName("App::Part");
-    if (type != Base::Type::badType()) out.push_back(type);
+    if (!type.isBad()) out.push_back(type);
     type = Base::Type::fromName("PartDesign::Body");
-    if (type != Base::Type::badType()) out.push_back(type);
+    if (!type.isBad()) out.push_back(type);
 
     return out;
   };

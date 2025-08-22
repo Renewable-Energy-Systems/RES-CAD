@@ -74,6 +74,8 @@ void DlgSettingsFemElmerImp::saveSettings()
 
     ui->sb_elmer_num_cores->onSave();
     ui->cb_elmer_filtering->onSave();
+    ui->ckb_elmer_format->onSave();
+    ui->ckb_elmer_geom_id->onSave();
 }
 
 void DlgSettingsFemElmerImp::loadSettings()
@@ -86,6 +88,8 @@ void DlgSettingsFemElmerImp::loadSettings()
 
     ui->sb_elmer_num_cores->onRestore();
     ui->cb_elmer_filtering->onRestore();
+    ui->ckb_elmer_format->onRestore();
+    ui->ckb_elmer_geom_id->onRestore();
 }
 
 /**
@@ -107,7 +111,7 @@ void DlgSettingsFemElmerImp::onfileNameChanged(QString FileName)
         QMessageBox::critical(this,
                               tr("File does not exist"),
                               tr("The specified executable\n'%1'\n does not exist!\n"
-                                 "Specify another file please.")
+                                 "Specify another file.")
                                   .arg(FileName));
     }
 }

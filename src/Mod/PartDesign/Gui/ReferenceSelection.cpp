@@ -33,11 +33,13 @@
 
 #include <App/Document.h>
 #include <App/Origin.h>
-#include <App/OriginFeature.h>
+#include <App/Datums.h>
 #include <App/Part.h>
+#include <Base/Tools.h>
 #include <Gui/Command.h>
 #include <Gui/Document.h>
 #include <Gui/MainWindow.h>
+#include <Mod/Part/App/Part2DObject.h>
 #include <Mod/Part/App/PartFeature.h>
 #include <Mod/Part/App/TopoShape.h>
 #include <Mod/PartDesign/App/Feature.h>
@@ -59,6 +61,9 @@ using namespace Gui;
 
 bool ReferenceSelection::allow(App::Document* pDoc, App::DocumentObject* pObj, const char* sSubName)
 {
+    if (!pObj) {
+        return false;
+    }
     PartDesign::Body *body = getBody();
     App::OriginGroupExtension* originGroup = getOriginGroupExtension(body);
 
@@ -68,7 +73,7 @@ bool ReferenceSelection::allow(App::Document* pDoc, App::DocumentObject* pObj, c
     }
 
     // Enable selection from origin of current part/
-    if (pObj->isDerivedFrom<App::OriginFeature>()) {
+    if (pObj->isDerivedFrom<App::DatumElement>()) {
         return allowOrigin(body, originGroup, pObj);
     }
 
@@ -85,9 +90,14 @@ bool ReferenceSelection::allow(App::Document* pDoc, App::DocumentObject* pObj, c
             return false;
     }
 #endif
+    if (pObj->isDerivedFrom<Part::Part2DObject>() && Base::Tools::isNullOrEmpty(sSubName)) {
+        return type.testFlag(AllowSelection::FACE);
+    }
+
     // Handle selection of geometry elements
-    if (!sSubName || sSubName[0] == '\0')
+    if (Base::Tools::isNullOrEmpty(sSubName)) {
         return type.testFlag(AllowSelection::WHOLE);
+    }
 
     // resolve links if needed
     if (!pObj->isDerivedFrom<Part::Feature>()) {
@@ -103,14 +113,8 @@ bool ReferenceSelection::allow(App::Document* pDoc, App::DocumentObject* pObj, c
 
 PartDesign::Body* ReferenceSelection::getBody() const
 {
-    PartDesign::Body *body;
-    if (support) {
-        body = PartDesign::Body::findBodyOf (support);
-    }
-    else {
-        body = PartDesignGui::getBody(false);
-    }
-
+    auto* body = support ? PartDesign::Body::findBodyOf(support)
+                         : PartDesignGui::getBody(false);
     return body;
 }
 
@@ -148,12 +152,12 @@ bool ReferenceSelection::allowOrigin(PartDesign::Body *body, App::OriginGroupExt
     if (fits) { // check that it actually belongs to the chosen body or part
         try { // here are some throwers
             if (body) {
-                if (body->getOrigin ()->hasObject (pObj) ) {
+                if (body->hasObject(pObj, true) ) {
                     return true;
                 }
             }
             else if (originGroup ) {
-                if (originGroup->getOrigin()->hasObject(pObj)) {
+                if (originGroup->hasObject(pObj, true)) {
                     return true;
                 }
             }
@@ -301,7 +305,7 @@ bool getReferencedSelection(const App::DocumentObject* thisObj, const Gui::Selec
     //of course only if thisObj is in a body, as otherwise the old workflow would not
     //be supported
     PartDesign::Body* body = PartDesignGui::getBodyFor(thisObj, false);
-    bool originfeature = selObj->isDerivedFrom(App::OriginFeature::getClassTypeId());
+    bool originfeature = selObj->isDerivedFrom<App::DatumElement>();
     if (!originfeature && body) {
         PartDesign::Body* selBody = PartDesignGui::getBodyFor(selObj, false);
         if (!selBody || body != selBody) {
@@ -344,11 +348,11 @@ QString getRefStr(const App::DocumentObject* obj, const std::vector<std::string>
         return {};
     }
 
-    if (PartDesign::Feature::isDatum(obj)) {
+    if (PartDesign::Feature::isDatum(obj) || obj->isDerivedFrom<Part::Part2DObject>()) {
         return QString::fromLatin1(obj->getNameInDocument());
     }
     else if (!sub.empty()) {
-        return QString::fromLatin1(obj->getNameInDocument()) + QString::fromLatin1(":") +
+        return QString::fromLatin1(obj->getNameInDocument()) + QStringLiteral(":") +
                QString::fromLatin1(sub.front().c_str());
     }
 

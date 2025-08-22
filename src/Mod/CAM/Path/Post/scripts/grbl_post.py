@@ -52,9 +52,7 @@ grbl_post.export(object, "/path/to/file.ncc")
 OUTPUT_COMMENTS = True  # default output of comments in output gCode file
 OUTPUT_HEADER = True  # default output header in output gCode file
 OUTPUT_LINE_NUMBERS = False  # default doesn't output line numbers in output gCode file
-OUTPUT_BCNC = (
-    False  # default doesn't add bCNC operation block headers in output gCode file
-)
+OUTPUT_BCNC = False  # default doesn't add bCNC operation block headers in output gCode file
 SHOW_EDITOR = True  # default show the resulting file dialog output in GUI
 PRECISION = 3  # Default precision for metric (see http://linuxcnc.org/docs/2.7/html/gcode/overview.html#_g_code_best_practices)
 TRANSLATE_DRILL_CYCLES = False  # If true, G81, G82 & G83 are translated in G0/G1 moves
@@ -72,8 +70,12 @@ RETURN_TO = None  # no movements after end of program
 MODAL = False  # if true commands are suppressed if the same as previous line.
 LINENR = 100  # line number starting value
 LINEINCR = 10  # line number increment
-OUTPUT_TOOL_CHANGE = False  # default don't output M6 tool changes (comment it) as grbl currently does not handle it
-DRILL_RETRACT_MODE = "G98"  # Default value of drill retractations (CURRENT_Z) other possible value is G99
+OUTPUT_TOOL_CHANGE = (
+    False  # default don't output M6 tool changes (comment it) as grbl currently does not handle it
+)
+DRILL_RETRACT_MODE = (
+    "G98"  # Default value of drill retractations (CURRENT_Z) other possible value is G99
+)
 MOTION_MODE = "G90"  # G90 for absolute moves, G91 for relative
 UNITS = "G21"  # G21 for metric, G20 for us standard
 UNIT_FORMAT = "mm"
@@ -89,14 +91,10 @@ TOOL_CHANGE = """"""  # Tool Change commands will be inserted before a tool chan
 # Parser arguments list & definition
 parser = argparse.ArgumentParser(prog="grbl", add_help=False)
 parser.add_argument("--comments", action="store_true", help="output comment (default)")
-parser.add_argument(
-    "--no-comments", action="store_true", help="suppress comment output"
-)
+parser.add_argument("--no-comments", action="store_true", help="suppress comment output")
 parser.add_argument("--header", action="store_true", help="output headers (default)")
 parser.add_argument("--no-header", action="store_true", help="suppress header output")
-parser.add_argument(
-    "--line-numbers", action="store_true", help="prefix with line numbers"
-)
+parser.add_argument("--line-numbers", action="store_true", help="prefix with line numbers")
 parser.add_argument(
     "--no-line-numbers",
     action="store_true",
@@ -112,9 +110,7 @@ parser.add_argument(
     action="store_true",
     help="don't pop up editor before writing output",
 )
-parser.add_argument(
-    "--precision", default="3", help="number of digits of precision, default=3"
-)
+parser.add_argument("--precision", default="3", help="number of digits of precision, default=3")
 parser.add_argument(
     "--translate_drill",
     action="store_true",
@@ -127,18 +123,16 @@ parser.add_argument(
 )
 parser.add_argument(
     "--preamble",
-    help='set commands to be issued before the first command, default="G17 G90"',
+    help='set commands to be issued before the first command, default="G17 G90\\n"',
 )
 parser.add_argument(
     "--postamble",
-    help='set commands to be issued after the last command, default="M5\nG17 G90\n;M2"',
+    help='set commands to be issued after the last command, default="M5\\nG17 G90\\nM2\\n"',
 )
 parser.add_argument(
     "--inches", action="store_true", help="Convert output for US imperial mode (G20)"
 )
-parser.add_argument(
-    "--tool-change", action="store_true", help="Insert M6 for all tool changes"
-)
+parser.add_argument("--tool-change", action="store_true", help="Insert M6 for all tool changes")
 parser.add_argument(
     "--wait-for-spindle",
     type=int,
@@ -221,9 +215,9 @@ def processArguments(argstring):
             SHOW_EDITOR = True
         PRECISION = args.precision
         if args.preamble is not None:
-            PREAMBLE = args.preamble
+            PREAMBLE = args.preamble.replace("\\n", "\n")
         if args.postamble is not None:
-            POSTAMBLE = args.postamble
+            POSTAMBLE = args.postamble.replace("\\n", "\n")
         if args.no_translate_drill:
             TRANSLATE_DRILL_CYCLES = False
         if args.translate_drill:
@@ -289,8 +283,8 @@ def export(objectslist, filename, argstring):
     # Write the preamble
     if OUTPUT_COMMENTS:
         gcode += linenumber() + "(Begin preamble)\n"
-    for line in PREAMBLE.splitlines(True):
-        gcode += linenumber() + line
+    for line in PREAMBLE.splitlines():
+        gcode += linenumber() + line + "\n"
     # verify if PREAMBLE have changed MOTION_MODE or UNITS
     if "G90" in PREAMBLE:
         MOTION_MODE = "G90"
@@ -316,14 +310,12 @@ def export(objectslist, filename, argstring):
         # print("*"*70 + "\n")
         if not hasattr(obj, "Path"):
             print(
-                "The object "
-                + obj.Name
-                + " is not a path. Please select only path and Compounds."
+                "The object " + obj.Name + " is not a path. Please select only path and Compounds."
             )
             return
 
         # Skip inactive operations
-        if PathUtil.opProperty(obj, "Active") is False:
+        if not PathUtil.activeForOp(obj):
             continue
 
         # do the pre_op
@@ -337,16 +329,7 @@ def export(objectslist, filename, argstring):
             gcode += linenumber() + line
 
         # get coolant mode
-        coolantMode = "None"
-        if (
-            hasattr(obj, "CoolantMode")
-            or hasattr(obj, "Base")
-            and hasattr(obj.Base, "CoolantMode")
-        ):
-            if hasattr(obj, "CoolantMode"):
-                coolantMode = obj.CoolantMode
-            else:
-                coolantMode = obj.Base.CoolantMode
+        coolantMode = PathUtil.coolantModeForOp(obj)
 
         # turn coolant on if required
         if OUTPUT_COMMENTS:
@@ -382,8 +365,8 @@ def export(objectslist, filename, argstring):
         gcode += linenumber() + "(Block-enable: 1)\n"
     if OUTPUT_COMMENTS:
         gcode += linenumber() + "(Begin postamble)\n"
-    for line in POSTAMBLE.splitlines(True):
-        gcode += linenumber() + line
+    for line in POSTAMBLE.splitlines():
+        gcode += linenumber() + line + "\n"
 
     # show the gCode result dialog
     if FreeCAD.GuiUp and SHOW_EDITOR:
@@ -469,9 +452,7 @@ def parse(pathobj):
         return out
 
     else:  # parsing simple path
-        if not hasattr(
-            pathobj, "Path"
-        ):  # groups might contain non-path things like stock.
+        if not hasattr(pathobj, "Path"):  # groups might contain non-path things like stock.
             return out
 
         if OUTPUT_COMMENTS:
@@ -493,9 +474,7 @@ def parse(pathobj):
                 if param in c.Parameters:
                     if param == "F":
                         if command not in RAPID_MOVES:
-                            speed = Units.Quantity(
-                                c.Parameters["F"], FreeCAD.Units.Velocity
-                            )
+                            speed = Units.Quantity(c.Parameters["F"], FreeCAD.Units.Velocity)
                             if speed.getValueAs(UNIT_SPEED_FORMAT) > 0.0:
                                 outstring.append(
                                     param
@@ -509,16 +488,11 @@ def parse(pathobj):
                     elif param in ["D", "P", "L"]:
                         outstring.append(param + str(c.Parameters[param]))
                     elif param in ["A", "B", "C"]:
-                        outstring.append(
-                            param + format(c.Parameters[param], precision_string)
-                        )
+                        outstring.append(param + format(c.Parameters[param], precision_string))
                     else:  # [X, Y, Z, U, V, W, I, J, K, R, Q] (Conversion eventuelle mm/inches)
                         pos = Units.Quantity(c.Parameters[param], FreeCAD.Units.Length)
                         outstring.append(
-                            param
-                            + format(
-                                float(pos.getValueAs(UNIT_FORMAT)), precision_string
-                            )
+                            param + format(float(pos.getValueAs(UNIT_FORMAT)), precision_string)
                         )
 
             # store the latest command
@@ -548,11 +522,7 @@ def parse(pathobj):
             if SPINDLE_WAIT > 0:
                 if command in ("M3", "M03", "M4", "M04"):
                     out += linenumber() + format_outstring(outstring) + "\n"
-                    out += (
-                        linenumber()
-                        + format_outstring(["G4", "P%s" % SPINDLE_WAIT])
-                        + "\n"
-                    )
+                    out += linenumber() + format_outstring(["G4", "P%s" % SPINDLE_WAIT]) + "\n"
                     outstring = []
 
             # Check for Tool Change:
@@ -599,9 +569,8 @@ def drill_translate(outstring, cmd, params):
     global UNIT_FORMAT
     global UNIT_SPEED_FORMAT
 
-
     strFormat = "." + str(PRECISION) + "f"
-    strG0_Initial_Z=("G0 Z" + format(float(CURRENT_Z.getValueAs(UNIT_FORMAT)), strFormat) + "\n")
+    strG0_Initial_Z = "G0 Z" + format(float(CURRENT_Z.getValueAs(UNIT_FORMAT)), strFormat) + "\n"
 
     trBuff = ""
 
@@ -628,8 +597,19 @@ def drill_translate(outstring, cmd, params):
         drill_Z += CURRENT_Z
         RETRACT_Z += CURRENT_Z
 
-#    if DRILL_RETRACT_MODE == "G98" and CURRENT_Z >= RETRACT_Z:
-#        RETRACT_Z = CURRENT_Z
+        #
+        # 3.5.20 Set Canned Cycle Return Level — G98 and G99
+        # When the spindle retracts during canned cycles, there is a choice of how far it retracts: (1) retract
+        # perpendicular to the selected plane to the position indicated by the R word, or (2) retract
+        # perpendicular to the selected plane to the position that axis was in just before the canned cycle
+        # started (unless that position is lower than the position indicated by the R word, in which case use
+        # the R word position).
+        # To use option (1), program G99. To use option (2), program G98. Remember that the R word has
+        # different meanings in absolute distance mode and incremental distance mode.
+        # """
+
+        if DRILL_RETRACT_MODE == "G98" and CURRENT_Z >= RETRACT_Z:
+            RETRACT_Z = CURRENT_Z
 
     # get the other parameters
     drill_feedrate = Units.Quantity(params["F"], FreeCAD.Units.Velocity)
@@ -650,9 +630,7 @@ def drill_translate(outstring, cmd, params):
             "G0 Z" + format(float(RETRACT_Z.getValueAs(UNIT_FORMAT)), strFormat) + "\n"
         )
         strF_Feedrate = (
-            " F"
-            + format(float(drill_feedrate.getValueAs(UNIT_SPEED_FORMAT)), ".2f")
-            + "\n"
+            " F" + format(float(drill_feedrate.getValueAs(UNIT_SPEED_FORMAT)), ".2f") + "\n"
         )
         print(strF_Feedrate)
 
@@ -710,9 +688,7 @@ def drill_translate(outstring, cmd, params):
                         trBuff += (
                             linenumber()
                             + "G1 Z"
-                            + format(
-                                float(next_Stop_Z.getValueAs(UNIT_FORMAT)), strFormat
-                            )
+                            + format(float(next_Stop_Z.getValueAs(UNIT_FORMAT)), strFormat)
                             + strF_Feedrate
                         )
                         trBuff += linenumber() + strG0_RETRACT_Z
@@ -725,10 +701,10 @@ def drill_translate(outstring, cmd, params):
                             + strF_Feedrate
                         )
 
-                        if DRILL_RETRACT_MODE == "G98" :
-                            trBuff += (linenumber() + strG0_Initial_Z)
+                        if DRILL_RETRACT_MODE == "G98":
+                            trBuff += linenumber() + strG0_Initial_Z
                         else:
-                            trBuff += (linenumber() + strG0_RETRACT_Z)
+                            trBuff += linenumber() + strG0_RETRACT_Z
                         break
 
     except Exception as e:

@@ -43,19 +43,20 @@ namespace sp = std::placeholders;
     qApp->translate("Workbench", "&Sketch");
     //
     qApp->translate("Workbench", "&Part Design");
-    qApp->translate("Workbench", "Create a datum");
-    qApp->translate("Workbench", "Create an additive feature");
-    qApp->translate("Workbench", "Create a subtractive feature");
-    qApp->translate("Workbench", "Apply a pattern");
-    qApp->translate("Workbench", "Apply a dress-up feature");
-    qApp->translate("Workbench", "Sprocket...");
-    qApp->translate("Workbench", "Involute gear...");
-    qApp->translate("Workbench", "Shaft design wizard");
-    qApp->translate("Gui::TaskView::TaskWatcherCommands", "Face tools");
-    qApp->translate("Gui::TaskView::TaskWatcherCommands", "Edge tools");
-    qApp->translate("Gui::TaskView::TaskWatcherCommands", "Boolean tools");
-    qApp->translate("Gui::TaskView::TaskWatcherCommands", "Helper tools");
-    qApp->translate("Gui::TaskView::TaskWatcherCommands", "Modeling tools");
+    qApp->translate("Workbench", "Datums");
+    qApp->translate("Workbench", "Additive Features");
+    qApp->translate("Workbench", "Subtractive Features");
+    qApp->translate("Workbench", "Dress-Up Features");
+    qApp->translate("Workbench", "Transformation Features");
+    qApp->translate("Workbench", "Sprocket…");
+    qApp->translate("Workbench", "Involute Gear");
+
+    qApp->translate("Workbench", "Shaft Design Wizard");
+    qApp->translate("Gui::TaskView::TaskWatcherCommands", "Face Tools");
+    qApp->translate("Gui::TaskView::TaskWatcherCommands", "Edge Tools");
+    qApp->translate("Gui::TaskView::TaskWatcherCommands", "Boolean Tools");
+    qApp->translate("Gui::TaskView::TaskWatcherCommands", "Helper Tools");
+    qApp->translate("Gui::TaskView::TaskWatcherCommands", "Modeling Tools");
     qApp->translate("Gui::TaskView::TaskWatcherCommands", "Create Geometry");
     //
     qApp->translate("Workbench", "Measure");
@@ -68,143 +69,43 @@ namespace sp = std::placeholders;
 /// @namespace PartDesignGui @class Workbench
 TYPESYSTEM_SOURCE(PartDesignGui::Workbench, Gui::StdWorkbench)
 
-Workbench::Workbench() {
-}
+Workbench::Workbench() = default;
 
-Workbench::~Workbench() {
+Workbench::~Workbench()
+{
     WorkflowManager::destruct();
 }
-
-void Workbench::_switchToDocument(const App::Document* /*doc*/)
-{
-// TODO Commented out for thurther remove or rewrite  (2015-09-04, Fat-Zer)
-//    if (doc == NULL) return;
-//
-//    PartDesign::Body* activeBody = NULL;
-//    std::vector<App::DocumentObject*> bodies = doc->getObjectsOfType(PartDesign::Body::getClassTypeId());
-//
-//    // No tip, so build up structure or migrate
-//    if (!doc->Tip.getValue())
-//    {
-//        ;/*if (doc->countObjects() == 0){
-//            buildDefaultPartAndBody(doc);
-//            activeBody = Gui::Application::Instance->activeView()->getActiveObject<PartDesign::Body*>(PDBODYKEY);
-//            assert(activeBody);
-//        } else {
-//            // empty document with no tip, so do migration
-//            _doMigration(doc);
-//                        activeBody = Gui::Application::Instance->activeView()->getActiveObject<PartDesign::Body*>(PDBODYKEY);
-//                        assert(activeBody);
-//                }
-//                */
-//    }
-//    else
-//    {
-//      App::Part *docPart = dynamic_cast<App::Part *>(doc->Tip.getValue());
-//      if (docPart) {
-//          App::Part *viewPart = Gui::Application::Instance->activeView()->getActiveObject<App::Part *>("Part");
-//          if (viewPart != docPart)
-//            Gui::Application::Instance->activeView()->setActiveObject(docPart, "Part");
-//          //if (docPart->countObjectsOfType(PartDesign::Body::getClassTypeId()) < 1)
-//          //  setUpPart(docPart);
-//          PartDesign::Body *tempBody = dynamic_cast<PartDesign::Body *> (docPart->getObjectsOfType(PartDesign::Body::getClassTypeId()).front());
-//          if (tempBody) {
-//              PartDesign::Body *viewBody = Gui::Application::Instance->activeView()->getActiveObject<PartDesign::Body*>(PDBODYKEY);
-//              activeBody = viewBody;
-//              if (!viewBody)
-//                activeBody = tempBody;
-//              else if (!docPart->hasObject(viewBody))
-//                activeBody = tempBody;
-//
-//              if (activeBody != viewBody)
-//                Gui::Application::Instance->activeView()->setActiveObject(activeBody, PDBODYKEY);
-//          }
-//      }
-//    }
-//
-//    /*if (activeBody == NULL) {
-//        QMessageBox::critical(Gui::getMainWindow(), QObject::tr("Could not create body"),
-//            QObject::tr("No body was found in this document, and none could be created. Please report this bug."
-//                        "We recommend you do not use this document with the PartDesign workbench until the bug has been fixed."
-//                        ));
-//    }*/
-}
-
-void Workbench::slotActiveDocument(const Gui::Document& /*Doc*/)
-{
-//     _switchToDocument(Doc.getDocument());
-}
-
-void Workbench::slotNewDocument(const App::Document& /*Doc*/)
-{
-//     _switchToDocument(&Doc);
-}
-
-void Workbench::slotFinishRestoreDocument(const App::Document& /*Doc*/)
-{
-//     _switchToDocument(&Doc);
-}
-
-void Workbench::slotDeleteDocument(const App::Document&)
-{
-    //ActivePartObject = 0;
-    //ActiveGuiDoc = 0;
-    //ActiveAppDoc = 0;
-    //ActiveVp = 0;
-}
-/*
-  This does not work for Std_DuplicateSelection:
-  Tree.cpp gives: "Cannot reparent unknown object", probably because the signalNewObject is emitted
-  before the duplication of the object has been completely finished
-
-void Workbench::slotNewObject(const App::DocumentObject& obj)
-{
-    if ((obj.getDocument() == ActiveAppDoc) && (ActivePartObject != NULL)) {
-        // Add the new object to the active Body
-        // Note: Will this break Undo? But how else can we catch Edit->Duplicate selection?
-        Gui::Command::doCommand(Gui::Command::Doc,"App.activeDocument().%s.addObject(App.activeDocument().%s)",
-                                ActivePartObject->getNameInDocument(), obj.getNameInDocument());
-    }
-}
-*/
 
 void Workbench::setupContextMenu(const char* recipient, Gui::MenuItem* item) const
 {
     auto selection = Gui::Selection().getSelection();
     // Add move Tip Command
-    if ( !selection.empty() ) {
+    if (!selection.empty()) {
         App::DocumentObject *feature = selection.front().pObject;
         PartDesign::Body *body = nullptr;
 
-        // if PD workflow is not new-style then add a command to the context-menu
-        bool assertModern = true;
-        if (feature && !isModernWorkflow(feature->getDocument())) {
-            assertModern = false;
-            *item << "PartDesign_Migrate";
-        }
-
-        body = PartDesignGui::getBodyFor (feature, false, false, assertModern);
+        body = PartDesignGui::getBodyFor (feature, false, false, true);
         // lote of assertion so feature should be marked as a tip
-        if ( selection.size () == 1 && feature && (
-            ( feature->isDerivedFrom ( PartDesign::Feature::getClassTypeId () ) && body ) ||
-            ( feature->isDerivedFrom ( Part::Feature::getClassTypeId () ) && body &&
+        if ( selection.size() == 1 && feature && body && (
+            feature->isDerivedFrom<PartDesign::Feature>() ||
+            ( feature->isDerivedFrom<Part::Feature>() &&
               body->BaseFeature.getValue() == feature )
         ) ) {
             *item << "PartDesign_MoveTip";
         }
 
         if (strcmp(recipient, "Tree") == 0) {
-
             Gui::MDIView *activeView = Gui::Application::Instance->activeView();
 
-            if ( !selection.empty() && activeView ) {
-                bool docHaveBodies = activeView->getAppDocument()->countObjectsOfType (
-                                        PartDesign::Body::getClassTypeId () ) > 0;
+            if (activeView ) {
+                if (feature && feature->isDerivedFrom<PartDesign::Body>()){
+                    *item   << "Std_ToggleFreeze";
+                }
 
-                if ( docHaveBodies ) {
+                if (activeView->getAppDocument()->countObjectsOfType<PartDesign::Body>() > 0) {
                     bool addMoveFeature = true;
                     bool addMoveFeatureInTree = (body != nullptr);
-                    for (auto sel: selection) {
+                    for (auto sel : selection) {
                         // if at least one selected feature cannot be moved to a body
                         // disable the entry
                         if ( addMoveFeature && !PartDesign::Body::isAllowed ( sel.pObject ) ) {
@@ -220,45 +121,25 @@ void Workbench::setupContextMenu(const char* recipient, Gui::MenuItem* item) con
                             break;
                         }
                     }
-
                     if (addMoveFeature) {
                         *item   << "PartDesign_MoveFeature";
                     }
-
                     if (addMoveFeatureInTree) {
                         *item   << "PartDesign_MoveFeatureInTree";
                     }
                 }
             }
-
-            if (Gui::Selection().countObjectsOfType(PartDesign::Transformed::getClassTypeId()) -
-                Gui::Selection().countObjectsOfType(PartDesign::MultiTransform::getClassTypeId()) == 1 )
+            if (Gui::Selection().countObjectsOfType<PartDesign::Transformed>() -
+                Gui::Selection().countObjectsOfType<PartDesign::MultiTransform>() == 1 ) {
                 *item << "PartDesign_MultiTransform";
-
-            if (Gui::Selection().countObjectsOfType(App::DocumentObject::getClassTypeId()) > 0) {
-                *item << "Std_Placement"
-                      << "Std_ToggleVisibility"
-                      << "Std_ShowSelection"
-                      << "Std_HideSelection"
-                      << "Std_ToggleSelectability"
-                      << "Std_TreeSelectAllInstances"
-                      << "Separator"
-                      << "Std_RandomColor"
-                      << "Std_ToggleTransparency"
-                      << "Std_Cut"
-                      << "Std_Copy"
-                      << "Std_Paste"
-                      << "Std_Delete"
-                      << "Separator";
             }
         }
     }
 
-    if (strcmp(recipient, "View") == 0) {
-        if (item->hasItems())
-            *item << "Separator";
-        Gui::StdWorkbench::setupContextMenu(recipient, item);
+    if (item->hasItems()) {
+        *item << "Separator";
     }
+    Gui::StdWorkbench::setupContextMenu(recipient, item);
 }
 
 void Workbench::activated()
@@ -270,30 +151,30 @@ void Workbench::activated()
     std::vector<Gui::TaskView::TaskWatcher*> Watcher;
 
     const char* Vertex[] = {
-        "PartDesign_Point",
-        "PartDesign_Line",
-        "PartDesign_Plane",
-        "PartDesign_CoordinateSystem",
+        "Part_DatumPoint",
+        "Part_DatumLine",
+        "Part_DatumPlane",
+        "Part_CoordinateSystem",
         nullptr};
     Watcher.push_back(new Gui::TaskView::TaskWatcherCommands(
         "SELECT Part::Feature SUBELEMENT Vertex COUNT 1..",
         Vertex,
-        "Vertex tools",
+        "Vertex Tools",
         "PartDesign_Body"
     ));
 
     const char* Edge[] = {
         "PartDesign_Fillet",
         "PartDesign_Chamfer",
-        "PartDesign_Point",
-        "PartDesign_Line",
-        "PartDesign_Plane",
-        "PartDesign_CoordinateSystem",
+        "Part_DatumPoint",
+        "Part_DatumLine",
+        "Part_DatumPlane",
+        "Part_CoordinateSystem",
         nullptr};
     Watcher.push_back(new Gui::TaskView::TaskWatcherCommands(
         "SELECT Part::Feature SUBELEMENT Edge COUNT 1..",
         Edge,
-        "Edge tools",
+        "Edge Tools",
         "PartDesign_Body"
     ));
 
@@ -303,15 +184,15 @@ void Workbench::activated()
         "PartDesign_Chamfer",
         "PartDesign_Draft",
         "PartDesign_Thickness",
-        "PartDesign_Point",
-        "PartDesign_Line",
-        "PartDesign_Plane",
-        "PartDesign_CoordinateSystem",
+        "Part_DatumPoint",
+        "Part_DatumLine",
+        "Part_DatumPlane",
+        "Part_CoordinateSystem",
         nullptr};
     Watcher.push_back(new Gui::TaskView::TaskWatcherCommands(
         "SELECT Part::Feature SUBELEMENT Face COUNT 1",
         Face,
-        "Face tools",
+        "Face Tools",
         "PartDesign_Body"
     ));
 
@@ -321,7 +202,7 @@ void Workbench::activated()
     Watcher.push_back(new Gui::TaskView::TaskWatcherCommands(
         "SELECT PartDesign::Body COUNT 1",
         Body,
-        "Helper tools",
+        "Helper Tools",
         "PartDesign_Body"
     ));
 
@@ -331,59 +212,59 @@ void Workbench::activated()
     Watcher.push_back(new Gui::TaskView::TaskWatcherCommands(
         "SELECT PartDesign::Body COUNT 1..",
         Body2,
-        "Boolean tools",
+        "Boolean Tools",
         "PartDesign_Body"
     ));
 
     const char* Plane1[] = {
         "PartDesign_NewSketch",
-        "PartDesign_Plane",
-        "PartDesign_Line",
-        "PartDesign_Point",
-        "PartDesign_CoordinateSystem",
+        "Part_DatumPoint",
+        "Part_DatumLine",
+        "Part_DatumPlane",
+        "Part_CoordinateSystem",
         nullptr};
     Watcher.push_back(new Gui::TaskView::TaskWatcherCommands(
         "SELECT App::Plane COUNT 1",
         Plane1,
-        "Helper tools",
+        "Helper Tools",
         "PartDesign_Body"
     ));
     const char* Plane2[] = {
         "PartDesign_NewSketch",
-        "PartDesign_Point",
-        "PartDesign_Line",
-        "PartDesign_Plane",
-        "PartDesign_CoordinateSystem",
+        "Part_DatumPoint",
+        "Part_DatumLine",
+        "Part_DatumPlane",
+        "Part_CoordinateSystem",
         nullptr};
     Watcher.push_back(new Gui::TaskView::TaskWatcherCommands(
         "SELECT PartDesign::Plane COUNT 1",
         Plane2,
-        "Helper tools",
+        "Helper Tools",
         "PartDesign_Body"
     ));
 
     const char* Line[] = {
-        "PartDesign_Point",
-        "PartDesign_Line",
-        "PartDesign_Plane",
+        "Part_DatumPoint",
+        "Part_DatumLine",
+        "Part_DatumPlane",
         nullptr};
     Watcher.push_back(new Gui::TaskView::TaskWatcherCommands(
         "SELECT PartDesign::Line COUNT 1",
         Line,
-        "Helper tools",
+        "Helper Tools",
         "PartDesign_Body"
     ));
 
     const char* Point[] = {
-        "PartDesign_Point",
-        "PartDesign_Line",
-        "PartDesign_Plane",
-        "PartDesign_CoordinateSystem",
+        "Part_DatumPoint",
+        "Part_DatumLine",
+        "Part_DatumPlane",
+        "Part_CoordinateSystem",
         nullptr};
     Watcher.push_back(new Gui::TaskView::TaskWatcherCommands(
         "SELECT PartDesign::Point COUNT 1",
         Point,
-        "Helper tools",
+        "Helper Tools",
         "PartDesign_Body"
     ));
 
@@ -405,7 +286,7 @@ void Workbench::activated()
     Watcher.push_back(new Gui::TaskView::TaskWatcherCommands(
         "SELECT Part::Feature SUBELEMENT Face COUNT 2..",
         Faces,
-        "Face tools",
+        "Face Tools",
         "PartDesign_Body"
     ));
 
@@ -426,7 +307,7 @@ void Workbench::activated()
     Watcher.push_back(new Gui::TaskView::TaskWatcherCommands(
         "SELECT Sketcher::SketchObject COUNT 1",
         Sketch,
-        "Modeling tools",
+        "Modeling Tools",
         "PartDesign_Body"
     ));
 
@@ -434,47 +315,27 @@ void Workbench::activated()
         "PartDesign_Mirrored",
         "PartDesign_LinearPattern",
         "PartDesign_PolarPattern",
-//        "PartDesign_Scaled",
         "PartDesign_MultiTransform",
         nullptr};
     Watcher.push_back(new Gui::TaskView::TaskWatcherCommands(
         "SELECT PartDesign::SketchBased",
         Transformed,
-        "Transformation tools",
+        "Transformation Tools",
         "PartDesign_MultiTransform"
     ));
-
-    // make the previously used active Body active again
-    //PartDesignGui::ActivePartObject = NULL;
-    _switchToDocument(App::GetApplication().getActiveDocument());
 
     addTaskWatcher(Watcher);
     if(App::GetApplication().GetUserParameter().GetGroup("BaseApp")->GetGroup("Preferences")->GetGroup("Mod/PartDesign")->GetBool("SwitchToTask", true))
         Gui::Control().showTaskView();
-
-    //NOLINTBEGIN
-    // Let us be notified when a document is activated, so that we can update the ActivePartObject
-    activeDoc = Gui::Application::Instance->signalActiveDocument.connect(std::bind(&Workbench::slotActiveDocument, this, sp::_1));
-    createDoc = App::GetApplication().signalNewDocument.connect(std::bind(&Workbench::slotNewDocument, this, sp::_1));
-    finishDoc = App::GetApplication().signalFinishRestoreDocument.connect(std::bind(&Workbench::slotFinishRestoreDocument, this, sp::_1));
-    deleteDoc = App::GetApplication().signalDeleteDocument.connect(std::bind(&Workbench::slotDeleteDocument, this, sp::_1));
-    //NOLINTEND
 }
 
 void Workbench::deactivated()
 {
-    // Let us be notified when a document is activated, so that we can update the ActivePartObject
-    activeDoc.disconnect();
-    createDoc.disconnect();
-    finishDoc.disconnect();
-    deleteDoc.disconnect();
-
     removeTaskWatcher();
     // reset the active Body
     Gui::Command::doCommand(Gui::Command::Doc,"import PartDesignGui");
 
     Gui::Workbench::deactivated();
-
 }
 
 Gui::MenuItem* Workbench::setupMenuBar() const
@@ -499,17 +360,9 @@ Gui::MenuItem* Workbench::setupMenuBar() const
     root->insertItem(item, part);
     part->setCommand("&Part Design");
 
-    // datums
-    Gui::MenuItem* datums = new Gui::MenuItem;
-    datums->setCommand("Create a datum");
-
-    *datums << "PartDesign_Point"
-            << "PartDesign_Line"
-            << "PartDesign_Plane";
-
     // additives
     Gui::MenuItem* additives = new Gui::MenuItem;
-    additives->setCommand("Create an additive feature");
+    additives->setCommand("Additive Features");
 
     *additives << "PartDesign_Pad"
                << "PartDesign_Revolution"
@@ -519,7 +372,7 @@ Gui::MenuItem* Workbench::setupMenuBar() const
 
     // subtractives
     Gui::MenuItem* subtractives = new Gui::MenuItem;
-    subtractives->setCommand("Create a subtractive feature");
+    subtractives->setCommand("Subtractive Features");
 
     *subtractives << "PartDesign_Pocket"
                   << "PartDesign_Hole"
@@ -530,17 +383,16 @@ Gui::MenuItem* Workbench::setupMenuBar() const
 
     // transformations
     Gui::MenuItem* transformations = new Gui::MenuItem;
-    transformations->setCommand("Apply a pattern");
+    transformations->setCommand("Transformation Features");
 
     *transformations << "PartDesign_Mirrored"
                      << "PartDesign_LinearPattern"
                      << "PartDesign_PolarPattern"
                      << "PartDesign_MultiTransform";
-//                     << "PartDesign_Scaled"
 
     // dressups
     Gui::MenuItem* dressups = new Gui::MenuItem;
-    dressups->setCommand("Apply a dress-up feature");
+    dressups->setCommand("Dress-Up Features");
 
     *dressups << "PartDesign_Fillet"
               << "PartDesign_Chamfer"
@@ -549,8 +401,6 @@ Gui::MenuItem* Workbench::setupMenuBar() const
 
     *part << "PartDesign_Body"
           << "Separator"
-          << datums
-          << "PartDesign_CoordinateSystem"
           << "PartDesign_ShapeBinder"
           << "PartDesign_SubShapeBinder"
           << "PartDesign_Clone"
@@ -561,26 +411,23 @@ Gui::MenuItem* Workbench::setupMenuBar() const
           << subtractives
           << "PartDesign_CompPrimitiveSubtractive"
           << "Separator"
+          << dressups
+          << "Separator"
           << transformations
           << "Separator"
-          << dressups
+          << "PartDesign_Boolean"
           << "Separator"
           << "Materials_InspectAppearance"
           << "Materials_InspectMaterial"
           << "Separator"
-          << "PartDesign_Boolean"
-          << "Separator"
           << "Part_CheckGeometry"
           << "Separator"
-          << "PartDesign_Migrate"
+          << "PartDesign_InvoluteGear"
           << "PartDesign_Sprocket";
 
     // For 0.13 a couple of python packages like numpy, matplotlib and others
     // are not deployed with the installer on Windows. Thus, the WizardShaft is
     // not deployed either hence the check for the existence of the command.
-    if (Gui::Application::Instance->commandManager().getCommandByName("PartDesign_InvoluteGear")) {
-        *part << "PartDesign_InvoluteGear";
-    }
     if (Gui::Application::Instance->commandManager().getCommandByName("PartDesign_WizardShaft")) {
         *part << "Separator" << "PartDesign_WizardShaft";
     }
@@ -606,18 +453,17 @@ Gui::ToolBarItem* Workbench::setupToolBars() const
 {
     Gui::ToolBarItem* root = StdWorkbench::setupToolBars();
     Gui::ToolBarItem* part = new Gui::ToolBarItem(root);
-    part->setCommand("Part Design Helper");
+    part->setCommand("Part Design Helper Features");
 
     *part << "PartDesign_Body"
           << "PartDesign_CompSketches"
           << "Sketcher_ValidateSketch"
           << "Part_CheckGeometry"
           << "PartDesign_SubShapeBinder"
-          << "PartDesign_Clone"
-          << "PartDesign_CompDatums";
+          << "PartDesign_Clone";
 
     part = new Gui::ToolBarItem(root);
-    part->setCommand("Part Design Modeling");
+    part->setCommand("Part Design Modeling Features");
 
     *part << "PartDesign_Pad"
           << "PartDesign_Revolution"
@@ -638,28 +484,19 @@ Gui::ToolBarItem* Workbench::setupToolBars() const
 
     part = new Gui::ToolBarItem(root);
 
-    part->setCommand("Part Design Dressup");
+    part->setCommand("Part Design Dress-Up Features");
     *part << "PartDesign_Fillet"
           << "PartDesign_Chamfer"
           << "PartDesign_Draft"
           << "PartDesign_Thickness";
 
     part = new Gui::ToolBarItem(root);
-    part->setCommand("Part Design Patterns");
+    part->setCommand("Part Design Transformation Features");
 
     *part << "PartDesign_Mirrored"
           << "PartDesign_LinearPattern"
           << "PartDesign_PolarPattern"
-          // << "PartDesign_Scaled"
           << "PartDesign_MultiTransform";
 
     return root;
 }
-
-Gui::ToolBarItem* Workbench::setupCommandBars() const
-{
-    // Part tools
-    Gui::ToolBarItem* root = new Gui::ToolBarItem;
-    return root;
-}
-

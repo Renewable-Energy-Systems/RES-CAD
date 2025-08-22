@@ -32,7 +32,7 @@
 #include <Gui/Command.h>
 #include <Gui/Document.h>
 #include <Gui/MainWindow.h>
-#include <Gui/Selection.h>
+#include <Gui/Selection/Selection.h>
 #include <Gui/View3DInventor.h>
 #include <Gui/View3DInventorViewer.h>
 #include <Mod/Part/App/PartFeature.h>
@@ -61,13 +61,13 @@ bool TaskProjection::accept()
 {
     Gui::Document* document = Gui::Application::Instance->activeDocument();
     if (!document) {
-        QMessageBox::warning(Gui::getMainWindow(), tr("No active document"),
+        QMessageBox::warning(Gui::getMainWindow(), tr("No Active Document"),
             tr("There is currently no active document to complete the operation"));
         return true;
     }
     std::list<Gui::MDIView*> mdis = document->getMDIViewsOfType(Gui::View3DInventor::getClassTypeId());
     if (mdis.empty()) {
-        QMessageBox::warning(Gui::getMainWindow(), tr("No active view"),
+        QMessageBox::warning(Gui::getMainWindow(), tr("No Active View"),
             tr("There is currently no active view to complete the operation"));
         return false;
     }

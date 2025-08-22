@@ -107,8 +107,8 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
             self.form.reverseDirection.setCheckState(QtCore.Qt.Unchecked)
 
     def updateQuantitySpinBoxes(self):
-        self.geo1Extension.updateSpinBox()
-        self.geo2Extension.updateSpinBox()
+        self.geo1Extension.updateWidget()
+        self.geo2Extension.updateWidget()
 
     def getFields(self, obj):
         """getFields(obj) ... transfers values from UI to obj's properties"""
@@ -125,9 +125,7 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
         val = self.propEnums["LayerMode"][self.form.layerMode.currentIndex()][1]
         obj.LayerMode = val
 
-        val = self.propEnums["PathOrientation"][
-            self.form.pathOrientation.currentIndex()
-        ][1]
+        val = self.propEnums["PathOrientation"][self.form.pathOrientation.currentIndex()][1]
         obj.PathOrientation = val
 
         obj.ReverseDirection = self.form.reverseDirection.isChecked()
@@ -144,7 +142,10 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
         signals.append(self.form.geo2Reference.currentIndexChanged)
         signals.append(self.form.layerMode.currentIndexChanged)
         signals.append(self.form.pathOrientation.currentIndexChanged)
-        signals.append(self.form.reverseDirection.stateChanged)
+        if hasattr(self.form.reverseDirection, "checkStateChanged"):  # Qt version >= 6.7.0
+            signals.append(self.form.reverseDirection.checkStateChanged)
+        else:  # Qt version < 6.7.0
+            signals.append(self.form.reverseDirection.stateChanged)
         return signals
 
     def updateVisibility(self, sentObj=None):
@@ -186,16 +187,12 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
                     # Show Reference1 and customize options within
                     self.form.geo1Reference.show()
                     self.form.geo1Reference_label.show()
-                    self.form.geo1Reference_label.setText(
-                        "Start Reference:  {}".format(n1)
-                    )
+                    self.form.geo1Reference_label.setText("Start Reference:  {}".format(n1))
                     self.customizeReference_1(n1)
                     # Show Reference2 and customize options within
                     self.form.geo2Reference.show()
                     self.form.geo2Reference_label.show()
-                    self.form.geo2Reference_label.setText(
-                        "End Reference:  {}".format(n2)
-                    )
+                    self.form.geo2Reference_label.setText("End Reference:  {}".format(n2))
                     self.customizeReference_2(n2)
             else:
                 self.form.pathOrientation_label.hide()

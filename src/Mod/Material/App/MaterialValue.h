@@ -91,6 +91,7 @@ public:
         return _value.value<QList<QVariant>>();
     }
     virtual bool isNull() const;
+    virtual bool isEmpty() const;
 
     virtual const QVariant getValueAt(const QVariant& value) const
     {
@@ -106,6 +107,13 @@ public:
     virtual QString getYAMLString() const;
     static QString escapeString(const QString& source);
     static ValueType mapType(const QString& stringType);
+
+    static const Base::QuantityFormat getQuantityFormat();
+
+    // The precision is based on the value from the original materials editor
+    static const int PRECISION = 6;
+
+    void validate(const MaterialValue& other) const;
 
 protected:
     MaterialValue(ValueType type, ValueType inherited);
@@ -128,18 +136,19 @@ private:
     static QMap<QString, ValueType> _typeMap;
 };
 
-class MaterialsExport Material2DArray: public MaterialValue
+class MaterialsExport Array2D: public MaterialValue
 {
     TYPESYSTEM_HEADER_WITH_OVERRIDE();
 
 public:
-    Material2DArray();
-    Material2DArray(const Material2DArray& other);
-    ~Material2DArray() override = default;
+    Array2D();
+    Array2D(const Array2D& other);
+    ~Array2D() override = default;
 
-    Material2DArray& operator=(const Material2DArray& other);
+    Array2D& operator=(const Array2D& other);
 
     bool isNull() const override;
+    bool isEmpty() const override;
 
     const QList<std::shared_ptr<QList<QVariant>>>& getArray() const
     {
@@ -148,6 +157,7 @@ public:
 
     void validateRow(int row) const;
     void validateColumn(int column) const;
+    void validate(const Array2D& other) const;
 
     std::shared_ptr<QList<QVariant>> getRow(int row) const;
     std::shared_ptr<QList<QVariant>> getRow(int row);
@@ -166,6 +176,7 @@ public:
     void addRow(const std::shared_ptr<QList<QVariant>>& row);
     void insertRow(int index, const std::shared_ptr<QList<QVariant>>& row);
     void deleteRow(int row);
+    void setRows(int rowCount);
 
     void setValue(int row, int column, const QVariant& value);
     QVariant getValue(int row, int column) const;
@@ -173,7 +184,7 @@ public:
     QString getYAMLString() const override;
 
 protected:
-    void deepCopy(const Material2DArray& other);
+    void deepCopy(const Array2D& other);
 
     QList<std::shared_ptr<QList<QVariant>>> _rows;
     int _columns;
@@ -183,15 +194,19 @@ private:
     void dump() const;
 };
 
-class MaterialsExport Material3DArray: public MaterialValue
+class MaterialsExport Array3D: public MaterialValue
 {
     TYPESYSTEM_HEADER_WITH_OVERRIDE();
 
 public:
-    Material3DArray();
-    ~Material3DArray() override = default;
+    Array3D();
+    Array3D(const Array3D& other);
+    ~Array3D() override = default;
+
+    Array3D& operator=(const Array3D& other);
 
     bool isNull() const override;
+    bool isEmpty() const override;
 
     const QList<
         std::pair<Base::Quantity, std::shared_ptr<QList<std::shared_ptr<QList<Base::Quantity>>>>>>&
@@ -203,6 +218,7 @@ public:
     void validateDepth(int level) const;
     void validateColumn(int column) const;
     void validateRow(int level, int row) const;
+    void validate(const Array3D& other) const;
 
     const std::shared_ptr<QList<std::shared_ptr<QList<Base::Quantity>>>>&
     getTable(const Base::Quantity& depth) const;
@@ -240,6 +256,8 @@ public:
     {
         _columns = size;
     }
+    void setDepth(int depthCount);
+    void setRows(int depth, int rowCount);
 
     void setValue(int depth, int row, int column, const Base::Quantity& value);
     void setValue(int row, int column, const Base::Quantity& value);
@@ -255,6 +273,8 @@ public:
     QString getYAMLString() const override;
 
 protected:
+    void deepCopy(const Array3D& other);
+
     QList<std::pair<Base::Quantity, std::shared_ptr<QList<std::shared_ptr<QList<Base::Quantity>>>>>>
         _rowMap;
     int _currentDepth;
@@ -264,7 +284,7 @@ protected:
 }  // namespace Materials
 
 Q_DECLARE_METATYPE(Materials::MaterialValue)
-Q_DECLARE_METATYPE(std::shared_ptr<Materials::Material2DArray>)
-Q_DECLARE_METATYPE(std::shared_ptr<Materials::Material3DArray>)
+Q_DECLARE_METATYPE(std::shared_ptr<Materials::Array2D>)
+Q_DECLARE_METATYPE(std::shared_ptr<Materials::Array3D>)
 
 #endif  // MATERIAL_MATERIALVALUE_H

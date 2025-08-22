@@ -26,6 +26,7 @@
 
 #include <Mod/Part/Gui/ViewProvider.h>
 #include <Mod/PartDesign/PartDesignGlobal.h>
+#include <Mod/PartDesign/App/Feature.h>
 #include <Gui/ViewProviderOriginGroupExtension.h>
 #include <QCoreApplication>
 
@@ -72,14 +73,14 @@ public:
     ///unify children visuals
     void onChanged(const App::Property* prop) override;
 
-    /// Update the sizes of origin and datums
-    void updateOriginDatumSize ();
-
     /**
      * Return the bounding box of visible features
      * @note datums are counted as their base point only
      */
     SbBox3f getBoundBox ();
+
+    PartDesign::Feature* getShownFeature() const;
+    ViewProvider* getShownViewProvider() const;
 
     /** Check whether objects can be added to the view provider by drag and drop */
     bool canDropObjects() const override;
@@ -89,22 +90,13 @@ public:
     void dropObject(App::DocumentObject*) override;
 
 protected:
-    void slotChangedObjectApp ( const App::DocumentObject& obj, const App::Property& prop );
-    void slotChangedObjectGui ( const Gui::ViewProviderDocumentObject& obj, const App::Property& prop );
-
     /// Copy over all visual properties to the child features
     void unifyVisualProperty(const App::Property* prop);
     /// Set Feature viewprovider into visual body mode
     void setVisualBodyMode(bool bodymode);
 
 private:
-    void copyColorsfromTip(App::DocumentObject* tip);
-
-private:
     static const char* BodyModeEnum[];
-
-    boost::signals2::connection connectChangedObjectApp;
-    boost::signals2::connection connectChangedObjectGui;
 };
 
 

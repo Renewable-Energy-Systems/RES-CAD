@@ -79,14 +79,15 @@ TaskDlgEditSketch::TaskDlgEditSketch(ViewProviderSketch* sketchView)
         std::bind(&SketcherGui::TaskDlgEditSketch::slotToolChanged, this, sp::_1));
 
     ToolSettings->setHidden(true);
+
+    associateToObject3dView(sketchView->getObject());
 }
 
 TaskDlgEditSketch::~TaskDlgEditSketch()
 {
     // to make sure to delete the advanced solver panel
     // it must be part to the 'Content' array
-    std::vector<QWidget*>::iterator it = std::find(Content.begin(), Content.end(), SolverAdvanced);
-    if (it == Content.end()) {
+    if (const auto it = std::ranges::find(Content, SolverAdvanced); it == Content.end()) {
         Content.push_back(SolverAdvanced);
     }
 
@@ -144,5 +145,15 @@ bool TaskDlgEditSketch::reject()
     return true;
 }
 
+QDialogButtonBox::StandardButtons TaskDlgEditSketch::getStandardButtons() const
+{
+    return QDialogButtonBox::Close;
+}
+
+void TaskDlgEditSketch::autoClosedOnClosedView()
+{
+    // Make sure the edit mode is exited when the view is closed.
+    reject();
+}
 
 #include "moc_TaskDlgEditSketch.cpp"

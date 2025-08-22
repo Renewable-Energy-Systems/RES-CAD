@@ -28,6 +28,7 @@
 
 #include <App/Application.h>
 #include <Mod/Sketcher/App/GeoList.h>
+#include "GeometryCreationMode.h"
 
 #include "EditModeCoinManagerParameters.h"
 
@@ -43,6 +44,8 @@ template<typename T>
 class Vector3;
 
 class Vector2d;
+
+class BoundBox2d;
 
 class Placement;
 }  // namespace Base
@@ -209,8 +212,8 @@ public:
     //@{
     void drawEditMarkers(const std::vector<Base::Vector2d>& EditMarkers,
                          unsigned int augmentationlevel);
-    void drawEdit(const std::vector<Base::Vector2d>& EditCurve);
-    void drawEdit(const std::list<std::vector<Base::Vector2d>>& list);
+    void drawEdit(const std::vector<Base::Vector2d>& EditCurve, GeometryCreationMode mode);
+    void drawEdit(const std::list<std::vector<Base::Vector2d>>& list, GeometryCreationMode mode);
     void setPositionText(const Base::Vector2d& Pos, const SbString& txt);
     void setPositionText(const Base::Vector2d& Pos);
     void resetPositionText();
@@ -256,6 +259,9 @@ public:
     void setConstraintSelectability(bool enabled = true);
     //@}
 
+    // Updates the Axes extension to span the specified area.
+    void updateAxesLength(const Base::BoundBox2d& bb);
+
 private:
     // This function populates the coin nodes with the information of the current geometry
     void processGeometry(const GeoListFacade& geolistfacade);
@@ -265,9 +271,6 @@ private:
     // parallel.
     void processGeometryInformationOverlay(const GeoListFacade& geolistfacade);
 
-    // updates the Axes length to extend beyond the calculated bounding box magnitude
-    void updateAxesLength();
-
     // updates the parameters to be used for the Overlay information layer
     void updateOverlayParameters();
 
@@ -276,7 +279,11 @@ private:
     // causes the ViewProvider to draw
     void redrawViewProvider();
 
+    void setEditDrawStyle(GeometryCreationMode mode);
+
     int defaultApplicationFontSizePixels() const;
+
+    double getDevicePixelRatio() const;
 
     int getApplicationLogicalDPIX() const;
 

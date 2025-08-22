@@ -124,47 +124,49 @@ class PartTestBSplineCurve(unittest.TestCase):
         self.spline.setPole(1, App.Vector([1, 0, 0])) # first parameter 0 gives occ error
 
     def testIssue2671(self):
-        self.Doc = App.newDocument("Issue2671")
-        Box = self.Doc.addObject("Part::Box","Box")
-        Mirroring = self.Doc.addObject("Part::Mirroring", 'Mirroring')
-        Spreadsheet = self.Doc.addObject('Spreadsheet::Sheet', 'Spreadsheet')
-        Mirroring.Source = Box
-        Mirroring.Base = (8, 5, 25)
-        Mirroring.Normal = (0.5, 0.2, 0.9)
-        Spreadsheet.set('A1', '=Mirroring.Base.x')
-        Spreadsheet.set('B1', '=Mirroring.Base.y')
-        Spreadsheet.set('C1', '=Mirroring.Base.z')
-        Spreadsheet.set('A2', '=Mirroring.Normal.x')
-        Spreadsheet.set('B2', '=Mirroring.Normal.y')
-        Spreadsheet.set('C2', '=Mirroring.Normal.z')
-        self.Doc.recompute()
-        self.assertEqual(Spreadsheet.A1, Units.Quantity('8 mm'))
-        self.assertEqual(Spreadsheet.B1, Units.Quantity('5 mm'))
-        self.assertEqual(Spreadsheet.C1, Units.Quantity('25 mm'))
-        self.assertEqual(Spreadsheet.A2, Units.Quantity('0.5 mm'))
-        self.assertEqual(Spreadsheet.B2, Units.Quantity('0.2 mm'))
-        self.assertEqual(Spreadsheet.C2, Units.Quantity('0.9 mm'))
-        App.closeDocument("Issue2671")
+        if "BUILD_SPREADSHEET" in FreeCAD.__cmake__:
+            self.Doc = App.newDocument("Issue2671")
+            Box = self.Doc.addObject("Part::Box","Box")
+            Mirroring = self.Doc.addObject("Part::Mirroring", 'Mirroring')
+            Spreadsheet = self.Doc.addObject('Spreadsheet::Sheet', 'Spreadsheet')
+            Mirroring.Source = Box
+            Mirroring.Base = (8, 5, 25)
+            Mirroring.Normal = (0.5, 0.2, 0.9)
+            Spreadsheet.set('A1', '=Mirroring.Base.x')
+            Spreadsheet.set('B1', '=Mirroring.Base.y')
+            Spreadsheet.set('C1', '=Mirroring.Base.z')
+            Spreadsheet.set('A2', '=Mirroring.Normal.x')
+            Spreadsheet.set('B2', '=Mirroring.Normal.y')
+            Spreadsheet.set('C2', '=Mirroring.Normal.z')
+            self.Doc.recompute()
+            self.assertEqual(Spreadsheet.A1, Units.Quantity('8 mm'))
+            self.assertEqual(Spreadsheet.B1, Units.Quantity('5 mm'))
+            self.assertEqual(Spreadsheet.C1, Units.Quantity('25 mm'))
+            self.assertEqual(Spreadsheet.A2, Units.Quantity('0.5 mm'))
+            self.assertEqual(Spreadsheet.B2, Units.Quantity('0.2 mm'))
+            self.assertEqual(Spreadsheet.C2, Units.Quantity('0.9 mm'))
+            App.closeDocument("Issue2671")
 
     def testIssue2876(self):
-        self.Doc = App.newDocument("Issue2876")
-        Cylinder = self.Doc.addObject("Part::Cylinder", "Cylinder")
-        Cylinder.Radius = 5
-        Pipe = self.Doc.addObject("Part::Thickness", "Pipe")
-        Pipe.Faces = (Cylinder, ["Face2", "Face3"])
-        Pipe.Mode = 1
-        Pipe.Value = -1 # negative wall thickness
-        Spreadsheet = self.Doc.addObject('Spreadsheet::Sheet', 'Spreadsheet')
-        Spreadsheet.set('A1', 'Pipe OD')
-        Spreadsheet.set('B1', 'Pipe WT')
-        Spreadsheet.set('C1', 'Pipe ID')
-        Spreadsheet.set('A2', '=2*Cylinder.Radius')
-        Spreadsheet.set('B2', '=-Pipe.Value')
-        Spreadsheet.set('C2', '=2*(Cylinder.Radius + Pipe.Value)')
-        self.Doc.recompute()
-        self.assertEqual(Spreadsheet.B2, Units.Quantity('1 mm'))
-        self.assertEqual(Spreadsheet.C2, Units.Quantity('8 mm'))
-        App.closeDocument("Issue2876")
+        if "BUILD_SPREADSHEET" in FreeCAD.__cmake__:
+            self.Doc = App.newDocument("Issue2876")
+            Cylinder = self.Doc.addObject("Part::Cylinder", "Cylinder")
+            Cylinder.Radius = 5
+            Pipe = self.Doc.addObject("Part::Thickness", "Pipe")
+            Pipe.Faces = (Cylinder, ["Face2", "Face3"])
+            Pipe.Mode = 1
+            Pipe.Value = -1 # negative wall thickness
+            Spreadsheet = self.Doc.addObject('Spreadsheet::Sheet', 'Spreadsheet')
+            Spreadsheet.set('A1', 'Pipe OD')
+            Spreadsheet.set('B1', 'Pipe WT')
+            Spreadsheet.set('C1', 'Pipe ID')
+            Spreadsheet.set('A2', '=2*Cylinder.Radius')
+            Spreadsheet.set('B2', '=-Pipe.Value')
+            Spreadsheet.set('C2', '=2*(Cylinder.Radius + Pipe.Value)')
+            self.Doc.recompute()
+            self.assertEqual(Spreadsheet.B2, Units.Quantity('1 mm'))
+            self.assertEqual(Spreadsheet.C2, Units.Quantity('8 mm'))
+            App.closeDocument("Issue2876")
 
     def testSubElements(self):
         box = Part.makeBox(1, 1, 1)
@@ -468,21 +470,80 @@ class PartTestRuledSurface(unittest.TestCase):
         self.assertEqual(len(same1), 2)
         self.assertEqual(len(same2), 2)
 
-    def testRuledSurfaceFromOneObject(self):
-        sketch = self.Doc.addObject('Sketcher::SketchObject', 'Sketch')
-        sketch.Placement = FreeCAD.Placement(FreeCAD.Vector(0.000000, 0.000000, 0.000000), App.Rotation(0.707107, 0.000000, 0.000000, 0.707107))
-        sketch.MapMode = "Deactivated"
+    def testRuledSurfaceFromTwoObjectsWithSharedVertexs(self):
+        """Test reproducing issue #15539"""
 
-        sketch.addGeometry(Part.LineSegment(App.Vector(-43.475811,34.364464,0),App.Vector(-65.860519,-20.078733,0)),False)
-        sketch.addGeometry(Part.LineSegment(App.Vector(14.004498,27.390331,0),App.Vector(33.577049,-27.952749,0)),False)
+        # Arrange
+        line = Part.makeLine(FreeCAD.Vector(0, 0, 50), FreeCAD.Vector(0, -50, 0))
+        line1 = Part.makeLine(FreeCAD.Vector(0, 0, 50), FreeCAD.Vector(50, 0, 0))
+        line2 = Part.makeLine(FreeCAD.Vector(0, 0, 0), FreeCAD.Vector(0, -50, 0))
+        line3 = Part.makeLine(FreeCAD.Vector(0, 0, 0), FreeCAD.Vector(50, 0, 0))
+        fea = self.Doc.addObject("Part::Feature")
+        fea1 = self.Doc.addObject("Part::Feature")
+        fea2 = self.Doc.addObject("Part::Feature")
+        fea3 = self.Doc.addObject("Part::Feature")
+        fea.Shape = line
+        fea1.Shape = line1
+        fea2.Shape = line2
+        fea3.Shape = line3
 
-        ruled = self.Doc.addObject('Part::RuledSurface', 'Ruled Surface')
-        ruled.Curve1 = (sketch,['Edge1'])
-        ruled.Curve2 = (sketch,['Edge2'])
+        # Defining all the surfaces generated by 2 lines with one common vertex
+        ruled = self.Doc.addObject("Part::RuledSurface")
+        ruled.Curve1 = fea
+        ruled.Curve2 = fea1
+
+        ruled1 = self.Doc.addObject("Part::RuledSurface")
+        ruled1.Curve1 = fea1
+        ruled1.Curve2 = fea3
+
+        ruled2 = self.Doc.addObject("Part::RuledSurface")
+        ruled2.Curve1 = fea2
+        ruled2.Curve2 = fea3
+
+        ruled3 = self.Doc.addObject("Part::RuledSurface")
+        ruled3.Curve1 = fea
+        ruled3.Curve2 = fea2
+
+        # Act
         self.Doc.recompute()
 
-        same = getCoincidentVertexes(sketch.Shape.Vertexes, ruled.Shape.Vertexes)
-        self.assertEqual(len(same), 4)
+        # Assert
+        same00 = getCoincidentVertexes(fea.Shape.Vertexes, ruled.Shape.Vertexes)
+        same03 = getCoincidentVertexes(fea.Shape.Vertexes, ruled3.Shape.Vertexes)
+        same10 = getCoincidentVertexes(fea1.Shape.Vertexes, ruled.Shape.Vertexes)
+        same11 = getCoincidentVertexes(fea1.Shape.Vertexes, ruled1.Shape.Vertexes)
+        same22 = getCoincidentVertexes(fea2.Shape.Vertexes, ruled2.Shape.Vertexes)
+        same23 = getCoincidentVertexes(fea2.Shape.Vertexes, ruled3.Shape.Vertexes)
+        same31 = getCoincidentVertexes(fea3.Shape.Vertexes, ruled1.Shape.Vertexes)
+        same32 = getCoincidentVertexes(fea3.Shape.Vertexes, ruled2.Shape.Vertexes)
+
+        # BRepFill::Face() seems creating faces with 4 vertexes
+        # Therefore, in this case, every face shares 3 vertexes (1 counted twice as coincident) with the lines that generate that face
+        self.assertEqual(len(same00), 3)
+        self.assertEqual(len(same03), 3)
+        self.assertEqual(len(same10), 3)
+        self.assertEqual(len(same11), 3)
+        self.assertEqual(len(same22), 3)
+        self.assertEqual(len(same23), 3)
+        self.assertEqual(len(same31), 3)
+        self.assertEqual(len(same32), 3)
+
+    def testRuledSurfaceFromOneObject(self):
+        if "BUILD_SKETCHER" in FreeCAD.__cmake__:
+            sketch = self.Doc.addObject('Sketcher::SketchObject', 'Sketch')
+            sketch.Placement = FreeCAD.Placement(FreeCAD.Vector(0.000000, 0.000000, 0.000000), App.Rotation(0.707107, 0.000000, 0.000000, 0.707107))
+            sketch.MapMode = "Deactivated"
+
+            sketch.addGeometry(Part.LineSegment(App.Vector(-43.475811,34.364464,0),App.Vector(-65.860519,-20.078733,0)),False)
+            sketch.addGeometry(Part.LineSegment(App.Vector(14.004498,27.390331,0),App.Vector(33.577049,-27.952749,0)),False)
+
+            ruled = self.Doc.addObject('Part::RuledSurface', 'Ruled Surface')
+            ruled.Curve1 = (sketch,['Edge1'])
+            ruled.Curve2 = (sketch,['Edge2'])
+            self.Doc.recompute()
+
+            same = getCoincidentVertexes(sketch.Shape.Vertexes, ruled.Shape.Vertexes)
+            self.assertEqual(len(same), 4)
 
     def tearDown(self):
         FreeCAD.closeDocument(self.Doc.Name)

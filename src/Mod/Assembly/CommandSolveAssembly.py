@@ -33,7 +33,6 @@ if App.GuiUp:
 import UtilsAssembly
 import Assembly_rc
 
-# translate = App.Qt.translate
 
 __title__ = "Assembly Command to Solve Assembly"
 __author__ = "Ondsel"
@@ -53,22 +52,23 @@ class CommandSolveAssembly:
             "ToolTip": "<p>"
             + QT_TRANSLATE_NOOP(
                 "Assembly_SolveAssembly",
-                "Solve the currently active assembly.",
+                "Solves the currently active assembly.",
             )
             + "</p>",
             "CmdType": "ForEdit",
         }
 
     def IsActive(self):
-        return UtilsAssembly.isAssemblyCommandActive() and UtilsAssembly.isAssemblyGrounded()
+        return UtilsAssembly.isAssemblyCommandActive()
 
     def Activated(self):
         assembly = UtilsAssembly.activeAssembly()
         if not assembly:
             return
 
+        Gui.addModule("UtilsAssembly")
         App.setActiveTransaction("Solve assembly")
-        assembly.solve()
+        Gui.doCommand("UtilsAssembly.activeAssembly().solve()")
         App.closeActiveTransaction()
 
 

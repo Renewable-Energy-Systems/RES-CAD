@@ -27,6 +27,14 @@
 # include <QMessageBox>
 #endif
 
+#include <App/Document.h>
+#include <Gui/Application.h>
+#include <Gui/Document.h>
+#include <Gui/MainWindow.h>
+#include <Gui/View3DInventor.h>
+#include <Gui/ViewProviderDocumentObject.h>
+
+
 #include "TaskDialog.h"
 #include "TaskView.h"
 
@@ -42,6 +50,8 @@ TaskDialog::TaskDialog()
     : QObject(nullptr), pos(North)
     , escapeButton(true)
     , autoCloseTransaction(false)
+    , autoCloseDeletedDocument(false)
+    , autoCloseClosedView(false)
 {
 
 }
@@ -87,16 +97,32 @@ const std::vector<QWidget*> &TaskDialog::getDialogContent() const
 
 bool TaskDialog::canClose() const
 {
-    QMessageBox msgBox;
+    QMessageBox msgBox(Gui::getMainWindow());
     msgBox.setText(tr("A dialog is already open in the task panel"));
-    msgBox.setInformativeText(QObject::tr("Do you want to close this dialog?"));
+    msgBox.setInformativeText(QObject::tr("Close this dialog?"));
     msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
     msgBox.setDefaultButton(QMessageBox::Yes);
     int ret = msgBox.exec();
-    if (ret == QMessageBox::Yes)
-        return true;
-    else
-        return false;
+    return (ret == QMessageBox::Yes);
+}
+
+void TaskDialog::associateToObject3dView(App::DocumentObject* obj)
+{
+    if (!obj) {
+        return;
+    }
+
+    Gui::Document* guiDoc = Gui::Application::Instance->getDocument(obj->getDocument());
+    auto* vp = Gui::Application::Instance->getViewProvider(obj);
+    auto* vpdo = static_cast<Gui::ViewProviderDocumentObject*>(vp);
+    auto* view = guiDoc->openEditingView3D(vpdo);
+
+    if (!view) {
+        return;
+    }
+
+    setAssociatedView(view);
+    setAutoCloseOnClosedView(true);
 }
 
 //==== calls from the TaskView ===============================================================
@@ -112,6 +138,16 @@ void TaskDialog::closed()
 }
 
 void TaskDialog::autoClosedOnTransactionChange()
+{
+
+}
+
+void TaskDialog::autoClosedOnDeletedDocument()
+{
+
+}
+
+void TaskDialog::autoClosedOnClosedView()
 {
 
 }
@@ -132,6 +168,16 @@ bool TaskDialog::reject()
 }
 
 void TaskDialog::helpRequested()
+{
+
+}
+
+void TaskDialog::onUndo()
+{
+
+}
+
+void TaskDialog::onRedo()
 {
 
 }

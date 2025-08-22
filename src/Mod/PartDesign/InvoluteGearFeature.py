@@ -51,13 +51,13 @@ def makeInvoluteGear(name):
     return obj
 
 
-class _CommandInvoluteGear:
+class CommandInvoluteGear:
     "GUI command to create an InvoluteGear"
     def GetResources(self):
         return {'Pixmap'  : 'PartDesign_InternalExternalGear',
-                'MenuText': QtCore.QT_TRANSLATE_NOOP("PartDesign_InvoluteGear","Involute gear..."),
+                'MenuText': QtCore.QT_TRANSLATE_NOOP("PartDesign_InvoluteGear","Involute Gear"),
                 'Accel': "",
-                'ToolTip': QtCore.QT_TRANSLATE_NOOP("PartDesign_InvoluteGear","Creates or edit the involute gear definition.")}
+                'ToolTip': QtCore.QT_TRANSLATE_NOOP("PartDesign_InvoluteGear","Creates or edits the involute gear definition")}
 
     def Activated(self):
         FreeCAD.ActiveDocument.openTransaction("Create involute gear")
@@ -86,7 +86,7 @@ class _InvoluteGear:
     def _ensure_properties(self, obj, is_restore):
         def ensure_property(type_, name, doc, default):
             if not hasattr(obj, name):
-                obj.addProperty(type_, name, "Gear", doc)
+                obj.addProperty(type_, name, "Gear", doc, locked=True)
                 if callable(default):
                     setattr(obj, name, default())
                 else:
@@ -98,17 +98,17 @@ class _InvoluteGear:
             doc=QtCore.QT_TRANSLATE_NOOP("App::Property", "Number of gear teeth"),
             default=26)
         ensure_property("App::PropertyLength", "Modules",
-            doc=QtCore.QT_TRANSLATE_NOOP("App::Property", "Modules of the gear"),
+            doc=QtCore.QT_TRANSLATE_NOOP("App::Property", "Module of the gear"),
             default="2.5 mm")
         ensure_property("App::PropertyAngle", "PressureAngle",
             doc=QtCore.QT_TRANSLATE_NOOP("App::Property", "Pressure angle of gear teeth"),
             default="20 deg")
         ensure_property("App::PropertyBool", "HighPrecision",
             doc=QtCore.QT_TRANSLATE_NOOP("App::Property",
-                "True=2 curves with each 3 control points False=1 curve with 4 control points."),
+                "True=2 curves with each 3 control points, False=1 curve with 4 control points."),
             default=True)
         ensure_property("App::PropertyBool", "ExternalGear",
-            doc=QtCore.QT_TRANSLATE_NOOP("App::Property", "True=external Gear False=internal Gear"),
+            doc=QtCore.QT_TRANSLATE_NOOP("App::Property", "True=external Gear, False=internal Gear"),
             default=True)
         ensure_property("App::PropertyFloat", "AddendumCoefficient",
             doc=QtCore.QT_TRANSLATE_NOOP("App::Property",
@@ -277,7 +277,3 @@ class _InvoluteGearTaskPanel:
     def reject(self):
         FreeCADGui.ActiveDocument.resetEdit()
         FreeCAD.ActiveDocument.abortTransaction()
-
-
-if FreeCAD.GuiUp:
-    FreeCADGui.addCommand('PartDesign_InvoluteGear',_CommandInvoluteGear())

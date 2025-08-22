@@ -38,6 +38,7 @@
 #include <Gui/Command.h>
 #include <Gui/Control.h>
 #include <Gui/Document.h>
+#include <Gui/MainWindow.h>
 #include <Gui/ViewParams.h>
 #include <Mod/PartDesign/App/ShapeBinder.h>
 
@@ -70,7 +71,7 @@ ViewProviderShapeBinder::ViewProviderShapeBinder()
     ParameterGrp::handle hGrp = App::GetApplication().GetParameterGroupByPath(
         "User parameter:BaseApp/Preferences/Mod/PartDesign");
     unsigned long shcol = hGrp->GetUnsigned("DefaultDatumColor", 0xFFD70099);
-    App::Color col((uint32_t)shcol);
+    Base::Color col((uint32_t)shcol);
 
     ShapeAppearance.setDiffuseColor(col);
     LineColor.setValue(col);
@@ -91,9 +92,9 @@ bool ViewProviderShapeBinder::setEdit(int ModNum) {
         Gui::TaskView::TaskDialog* dlg = Gui::Control().activeDialog();
         TaskDlgShapeBinder* sbDlg = qobject_cast<TaskDlgShapeBinder*>(dlg);
         if (dlg && !sbDlg) {
-            QMessageBox msgBox;
+            QMessageBox msgBox(Gui::getMainWindow());
             msgBox.setText(QObject::tr("A dialog is already open in the task panel"));
-            msgBox.setInformativeText(QObject::tr("Do you want to close this dialog?"));
+            msgBox.setInformativeText(QObject::tr("Close this dialog?"));
             msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
             msgBox.setDefaultButton(QMessageBox::Yes);
             int ret = msgBox.exec();
@@ -138,8 +139,8 @@ void ViewProviderShapeBinder::highlightReferences(bool on)
     App::GeoFeature* obj = nullptr;
     std::vector<std::string> subs;
 
-    if (getObject()->isDerivedFrom(PartDesign::ShapeBinder::getClassTypeId()))
-        PartDesign::ShapeBinder::getFilteredReferences(&static_cast<PartDesign::ShapeBinder*>(getObject())->Support, obj, subs);
+    if (getObject()->isDerivedFrom<PartDesign::ShapeBinder>())
+        PartDesign::ShapeBinder::getFilteredReferences(&getObject<PartDesign::ShapeBinder>()->Support, obj, subs);
     else
         return;
 
@@ -157,7 +158,7 @@ void ViewProviderShapeBinder::highlightReferences(bool on)
             TopTools_IndexedMapOfShape eMap;
             TopExp::MapShapes(static_cast<Part::Feature*>(obj)->Shape.getValue(), TopAbs_EDGE, eMap);
             originalLineColors = svp->LineColorArray.getValues();
-            std::vector<App::Color> lcolors = originalLineColors;
+            std::vector<Base::Color> lcolors = originalLineColors;
             lcolors.resize(eMap.Extent(), svp->LineColor.getValue());
 
             TopExp::MapShapes(static_cast<Part::Feature*>(obj)->Shape.getValue(), TopAbs_FACE, eMap);
@@ -171,13 +172,13 @@ void ViewProviderShapeBinder::highlightReferences(bool on)
                     int idx = std::stoi(e.substr(4)) - 1;
                     assert(idx >= 0);
                     if (idx < static_cast<int>(lcolors.size()))
-                        lcolors[idx] = App::Color(1.0, 0.0, 1.0); // magenta
+                        lcolors[idx] = Base::Color(1.0, 0.0, 1.0); // magenta
                 }
                 else if (e.compare(0, 4, "Face") == 0) {
                     int idx = std::stoi(e.substr(4)) - 1;
                     assert(idx >= 0);
                     if (idx < static_cast<int>(fcolors.size()))
-                        fcolors[idx].diffuseColor = App::Color(1.0, 0.0, 1.0); // magenta
+                        fcolors[idx].diffuseColor = Base::Color(1.0, 0.0, 1.0); // magenta
                 }
             }
             svp->LineColorArray.setValues(lcolors);
@@ -201,7 +202,7 @@ void ViewProviderShapeBinder::setupContextMenu(QMenu* menu, QObject* receiver, c
     Q_UNUSED(member)
 
         QAction* act;
-    act = menu->addAction(QObject::tr("Edit shape binder"));
+    act = menu->addAction(QObject::tr("Edit Shape Binder"));
     act->setData(QVariant((int)ViewProvider::Default));
 
     Gui::ActionFunction* func = new Gui::ActionFunction(menu);
@@ -239,7 +240,7 @@ void ViewProviderSubShapeBinder::onChanged(const App::Property* prop) {
     if (prop == &UseBinderStyle
         && (!getObject() || !getObject()->isRestoring()))
     {
-        App::Color shapeColor, lineColor, pointColor;
+        Base::Color shapeColor, lineColor, pointColor;
         int transparency, linewidth;
         if (UseBinderStyle.getValue()) {
             //get the datum coloring scheme
@@ -278,7 +279,7 @@ bool ViewProviderSubShapeBinder::canDropObjectEx(App::DocumentObject*,
 std::string ViewProviderSubShapeBinder::dropObjectEx(App::DocumentObject* obj, App::DocumentObject* owner,
     const char* subname, const std::vector<std::string>& elements)
 {
-    auto self = dynamic_cast<PartDesign::SubShapeBinder*>(getObject());
+    auto self = getObject<PartDesign::SubShapeBinder>();
     if (!self)
         return {};
     std::map<App::DocumentObject*, std::vector<std::string> > values;
@@ -315,7 +316,7 @@ void ViewProviderSubShapeBinder::setupContextMenu(QMenu* menu, QObject* receiver
     QAction* act;
     act = menu->addAction(QObject::tr("Synchronize"), receiver, member);
     act->setData(QVariant((int)Synchronize));
-    act = menu->addAction(QObject::tr("Select bound object"), receiver, member);
+    act = menu->addAction(QObject::tr("Select Bound Object"), receiver, member);
     act->setData(QVariant((int)SelectObject));
     ViewProviderPart::setupContextMenu(menu, receiver, member);
 }
@@ -327,7 +328,7 @@ bool ViewProviderSubShapeBinder::setEdit(int ModNum) {
         updatePlacement(true);
         break;
     case SelectObject: {
-        auto self = dynamic_cast<PartDesign::SubShapeBinder*>(getObject());
+        auto self = getObject<PartDesign::SubShapeBinder>();
         if (!self || !self->Support.getValue())
             break;
 
@@ -355,7 +356,7 @@ bool ViewProviderSubShapeBinder::setEdit(int ModNum) {
 }
 
 void ViewProviderSubShapeBinder::updatePlacement(bool transaction) {
-    auto self = dynamic_cast<PartDesign::SubShapeBinder*>(getObject());
+    auto self = getObject<PartDesign::SubShapeBinder>();
     if (!self || !self->Support.getValue())
         return;
 
@@ -383,7 +384,7 @@ void ViewProviderSubShapeBinder::updatePlacement(bool transaction) {
             self->update(PartDesign::SubShapeBinder::UpdateForced);
         }
         catch (Base::Exception& e) {
-            e.ReportException();
+            e.reportException();
         }
         return;
     }
@@ -397,7 +398,7 @@ void ViewProviderSubShapeBinder::updatePlacement(bool transaction) {
         return;
     }
     catch (Base::Exception& e) {
-        e.ReportException();
+        e.reportException();
     }
     catch (Standard_Failure& e) {
         std::ostringstream str;
@@ -412,7 +413,7 @@ void ViewProviderSubShapeBinder::updatePlacement(bool transaction) {
 
 std::vector<App::DocumentObject*> ViewProviderSubShapeBinder::claimChildren() const {
     std::vector<App::DocumentObject*> ret;
-    auto self = Base::freecad_dynamic_cast<PartDesign::SubShapeBinder>(getObject());
+    auto self = freecad_cast<PartDesign::SubShapeBinder*>(getObject());
     if (self && self->ClaimChildren.getValue() && self->Support.getValue()) {
         std::set<App::DocumentObject*> objSet;
         for (auto& l : self->Support.getSubListValues()) {
@@ -440,5 +441,5 @@ std::vector<App::DocumentObject*> ViewProviderSubShapeBinder::claimChildren() co
 namespace Gui {
 PROPERTY_SOURCE_TEMPLATE(PartDesignGui::ViewProviderSubShapeBinderPython,
                          PartDesignGui::ViewProviderSubShapeBinder)
-template class PartDesignGuiExport ViewProviderPythonFeatureT<ViewProviderSubShapeBinder>;
+template class PartDesignGuiExport ViewProviderFeaturePythonT<ViewProviderSubShapeBinder>;
 }

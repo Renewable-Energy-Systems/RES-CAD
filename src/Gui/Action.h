@@ -57,7 +57,8 @@ public:
     virtual void setVisible(bool);
 
     void setCheckable(bool);
-    void setChecked (bool, bool no_signal=false);
+    void setChecked(bool);
+    void setBlockedChecked(bool);
     bool isChecked() const;
     bool isEnabled() const;
 
@@ -93,11 +94,11 @@ public:
     /** Obtain the menu text of a given command
      * @param cmd: input command
      * @return Return the command menu text that is stripped with its mnemonic
-     * symbol '&' and ending punctuations
+     * symbol '&' and ending punctuation
      */
     static QString commandMenuText(const Command *cmd);
 
-    /// Clean the title by stripping the mnemonic symbol '&' and ending punctuations
+    /// Clean the title by stripping the mnemonic symbol '&' and ending punctuation
     static QString cleanTitle(const QString &title);
 
     Command *command() const {
@@ -239,6 +240,9 @@ public:
     void activateFile(int);
     void resizeList(int);
 
+Q_SIGNALS:
+    void recentFilesListModified();
+
 private:
     void setFiles(const QStringList&);
     QStringList files() const;
@@ -248,6 +252,8 @@ private:
 private:
     int visibleItems; /**< Number of visible items */
     int maximumItems; /**< Number of maximum items */
+
+    QAction sep, clearRecentFilesListAction;
 
     class Private;
     friend class Private;

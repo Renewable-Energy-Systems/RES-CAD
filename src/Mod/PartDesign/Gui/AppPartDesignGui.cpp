@@ -76,13 +76,15 @@ void loadPartDesignResource()
     Gui::Translator::instance()->refresh();
 }
 
-namespace PartDesignGui {
-class Module : public Py::ExtensionModule<Module>
+namespace PartDesignGui
+{
+class Module: public Py::ExtensionModule<Module>
 {
 public:
-    Module() : Py::ExtensionModule<Module>("PartDesignGui")
+    Module()
+        : Py::ExtensionModule<Module>("PartDesignGui")
     {
-        initialize("This module is the PartDesignGui module."); // register with Python
+        initialize("This module is the PartDesignGui module.");  // register with Python
     }
 
 private:
@@ -93,7 +95,7 @@ PyObject* initModule()
     return Base::Interpreter().addModule(new Module);
 }
 
-} // namespace PartDesignGui
+}  // namespace PartDesignGui
 
 
 /* Python entry */
@@ -108,19 +110,20 @@ PyMOD_INIT_FUNC(PartDesignGui)
         Base::Interpreter().runString("import PartGui");
         Base::Interpreter().runString("import SketcherGui");
     }
-    catch(const Base::Exception& e) {
+    catch (const Base::Exception& e) {
         PyErr_SetString(PyExc_ImportError, e.what());
         PyMOD_Return(nullptr);
     }
 
     PyObject* mod = PartDesignGui::initModule();
-    Base::Console().Log("Loading GUI of PartDesign module... done\n");
+    Base::Console().log("Loading GUI of Part Design module… done\n");
 
     // instantiating the commands
     CreatePartDesignCommands();
     CreatePartDesignBodyCommands();
     CreatePartDesignPrimitiveCommands();
 
+    // clang-format off
     PartDesignGui::Workbench                 ::init();
     PartDesignGui::ViewProvider              ::init();
     PartDesignGui::ViewProviderPython        ::init();
@@ -152,14 +155,14 @@ PyMOD_INIT_FUNC(PartDesignGui)
     PartDesignGui::ViewProviderSubShapeBinder::init();
     PartDesignGui::ViewProviderSubShapeBinderPython::init();
     PartDesignGui::ViewProviderBoolean       ::init();
-    PartDesignGui::ViewProviderAddSub        ::init();
     PartDesignGui::ViewProviderPrimitive     ::init();
     PartDesignGui::ViewProviderPipe          ::init();
     PartDesignGui::ViewProviderLoft          ::init();
     PartDesignGui::ViewProviderHelix         ::init();
     PartDesignGui::ViewProviderBase          ::init();
+    // clang-format on
 
-     // add resources and reloads the translators
+    // add resources and reloads the translators
     loadPartDesignResource();
 
     PyMOD_Return(mod);

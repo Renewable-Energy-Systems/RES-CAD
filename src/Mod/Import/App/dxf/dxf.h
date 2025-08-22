@@ -21,10 +21,11 @@
 #include <string>
 #include <vector>
 
+#include <Base/Interpreter.h>
 #include <Base/Matrix.h>
 #include <Base/Vector3D.h>
 #include <Base/Console.h>
-#include <App/Color.h>
+#include <Base/Color.h>
 #include <Mod/Import/ImportGlobal.h>
 
 // For some reason Cpplint complains about some of the categories used by Clang-tidy
@@ -175,6 +176,23 @@ struct LWPolyDataOut
     point3D Extr;
 };
 
+// Statistics reporting structure
+struct DxfImportStats
+{
+    double importTimeSeconds = 0.0;
+    std::string dxfVersion;
+    std::string dxfEncoding;
+    std::string scalingSource;
+    std::string fileUnits;
+    double finalScalingFactor = 1.0;
+    std::map<std::string, int> entityCounts;
+    std::map<std::string, std::string> importSettings;
+    std::map<std::string, std::vector<std::pair<int, std::string>>> unsupportedFeatures;
+    std::map<std::string, int> systemBlockCounts;
+
+    int totalEntitiesCreated = 0;
+};
+
 
 // "using" for enums is not supported by all platforms
 // https://stackoverflow.com/questions/41167119/how-to-fix-a-wsubobject-linkage-warning
@@ -184,6 +202,7 @@ enum eDXFGroupCode_t
     ePrimaryText = 1,
     eName = 2,
     eExtraText = 3,
+    eHandle = 5,
     eLinetypeName = 6,
     eTextStyleName = 7,
     eLayerName = 8,
@@ -210,6 +229,7 @@ enum eDXFGroupCode_t
     eUCSXDirection = 111,
     eUCSYDirection = 112,
     eExtrusionDirection = 210,
+    eComment = 999,
 
     // The following apply to points and directions in text DXF files to identify the three
     // coordinates
@@ -445,6 +465,9 @@ private:
     bool m_not_eof = true;
     int m_line = 0;
     bool m_repeat_last_record = false;
+    int m_current_entity_line_number = 0;
+    std::string m_current_entity_name;
+    std::string m_current_entity_handle;
 
     // The scaling from DXF units to millimetres.
     // This does not include the dxfScaling option
@@ -453,6 +476,7 @@ private:
     double m_unitScalingFactor = 0.0;
 
 protected:
+    DxfImportStats m_stats;
     // An additional scaling factor which can be modified before readDXF is called, and will be
     // incorporated into m_unitScalingFactor.
     void SetAdditionalScaling(double scaling)
@@ -493,7 +517,7 @@ protected:
     };
     // This is a combination of ui options:
     //    "Group layers into blocks" (groupLayers) checkbox which means MergeShapes,
-    //    "simple part shapes" (dxfCreatePart) radio button which means SingleShapes
+    //    "Simple part shapes" (dxfCreatePart) radio button which means SingleShapes
     //    "Draft objects" (dxfCreateDraft) radio button which means DraftObjects
     //    We do not support (dxfCreateSketch).
     //    (joingeometry) is described as being slow so I think the implication is that it only joins
@@ -685,20 +709,19 @@ protected:
     // notification popup "Log" goes to a log somewhere and not to the screen/user at all
 
     template<typename... args>
-    void ImportError(const char* format, args&&... argValues) const
+    static void ImportError(const char* format, args&&... argValues)
     {
-        Base::ConsoleSingleton::Instance().Warning(format, std::forward<args>(argValues)...);
+        Base::ConsoleSingleton::instance().warning(format, std::forward<args>(argValues)...);
     }
     template<typename... args>
-    void ImportObservation(const char* format, args&&... argValues) const
+    static void ImportObservation(const char* format, args&&... argValues)
     {
-        Base::ConsoleSingleton::Instance().Message(format, std::forward<args>(argValues)...);
+        Base::ConsoleSingleton::instance().message(format, std::forward<args>(argValues)...);
     }
     template<typename... args>
     void UnsupportedFeature(const char* format, args&&... argValues);
 
 private:
-    std::map<std::string, std::pair<int, int>> m_unsupportedFeaturesNoted;
     std::string m_CodePage;  // Code Page name from $DWGCODEPAGE or null if none/not read yet
     // The following was going to be python's canonical name for the encoding, but this is (a) not
     // easily found and (b) does not speed up finding the encoding object.
@@ -844,6 +867,10 @@ public:
     {
         return m_fail;
     }
+    void setImportTime(double seconds)
+    {
+        m_stats.importTimeSeconds = seconds;
+    }
     void
     DoRead(bool ignore_errors = false);  // this reads the file and calls the following functions
     virtual void StartImport()
@@ -911,6 +938,7 @@ public:
     virtual void OnReadDimension(const Base::Vector3d& /*start*/,
                                  const Base::Vector3d& /*end*/,
                                  const Base::Vector3d& /*point*/,
+                                 int /*dimensionType*/,
                                  double /*rotation*/)
     {}
     virtual void OnReadPolyline(std::list<VertexInfo>& /*vertices*/, int /*flags*/)
@@ -921,6 +949,26 @@ public:
     {
         return m_entityAttributes.m_LineType[0] == 'h' || m_entityAttributes.m_LineType[0] == 'H';
     }
-    static App::Color ObjectColor(ColorIndex_t colorIndex);  // as rgba value
+    static Base::Color ObjectColor(ColorIndex_t colorIndex);  // as rgba value
+
+#ifdef DEBUG
+protected:
+    static PyObject* PyObject_GetAttrString(PyObject* o, const char* attr_name)
+    {
+        PyObject* result = ::PyObject_GetAttrString(o, attr_name);
+        if (result == nullptr) {
+            ImportError("Unable to get Attribute '%s'\n", attr_name);
+            PyErr_Clear();
+        }
+        return result;
+    }
+    static void PyObject_SetAttrString(PyObject* o, const char* attr_name, PyObject* v)
+    {
+        if (::PyObject_SetAttrString(o, attr_name, v) != 0) {
+            ImportError("Unable to set Attribute '%s'\n", attr_name);
+            PyErr_Clear();
+        }
+    }
+#endif
 };
 #endif

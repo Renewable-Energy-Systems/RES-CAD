@@ -39,12 +39,17 @@ class FemExport ConstraintHeatflux: public Fem::Constraint
 public:
     ConstraintHeatflux();
 
-    App::PropertyFloat AmbientTemp;
+    App::PropertyBool EnableAmplitude;
+    App::PropertyStringList AmplitudeValues;
+
+    App::PropertyTemperature AmbientTemp;
     /*App::PropertyFloat FaceTemp;*/
-    App::PropertyFloat FilmCoef;
+    App::PropertyThermalTransferCoefficient FilmCoef;
     App::PropertyFloat Emissivity;
-    App::PropertyFloat DFlux;
+    App::PropertyHeatFlux DFlux;
     App::PropertyEnumeration ConstraintType;
+    App::PropertyBool CavityRadiation;
+    App::PropertyString CavityName;
 
     /// recalculate the object
     App::DocumentObjectExecReturn* execute() override;
@@ -53,6 +58,9 @@ public:
     const char* getViewProviderName() const override;
 
 protected:
+    void handleChangedPropertyType(Base::XMLReader& reader,
+                                   const char* typeName,
+                                   App::Property* prop) override;
     void onChanged(const App::Property* prop) override;
 };
 

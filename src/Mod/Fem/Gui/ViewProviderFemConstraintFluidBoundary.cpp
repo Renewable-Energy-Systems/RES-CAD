@@ -78,8 +78,7 @@ bool ViewProviderFemConstraintFluidBoundary::setEdit(int ModNum)
 void ViewProviderFemConstraintFluidBoundary::updateData(const App::Property* prop)
 {
     // Gets called whenever a property of the attached object changes
-    Fem::ConstraintFluidBoundary* pcConstraint =
-        static_cast<Fem::ConstraintFluidBoundary*>(this->getObject());
+    Fem::ConstraintFluidBoundary* pcConstraint = this->getObject<Fem::ConstraintFluidBoundary>();
     float scaledwidth =
         WIDTH * pcConstraint->Scale.getValue();  // OvG: Calculate scaled values once only
     float scaledheight = HEIGHT * pcConstraint->Scale.getValue();
@@ -146,8 +145,8 @@ void ViewProviderFemConstraintFluidBoundary::updateData(const App::Property* pro
 
             for (const auto& point : points) {
                 SbVec3f base(point.x, point.y, point.z);
-                if (forceDirection.GetAngle(normal)
-                    < M_PI_2) {  // Move arrow so it doesn't disappear inside the solid
+                if (forceDirection.GetAngle(normal) < std::numbers::pi
+                        / 2) {  // Move arrow so it doesn't disappear inside the solid
                     base = base + dir * scaledlength;  // OvG: Scaling
                 }
 #ifdef USE_MULTIPLE_COPY
@@ -192,7 +191,7 @@ void ViewProviderFemConstraintFluidBoundary::updateData(const App::Property* pro
 
             for (const auto& point : points) {
                 SbVec3f base(point.x, point.y, point.z);
-                if (forceDirection.GetAngle(normal) < M_PI_2) {
+                if (forceDirection.GetAngle(normal) < std::numbers::pi / 2) {
                     base = base + dir * scaledlength;  // OvG: Scaling
                 }
 #ifdef USE_MULTIPLE_COPY

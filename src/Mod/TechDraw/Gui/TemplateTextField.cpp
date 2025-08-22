@@ -30,7 +30,7 @@
 #endif // #ifndef _PreCmp_
 
 #include <Base/Console.h>
-#include <Base/Tools.h>
+#include <Gui/MainWindow.h>
 
 #include <Mod/TechDraw/App/DrawTemplate.h>
 #include <Mod/TechDraw/App/DrawSVGTemplate.h>
@@ -46,17 +46,24 @@ TemplateTextField::TemplateTextField(QGraphicsItem *parent,
                                      const std::string &myFieldName)
     : QGraphicsItemGroup(parent),
       tmplte(myTmplte),
-      fieldNameStr(myFieldName)
+      fieldNameStr(myFieldName),
+      m_rect(new QGraphicsRectItem()),
+      m_line(new QGraphicsPathItem())
 {
+    setFlag(QGraphicsItem::ItemIsFocusable, true);
+    setAcceptHoverEvents(true);
+    setFiltersChildEvents(true);
+
     setToolTip(QObject::tr("Click to update text"));
-    m_rect = new QGraphicsRectItem();
+
     addToGroup(m_rect);
     QPen rectPen(Qt::transparent);
     QBrush rectBrush(Qt::NoBrush);
     m_rect->setPen(rectPen);
     m_rect->setBrush(rectBrush);
+    m_rect->setAcceptHoverEvents(true);
 
-    m_line = new QGraphicsPathItem();
+    m_line->hide();
     addToGroup(m_line);
  }
 
@@ -74,18 +81,26 @@ void TemplateTextField::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
     if ( tmplte && m_rect->rect().contains(event->pos()) ) {
         event->accept();
 
-        DlgTemplateField ui;
+        DlgTemplateField ui(Gui::getMainWindow());
 
         ui.setFieldName(fieldNameStr);
         ui.setFieldContent(tmplte->EditableTexts[fieldNameStr]);
+
+        auto qName = QString::fromStdString(fieldNameStr);
+        auto svgTemplate = freecad_cast<DrawSVGTemplate*>(tmplte);
+        if (svgTemplate) {
+            // preset the autofill with the current value - something might have changed since this field was created
+            m_autofillString = svgTemplate->getAutofillByEditableName(qName);
+        }
+        ui.setAutofillContent(m_autofillString.toStdString());
 
         if (ui.exec() == QDialog::Accepted) {
             QString qsClean = ui.getFieldContent();
             std::string utf8Content = qsClean.toUtf8().constData();
             if (ui.getAutofillState()) {
-                auto svgTemplate = dynamic_cast<DrawSVGTemplate*>(tmplte);
                 if (svgTemplate) {
-                    QString fieldName = Base::Tools::fromStdString(fieldNameStr);
+                    // unlikely, but something could have changed since we grabbed the autofill value
+                    QString fieldName = QString::fromStdString(fieldNameStr);
                     QString autofillValue = svgTemplate->getAutofillByEditableName(fieldName);
                     if (!autofillValue.isEmpty()) {
                         utf8Content = autofillValue.toUtf8().constData();
@@ -99,6 +114,13 @@ void TemplateTextField::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
         QGraphicsItemGroup::mouseReleaseEvent(event);
     }
 }
+
+//void setAutofill(std::string autofillString);
+void TemplateTextField::setAutofill(const QString& autofillString)
+{
+    m_autofillString = autofillString;
+}
+
 
 void TemplateTextField::setRectangle(QRectF rect)
 {
@@ -115,6 +137,21 @@ void TemplateTextField::setLine(QPointF from, QPointF to)
 void TemplateTextField::setLineColor(QColor color)
 {
     QPen pen(color);
-    pen.setWidth(5);
+    constexpr int LineWidth{5};
+    pen.setWidth(LineWidth);
     m_line->setPen(pen);
 }
+
+void TemplateTextField::hoverEnterEvent(QGraphicsSceneHoverEvent *event)
+{
+    showLine();
+    QGraphicsItemGroup::hoverEnterEvent(event);
+}
+
+void TemplateTextField::hoverLeaveEvent(QGraphicsSceneHoverEvent *event)
+{
+    hideLine();
+    QGraphicsItemGroup::hoverLeaveEvent(event);
+}
+
+

@@ -33,6 +33,7 @@ from PySide.QtCore import QT_TRANSLATE_NOOP
 import FreeCAD as App
 import DraftGeomUtils
 from draftobjects.base import DraftObject
+from draftutils import gui_utils
 from draftutils import params
 
 
@@ -40,40 +41,44 @@ class Polygon(DraftObject):
     """The Polygon object"""
 
     def __init__(self, obj):
-        super(Polygon, self).__init__(obj, "Polygon")
+        super().__init__(obj, "Polygon")
 
         _tip = QT_TRANSLATE_NOOP("App::Property",
                 "Number of faces")
-        obj.addProperty("App::PropertyInteger", "FacesNumber", "Draft", _tip)
+        obj.addProperty("App::PropertyInteger", "FacesNumber", "Draft", _tip, locked=True)
 
         _tip = QT_TRANSLATE_NOOP("App::Property",
                 "Radius of the control circle")
-        obj.addProperty("App::PropertyLength", "Radius", "Draft", _tip)
+        obj.addProperty("App::PropertyLength", "Radius", "Draft", _tip, locked=True)
 
         _tip = QT_TRANSLATE_NOOP("App::Property",
                 "How the polygon must be drawn from the control circle")
-        obj.addProperty("App::PropertyEnumeration", "DrawMode", "Draft", _tip)
+        obj.addProperty("App::PropertyEnumeration", "DrawMode", "Draft", _tip, locked=True)
 
         _tip = QT_TRANSLATE_NOOP("App::Property",
                 "Radius to use to fillet the corners")
-        obj.addProperty("App::PropertyLength", "FilletRadius", "Draft", _tip)
+        obj.addProperty("App::PropertyLength", "FilletRadius", "Draft", _tip, locked=True)
 
         _tip = QT_TRANSLATE_NOOP("App::Property",
                 "Size of the chamfer to give to the corners")
-        obj.addProperty("App::PropertyLength", "ChamferSize", "Draft", _tip)
+        obj.addProperty("App::PropertyLength", "ChamferSize", "Draft", _tip, locked=True)
 
         _tip = QT_TRANSLATE_NOOP("App::Property",
                 "Create a face")
-        obj.addProperty("App::PropertyBool", "MakeFace", "Draft", _tip)
+        obj.addProperty("App::PropertyBool", "MakeFace", "Draft", _tip, locked=True)
 
         _tip = QT_TRANSLATE_NOOP("App::Property",
                 "The area of this object")
-        obj.addProperty("App::PropertyArea", "Area", "Draft", _tip)
+        obj.addProperty("App::PropertyArea", "Area", "Draft", _tip, locked=True)
 
-        obj.MakeFace = params.get_param("fillmode")
+        obj.MakeFace = params.get_param("MakeFaceMode")
         obj.DrawMode = ['inscribed','circumscribed']
         obj.FacesNumber = 0
         obj.Radius = 1
+
+    def onDocumentRestored(self, obj):
+        super().onDocumentRestored(obj)
+        gui_utils.restore_view_object(obj, vp_module="view_base", vp_class="ViewProviderDraft")
 
     def execute(self, obj):
         if self.props_changed_placement_only():

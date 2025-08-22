@@ -31,6 +31,7 @@ from PySide.QtCore import QT_TRANSLATE_NOOP
 
 import FreeCAD as App
 from draftobjects.base import DraftObject
+from draftutils import gui_utils
 from draftutils import params
 
 
@@ -38,30 +39,34 @@ class Circle(DraftObject):
     """The Circle object"""
 
     def __init__(self, obj):
-        super(Circle, self).__init__(obj, "Circle")
+        super().__init__(obj, "Circle")
 
         _tip = QT_TRANSLATE_NOOP("App::Property", "Start angle of the arc")
         obj.addProperty("App::PropertyAngle", "FirstAngle",
-                        "Draft", _tip)
+                        "Draft", _tip, locked=True)
 
         _tip = QT_TRANSLATE_NOOP("App::Property", "End angle of the arc (for a full circle, \
                 give it same value as First Angle)")
         obj.addProperty("App::PropertyAngle","LastAngle",
-                        "Draft", _tip)
+                        "Draft", _tip, locked=True)
 
         _tip = QT_TRANSLATE_NOOP("App::Property", "Radius of the circle")
         obj.addProperty("App::PropertyLength", "Radius",
-                        "Draft", _tip)
+                        "Draft", _tip, locked=True)
 
         _tip = QT_TRANSLATE_NOOP("App::Property", "Create a face")
         obj.addProperty("App::PropertyBool", "MakeFace",
-                        "Draft", _tip)
+                        "Draft", _tip, locked=True)
 
         _tip = QT_TRANSLATE_NOOP("App::Property", "The area of this object")
         obj.addProperty("App::PropertyArea", "Area",
-                        "Draft", _tip)
+                        "Draft", _tip, locked=True)
 
-        obj.MakeFace = params.get_param("fillmode")
+        obj.MakeFace = params.get_param("MakeFaceMode")
+
+    def onDocumentRestored(self, obj):
+        super().onDocumentRestored(obj)
+        gui_utils.restore_view_object(obj, vp_module="view_base", vp_class="ViewProviderDraft")
 
     def execute(self, obj):
         """This method is run when the object is created or recomputed."""

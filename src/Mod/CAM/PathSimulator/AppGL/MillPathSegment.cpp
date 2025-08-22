@@ -27,9 +27,11 @@
 #include "GlUtils.h"
 #include <iostream>
 
+constexpr auto pi = std::numbers::pi_v<float>;
+
 #define N_MILL_SLICES 8
-#define MAX_SEG_DEG (PI / 2.0f)   // 90 deg
-#define NIN_SEG_DEG (PI / 90.0f)  // 2 deg
+#define MAX_SEG_DEG (pi / 2.0f)   // 90 deg
+#define NIN_SEG_DEG (pi / 90.0f)  // 2 deg
 #define SWEEP_ARC_PAD 1.05f
 #define PX 0
 #define PY 1
@@ -49,18 +51,15 @@ bool IsArcMotion(MillMotion* m)
     if (m->cmd != eRotateCCW && m->cmd != eRotateCW) {
         return false;
     }
-    return fabs(m->i > EPSILON) || fabs(m->j) > EPSILON;
+    return fabs(m->i) > EPSILON || fabs(m->j) > EPSILON;
 }
 
 float MillPathSegment::mResolution = 1;
-float MillPathSegment::mSmallRadStep = (PI / 8);
+float MillPathSegment::mSmallRadStep = (pi / 8);
 
 MillPathSegment::MillPathSegment(EndMill* _endmill, MillMotion* from, MillMotion* to)
-    : mShearMat {{1.0F, 0.0F, 0.0F, 0.0F},
-                 {0.0F, 1.0F, 0.0F, 0.0F},
-                 {0.0F, 0.0F, 1.0F, 0.0F},
-                 {0.0F, 0.0F, 0.0F, 1.0F}}
 {
+    mat4x4_identity(mShearMat);
     MotionPosToVec(mStartPos, from);
     MotionPosToVec(mDiff, to);
     vec3_sub(mDiff, mDiff, mStartPos);
@@ -96,7 +95,7 @@ MillPathSegment::MillPathSegment(EndMill* _endmill, MillMotion* from, MillMotion
         float endAng = atan2f(mCenter[PX] - to->x, to->y - mCenter[PY]);
         mSweepAng = (mStartAngRad - endAng) * mArcDir;
         if (mSweepAng < EPSILON) {
-            mSweepAng += PI * 2;
+            mSweepAng += pi * 2;
         }
         numSimSteps = (int)(mSweepAng / mStepAngRad) + 1;
         mStepAngRad = mArcDir * mSweepAng / numSimSteps;
@@ -106,9 +105,9 @@ MillPathSegment::MillPathSegment(EndMill* _endmill, MillMotion* from, MillMotion
         }
         else {
             endmill->GenerateArcSegmentDL(mRadius,
-                                           mStepAngRad * SWEEP_ARC_PAD,
-                                           mDiff[PZ] / numSimSteps,
-                                           &mShape);
+                                          mStepAngRad * SWEEP_ARC_PAD,
+                                          mDiff[PZ] / numSimSteps,
+                                          &mShape);
             numSimSteps++;
         }
 
@@ -141,6 +140,32 @@ MillPathSegment::~MillPathSegment()
     mShape.FreeResources();
 }
 
+
+void MillPathSegment::AppendPathPoints(std::vector<MillPathPosition>& pointsBuffer)
+{
+    MillPathPosition mpPos;
+    if (mMotionType == MTCurved) {
+        float ang = mStartAngRad;
+        float z = mStartPos[PZ];
+        float zStep = mDiff[PZ] / numSimSteps;
+        for (int i = 1; i < numSimSteps; i++) {
+            ang -= mStepAngRad;
+            z += zStep;
+            mpPos.X = mCenter[PX] - sinf(ang) * mRadius;
+            mpPos.Y = mCenter[PY] + cosf(ang) * mRadius;
+            mpPos.Z = z;
+            mpPos.SegmentId = segmentIndex;
+            pointsBuffer.push_back(mpPos);
+        }
+    }
+    else {
+        mpPos.X = mStartPos[PX] + mDiff[PX];
+        mpPos.Y = mStartPos[PY] + mDiff[PY];
+        mpPos.Z = mStartPos[PZ] + mDiff[PZ];
+        mpPos.SegmentId = segmentIndex;
+        pointsBuffer.push_back(mpPos);
+    }
+}
 
 void MillPathSegment::render(int step)
 {
@@ -217,12 +242,12 @@ float MillPathSegment::SetQuality(float quality, float maxStockDimension)
     if (mResolution < 0.5) {
         mResolution = 0.5;
     }
-    mSmallRadStep = PI / 8;
+    mSmallRadStep = pi / 8;
     if (quality < 4) {
-        mSmallRadStep = PI / 2;
+        mSmallRadStep = pi / 2;
     }
     else if (quality < 8) {
-        mSmallRadStep = PI / 4;
+        mSmallRadStep = pi / 4;
     }
     return mResolution;
 }

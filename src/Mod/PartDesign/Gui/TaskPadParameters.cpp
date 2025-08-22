@@ -37,9 +37,9 @@ using namespace Gui;
 /* TRANSLATOR PartDesignGui::TaskPadParameters */
 
 TaskPadParameters::TaskPadParameters(ViewProviderPad *PadView, QWidget *parent, bool newObj)
-    : TaskExtrudeParameters(PadView, parent, "PartDesign_Pad", tr("Pad parameters"))
+    : TaskExtrudeParameters(PadView, parent, "PartDesign_Pad", tr("Pad Parameters"))
 {
-    ui->offsetEdit->setToolTip(tr("Offset from face at which pad will end"));
+    ui->offsetEdit->setToolTip(tr("Offsets the pad from the face at which the pad will end"));
     ui->checkBoxReversed->setToolTip(tr("Reverses pad direction"));
 
     // set the history path
@@ -86,7 +86,7 @@ void TaskPadParameters::updateUI(int index)
 
 void TaskPadParameters::onModeChanged(int index)
 {
-    PartDesign::Pad* pcPad = static_cast<PartDesign::Pad*>(vp->getObject());
+   auto pcPad = getObject<PartDesign::Pad>();
 
     switch (static_cast<Mode>(index)) {
     case Mode::Dimension:
@@ -124,7 +124,7 @@ void TaskPadParameters::onModeChanged(int index)
 
 void TaskPadParameters::apply()
 {
-    QString facename = QString::fromLatin1("None");
+    QString facename = QStringLiteral("None");
     if (static_cast<Mode>(getMode()) == Mode::ToFace) {
         facename = getFaceName();
     }
@@ -140,6 +140,7 @@ TaskDlgPadParameters::TaskDlgPadParameters(ViewProviderPad *PadView, bool /*newO
     : TaskDlgExtrudeParameters(PadView), parameters(new TaskPadParameters(PadView))
 {
     Content.push_back(parameters);
+    Content.push_back(preview);
 }
 
 //==== calls from the TaskView ===============================================================

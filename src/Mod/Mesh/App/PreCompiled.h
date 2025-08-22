@@ -39,21 +39,18 @@
 
 // standard
 #include <cassert>
-#include <cfloat>
 #include <cmath>
 #include <cstdio>
 #include <fcntl.h>
 #include <fstream>
 #include <ios>
 
-#ifdef FC_USE_GTS
-#include <gts.h>
-#endif
 // STL
 #include <algorithm>
 #include <iomanip>
 #include <iostream>
 #include <list>
+#include <limits>
 #include <map>
 #include <queue>
 #include <set>

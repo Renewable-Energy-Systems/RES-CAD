@@ -24,7 +24,7 @@
 #include "PreCompiled.h"
 
 #include <App/Document.h>
-#include <Gui/Command.h>
+#include <Gui/CommandT.h>
 #include <Mod/PartDesign/App/FeatureBase.h>
 
 #include "ViewProviderBase.h"
@@ -45,7 +45,7 @@ bool ViewProviderBase::doubleClicked()
 {
     // If the Placement is mutable then open the transform panel.
     // If the Placement can't be modified then just do nothing on double-click.
-    PartDesign::FeatureBase* base = static_cast<PartDesign::FeatureBase*>(getObject());
+    PartDesign::FeatureBase* base = getObject<PartDesign::FeatureBase>();
     if (!base->Placement.testStatus(App::Property::Immutable) &&
         !base->Placement.testStatus(App::Property::ReadOnly) &&
         !base->Placement.testStatus(App::Property::Hidden)) {
@@ -54,7 +54,7 @@ bool ViewProviderBase::doubleClicked()
             std::string Msg("Edit ");
             Msg += base->Label.getValue();
             Gui::Command::openCommand(Msg.c_str());
-            FCMD_SET_EDIT(base);
+            Gui::cmdSetEdit(base);
         }
         catch (const Base::Exception&) {
             Gui::Command::abortCommand();
@@ -68,7 +68,7 @@ bool ViewProviderBase::doubleClicked()
 void ViewProviderBase::setupContextMenu(QMenu* menu, QObject* receiver, const char* member)
 {
     // If the Placement is mutable then show the context-menu of the base class.
-    PartDesign::FeatureBase* base = static_cast<PartDesign::FeatureBase*>(getObject());
+    PartDesign::FeatureBase* base = getObject<PartDesign::FeatureBase>();
     if (!base->Placement.testStatus(App::Property::Immutable) &&
         !base->Placement.testStatus(App::Property::ReadOnly) &&
         !base->Placement.testStatus(App::Property::Hidden)) {
@@ -78,7 +78,7 @@ void ViewProviderBase::setupContextMenu(QMenu* menu, QObject* receiver, const ch
 
 bool ViewProviderBase::setEdit(int ModNum)
 {
-    PartDesign::FeatureBase* base = static_cast<PartDesign::FeatureBase*>(getObject());
+    PartDesign::FeatureBase* base = getObject<PartDesign::FeatureBase>();
     if (!base->Placement.testStatus(App::Property::Immutable) &&
         !base->Placement.testStatus(App::Property::ReadOnly) &&
         !base->Placement.testStatus(App::Property::Hidden)) {

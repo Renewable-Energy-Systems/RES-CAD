@@ -49,10 +49,11 @@
 
 #include <App/Application.h>
 #include <App/Document.h>
+#include <App/ProjectFile.h>
 #include <Base/Exception.h>
 #include <Gui/Application.h>
 #include <Gui/Command.h>
-#include <Gui/DlgCheckableMessageBox.h>
+#include <Gui/Dialogs/DlgCheckableMessageBox.h>
 #include <Gui/Document.h>
 #include <Gui/MainWindow.h>
 
@@ -164,6 +165,7 @@ public:
     QList<Info> recoveryInfo;
 
     Info getRecoveryInfo(const QFileInfo&) const;
+    bool isValidProject(const QFileInfo&) const;
     void writeRecoveryInfo(const Info&) const;
     XmlConfig readXmlFile(const QString& fn) const;
 };
@@ -212,7 +214,7 @@ QString DocumentRecovery::createProjectFile(const QString& documentXml)
 {
     QString source = documentXml;
     QFileInfo fi(source);
-    QString dest = fi.dir().absoluteFilePath(QString::fromLatin1("fc_recovery_file.fcstd"));
+    QString dest = fi.dir().absoluteFilePath(QStringLiteral("fc_recovery_file.fcstd"));
 
     std::stringstream str;
     str << doctools << "\n";
@@ -340,7 +342,7 @@ void DocumentRecovery::accept()
             }
         }
 
-        d->ui.buttonBox->button(QDialogButtonBox::Ok)->setText(tr("Finish"));
+        d->ui.buttonBox->button(QDialogButtonBox::Ok)->setText(tr("&Finish"));
         d->ui.buttonBox->button(QDialogButtonBox::Cancel)->setEnabled(false);
         d->recovered = true;
     }
@@ -412,16 +414,16 @@ DocumentRecoveryPrivate::Info DocumentRecoveryPrivate::getRecoveryInfo(const QFi
     if (doc_dir.exists(QLatin1String("fc_recovery_file.xml"))) {
         XmlConfig cfg = readXmlFile(info.xmlFile);
 
-        if (cfg.contains(QString::fromLatin1("Label"))) {
-            info.label = cfg[QString::fromLatin1("Label")];
+        if (cfg.contains(QStringLiteral("Label"))) {
+            info.label = cfg[QStringLiteral("Label")];
         }
 
-        if (cfg.contains(QString::fromLatin1("FileName"))) {
-            info.fileName = cfg[QString::fromLatin1("FileName")];
+        if (cfg.contains(QStringLiteral("FileName"))) {
+            info.fileName = cfg[QStringLiteral("FileName")];
         }
 
-        if (cfg.contains(QString::fromLatin1("Status"))) {
-            QString status = cfg[QString::fromLatin1("Status")];
+        if (cfg.contains(QStringLiteral("Status"))) {
+            QString status = cfg[QStringLiteral("Status")];
             if (status == QLatin1String("Deprecated"))
                 info.status = DocumentRecoveryPrivate::Overage;
             else if (status == QLatin1String("Success"))
@@ -433,7 +435,7 @@ DocumentRecoveryPrivate::Info DocumentRecoveryPrivate::getRecoveryInfo(const QFi
         if (info.status == DocumentRecoveryPrivate::Created) {
             // compare the modification dates
             QFileInfo fileInfo(info.fileName);
-            if (!info.fileName.isEmpty() && fileInfo.exists()) {
+            if (!info.fileName.isEmpty() && isValidProject(fileInfo)) {
                 QDateTime dateRecv = QFileInfo(file).lastModified();
                 QDateTime dateProj = fileInfo.lastModified();
                 if (dateRecv < dateProj) {
@@ -447,6 +449,16 @@ DocumentRecoveryPrivate::Info DocumentRecoveryPrivate::getRecoveryInfo(const QFi
     }
 
     return info;
+}
+
+bool DocumentRecoveryPrivate::isValidProject(const QFileInfo& fi) const
+{
+    if (!fi.exists()) {
+        return false;
+    }
+
+    App::ProjectFile project(fi.absoluteFilePath().toStdString());
+    return project.loadDocument();
 }
 
 DocumentRecoveryPrivate::XmlConfig DocumentRecoveryPrivate::readXmlFile(const QString& fn) const
@@ -474,17 +486,17 @@ DocumentRecoveryPrivate::XmlConfig DocumentRecoveryPrivate::readXmlFile(const QS
     file.close();
 
     QVector<QString> filter;
-    filter << QString::fromLatin1("Label");
-    filter << QString::fromLatin1("FileName");
-    filter << QString::fromLatin1("Status");
+    filter << QStringLiteral("Label");
+    filter << QStringLiteral("FileName");
+    filter << QStringLiteral("Status");
 
     QDomElement child;
     if (!root.isNull()) {
         child = root.firstChildElement();
         while (!child.isNull()) {
             QString name = child.localName();
-            QString value = child.text();
-            if (std::find(filter.begin(), filter.end(), name) != filter.end())
+            const QString value = child.text();
+            if (filter.contains(name))
                 cfg[name] = value;
             child = child.nextSiblingElement();
         }
@@ -508,8 +520,8 @@ void DocumentRecovery::onDeleteSection()
     QMessageBox msgBox(this);
     msgBox.setIcon(QMessageBox::Warning);
     msgBox.setWindowTitle(tr("Cleanup"));
-    msgBox.setText(tr("Are you sure you want to delete the selected transient directories?"));
-    msgBox.setInformativeText(tr("When deleting the selected transient directory you won't be able to recover any files afterwards."));
+    msgBox.setText(tr("Delete the selected transient directories?"));
+    msgBox.setInformativeText(tr("When deleting the selected transient directory it is not possible to recover any files afterwards."));
     msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
     msgBox.setDefaultButton(QMessageBox::No);
     int ret = msgBox.exec();
@@ -540,8 +552,8 @@ void DocumentRecovery::onButtonCleanupClicked()
     QMessageBox msgBox(this);
     msgBox.setIcon(QMessageBox::Warning);
     msgBox.setWindowTitle(tr("Cleanup"));
-    msgBox.setText(tr("Are you sure you want to delete all transient directories?"));
-    msgBox.setInformativeText(tr("When deleting all transient directories you won't be able to recover any files afterwards."));
+    msgBox.setText(tr("Delete all transient directories?"));
+    msgBox.setInformativeText(tr("When deleting all transient directories it is not possible to recover any files afterwards."));
     msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
     msgBox.setDefaultButton(QMessageBox::No);
     int ret = msgBox.exec();
@@ -590,7 +602,7 @@ void DocumentRecoveryFinder::checkDocumentDirs(QDir& tmp, const QList<QFileInfo>
     }
     else {
         int countDeletedDocs = 0;
-        QString recovery_files = QString::fromLatin1("fc_recovery_files");
+        QString recovery_files = QStringLiteral("fc_recovery_files");
         for (QList<QFileInfo>::const_iterator it = dirs.cbegin(); it != dirs.cend(); ++it) {
             QDir doc_dir(it->absoluteFilePath());
             doc_dir.setFilter(QDir::NoDotAndDotDot|QDir::AllEntries);
@@ -646,17 +658,17 @@ bool DocumentRecoveryFinder::showRecoveryDialogIfNeeded()
 void DocumentRecoveryHandler::checkForPreviousCrashes(const std::function<void(QDir&, const QList<QFileInfo>&, const QString&)> & callableFunc) const
 {
     QDir tmp = QString::fromUtf8(App::Application::getUserCachePath().c_str());
-    tmp.setNameFilters(QStringList() << QString::fromLatin1("*.lock"));
+    tmp.setNameFilters(QStringList() << QStringLiteral("*.lock"));
     tmp.setFilter(QDir::Files);
 
     QString exeName = QString::fromStdString(App::Application::getExecutableName());
     QList<QFileInfo> locks = tmp.entryInfoList();
-    for (QList<QFileInfo>::iterator it = locks.begin(); it != locks.end(); ++it) {
-        QString bn = it->baseName();
+    for (const QFileInfo&  it : locks) {
+        QString bn = it.baseName();
         // ignore the lock file for this instance
-        QString pid = QString::number(QCoreApplication::applicationPid());
+        QString pid = QString::number(App::Application::applicationPid());
         if (bn.startsWith(exeName) && bn.indexOf(pid) < 0) {
-            QString fn = it->absoluteFilePath();
+            QString fn = it.absoluteFilePath();
 
 #if !defined(FC_OS_WIN32) || (BOOST_VERSION < 107600)
             boost::interprocess::file_lock flock(fn.toUtf8());
@@ -665,7 +677,7 @@ void DocumentRecoveryHandler::checkForPreviousCrashes(const std::function<void(Q
 #endif
             if (flock.try_lock()) {
                 // OK, this file is a leftover from a previous crash
-                QString crashed_pid = bn.mid(exeName.length()+1);
+                QString crashed_pid = bn.mid(exeName.length() + 1);
                 // search for transient directories with this PID
                 QString filter;
                 QTextStream str(&filter);
@@ -674,7 +686,10 @@ void DocumentRecoveryHandler::checkForPreviousCrashes(const std::function<void(Q
                 tmp.setFilter(QDir::Dirs);
                 QList<QFileInfo> dirs = tmp.entryInfoList();
 
-                callableFunc(tmp, dirs, it->fileName());
+                callableFunc(tmp, dirs, it.fileName());
+            }
+            else {
+                Base::Console().log("Failed to lock file %s\n", fn.toUtf8().constData());
             }
         }
     }
@@ -710,17 +725,10 @@ void DocumentRecoveryCleaner::clearDirectory(const QFileInfo& dir)
 void DocumentRecoveryCleaner::subtractFiles(QStringList& files)
 {
     if (!ignoreFiles.isEmpty() && !files.isEmpty()) {
-#if QT_VERSION >= QT_VERSION_CHECK(5,14,0)
         auto set1 = QSet<QString>(files.begin(), files.end());
         auto set2 = QSet<QString>(ignoreFiles.begin(), ignoreFiles.end());
         set1.subtract(set2);
         files = QList<QString>(set1.begin(), set1.end());
-#else
-        QSet<QString> set1 = files.toSet();
-        QSet<QString> set2 = ignoreFiles.toSet();
-        set1.subtract(set2);
-        files = set1.toList();
-#endif
     }
 }
 

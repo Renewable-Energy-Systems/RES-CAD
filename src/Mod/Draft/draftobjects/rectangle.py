@@ -32,6 +32,7 @@ from PySide.QtCore import QT_TRANSLATE_NOOP
 import FreeCAD as App
 import DraftGeomUtils
 from draftobjects.base import DraftObject
+from draftutils import gui_utils
 from draftutils import params
 
 
@@ -39,37 +40,43 @@ class Rectangle(DraftObject):
     """The Rectangle object"""
 
     def __init__(self, obj):
-        super(Rectangle, self).__init__(obj, "Rectangle")
+        super().__init__(obj, "Rectangle")
 
         _tip = QT_TRANSLATE_NOOP("App::Property", "Length of the rectangle")
-        obj.addProperty("App::PropertyDistance", "Length", "Draft", _tip)
+        obj.addProperty("App::PropertyDistance", "Length", "Draft", _tip, locked=True)
 
         _tip = QT_TRANSLATE_NOOP("App::Property", "Height of the rectangle")
-        obj.addProperty("App::PropertyDistance", "Height", "Draft", _tip)
+        obj.addProperty("App::PropertyDistance", "Height", "Draft", _tip, locked=True)
 
         _tip = QT_TRANSLATE_NOOP("App::Property", "Radius to use to fillet the corners")
-        obj.addProperty("App::PropertyLength", "FilletRadius", "Draft", _tip)
+        obj.addProperty("App::PropertyLength", "FilletRadius", "Draft", _tip, locked=True)
 
         _tip = QT_TRANSLATE_NOOP("App::Property", "Size of the chamfer to give to the corners")
-        obj.addProperty("App::PropertyLength", "ChamferSize", "Draft", _tip)
+        obj.addProperty("App::PropertyLength", "ChamferSize", "Draft", _tip, locked=True)
 
         _tip = QT_TRANSLATE_NOOP("App::Property", "Create a face")
-        obj.addProperty("App::PropertyBool", "MakeFace", "Draft", _tip)
+        obj.addProperty("App::PropertyBool", "MakeFace", "Draft", _tip, locked=True)
 
         _tip = QT_TRANSLATE_NOOP("App::Property", "Horizontal subdivisions of this rectangle")
-        obj.addProperty("App::PropertyInteger", "Rows", "Draft", _tip)
+        obj.addProperty("App::PropertyInteger", "Rows", "Draft", _tip, locked=True)
 
         _tip = QT_TRANSLATE_NOOP("App::Property", "Vertical subdivisions of this rectangle")
-        obj.addProperty("App::PropertyInteger", "Columns", "Draft", _tip)
+        obj.addProperty("App::PropertyInteger", "Columns", "Draft", _tip, locked=True)
 
         _tip = QT_TRANSLATE_NOOP("App::Property", "The area of this object")
-        obj.addProperty("App::PropertyArea", "Area", "Draft", _tip)
+        obj.addProperty("App::PropertyArea", "Area", "Draft", _tip, locked=True)
 
-        obj.MakeFace = params.get_param("fillmode")
+        obj.MakeFace = params.get_param("MakeFaceMode")
         obj.Length=1
         obj.Height=1
         obj.Rows=1
         obj.Columns=1
+
+    def onDocumentRestored(self, obj):
+        super().onDocumentRestored(obj)
+        gui_utils.restore_view_object(
+            obj, vp_module="view_rectangle", vp_class="ViewProviderRectangle"
+        )
 
     def execute(self, obj):
         """This method is run when the object is created or recomputed."""

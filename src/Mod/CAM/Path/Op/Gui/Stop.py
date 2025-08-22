@@ -37,9 +37,7 @@ class Stop:
             "App::PropertyEnumeration",
             "Stop",
             "Path",
-            QT_TRANSLATE_NOOP(
-                "App::Property", "Add Optional or Mandatory Stop to the program"
-            ),
+            QT_TRANSLATE_NOOP("App::Property", "Add an optional or mandatory stop to the program"),
         )
         obj.Stop = ["Optional", "Mandatory"]
         obj.Proxy = self
@@ -109,7 +107,7 @@ class CommandPathStop:
             "Pixmap": "CAM_Stop",
             "MenuText": QT_TRANSLATE_NOOP("CAM_Stop", "Stop"),
             "ToolTip": QT_TRANSLATE_NOOP(
-                "CAM_Stop", "Add Optional or Mandatory Stop to the program"
+                "CAM_Stop", "Adds an optional or mandatory stop to the program"
             ),
         }
 
@@ -121,9 +119,7 @@ class CommandPathStop:
         return False
 
     def Activated(self):
-        FreeCAD.ActiveDocument.openTransaction(
-            "Add Optional or Mandatory Stop to the program"
-        )
+        FreeCAD.ActiveDocument.openTransaction("Add Optional or Mandatory Stop to the program")
         FreeCADGui.addModule("Path.Op.Gui.Stop")
         snippet = """
 import Path
@@ -146,4 +142,4 @@ if FreeCAD.GuiUp:
     FreeCADGui.addCommand("CAM_Stop", CommandPathStop())
 
 
-FreeCAD.Console.PrintLog("Loading PathStop... done\n")
+FreeCAD.Console.PrintLog("Loading PathStop… done\n")

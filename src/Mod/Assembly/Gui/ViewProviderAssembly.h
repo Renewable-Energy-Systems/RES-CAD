@@ -28,7 +28,7 @@
 
 #include <Mod/Assembly/AssemblyGlobal.h>
 
-#include <Gui/Selection.h>
+#include <Gui/Selection/Selection.h>
 #include <Gui/ViewProviderPart.h>
 
 class SoSwitch;
@@ -38,12 +38,43 @@ class SoFieldSensor;
 
 namespace Gui
 {
-class SoFCCSysDragger;
+class SoTransformDragger;
 class View3DInventorViewer;
 }  // namespace Gui
 
 namespace AssemblyGui
 {
+
+struct MovingObject
+{
+    App::DocumentObject* obj;  // moving part
+    Base::Placement plc;
+    App::PropertyXLinkSub* ref;
+    App::DocumentObject* rootObj;  // object of the selection object
+    const std::string sub;         // sub name given by the selection.
+
+    // Constructor
+    MovingObject(App::DocumentObject* o,
+                 const Base::Placement& p,
+                 App::DocumentObject* ro,
+                 const std::string& s)
+        : obj(o)
+        , plc(p)
+        , ref(nullptr)
+        , rootObj(ro)
+        , sub(s)
+    {}
+
+    // Default constructor
+    MovingObject()
+        : obj(nullptr)
+        , ref(nullptr)
+        , rootObj(nullptr)
+    {}
+
+    ~MovingObject()
+    {}
+};
 
 class AssemblyGuiExport ViewProviderAssembly: public Gui::ViewProviderPart,
                                               public Gui::SelectionObserver
@@ -54,6 +85,7 @@ class AssemblyGuiExport ViewProviderAssembly: public Gui::ViewProviderPart,
     enum class DragMode
     {
         Translation,
+        TranslationNoSolve,
         TranslationOnAxis,
         TranslationOnPlane,
         Rotation,
@@ -71,8 +103,11 @@ public:
     QIcon getIcon() const override;
 
     bool doubleClicked() override;
+    void setupContextMenu(QMenu* menu, QObject* receiver, const char* member) override;
     bool onDelete(const std::vector<std::string>& subNames) override;
     bool canDelete(App::DocumentObject* obj) const override;
+
+    void updateData(const App::Property*) override;
 
     /** @name enter/exit edit mode */
     //@{
@@ -88,6 +123,8 @@ public:
     }
 
     bool canDragObject(App::DocumentObject*) const override;
+    bool canDragObjectToTarget(App::DocumentObject* obj,
+                               App::DocumentObject* target) const override;
 
     App::DocumentObject* getActivePart() const;
 
@@ -95,12 +132,15 @@ public:
     /// is called when the Provider is in edit and a key event ocours. Only ESC ends edit.
     bool keyPressed(bool pressed, int key) override;
     /// is called when the provider is in edit and the mouse is moved
-    bool mouseMove(const SbVec2s& pos, Gui::View3DInventorViewer* viewer) override;
+    bool mouseMove(const SbVec2s& cursorPos, Gui::View3DInventorViewer* viewer) override;
     /// is called when the Provider is in edit and the mouse is clicked
     bool mouseButtonPressed(int Button,
                             bool pressed,
                             const SbVec2s& cursorPos,
                             const Gui::View3DInventorViewer* viewer) override;
+    // Function to handle double click event
+    void doubleClickedIn3dView();
+
 
     /// Finds what drag mode should be used based on the user selection.
     DragMode findDragMode();
@@ -114,12 +154,27 @@ public:
     {
         return enableMovement;
     }
+    virtual void setMoveOnlyPreselected(bool enable = true)
+    {
+        moveOnlyPreselected = enable;
+    }
+    virtual bool getMoveOnlyPreselected() const
+    {
+        return moveOnlyPreselected;
+    }
+    virtual void setMoveInCommand(bool enable = true)
+    {
+        moveInCommand = enable;
+    }
+    virtual bool getMoveInCommand() const
+    {
+        return moveInCommand;
+    }
 
 
     bool canDragObjectIn3d(App::DocumentObject* obj) const;
     bool getSelectedObjectsWithinAssembly(bool addPreselection = true, bool onlySolids = false);
-    App::DocumentObject* getObjectFromSubNames(std::vector<std::string>& subNames);
-    std::vector<std::string> parseSubNames(std::string& subNamesStr);
+    App::DocumentObject* getSelectedJoint();
 
     /// Get the python wrapper for that ViewProvider
     PyObject* getPyObject() override;
@@ -141,17 +196,20 @@ public:
     bool getDraggerVisibility();
     void setDraggerPlacement(Base::Placement plc);
     Base::Placement getDraggerPlacement();
-    Gui::SoFCCSysDragger* getDragger();
+    Gui::SoTransformDragger* getDragger();
 
-    static Base::Vector3d getCenterOfBoundingBox(const std::vector<App::DocumentObject*>& objs,
-                                                 const std::vector<App::DocumentObject*>& parts);
+    static Base::Vector3d getCenterOfBoundingBox(const std::vector<MovingObject>& movingObjs);
 
     DragMode dragMode;
     bool canStartDragging;
     bool partMoving;
     bool enableMovement;
-    bool jointVisibilityBackup;
+    bool moveOnlyPreselected;
+    bool moveInCommand;
     bool ctrlPressed;
+
+    long lastClickTime;  // Store last click time as milliseconds
+
     int numberOfSel;
     Base::Vector3d prevPosition;
     Base::Vector3d initialPosition;
@@ -162,13 +220,23 @@ public:
 
     App::DocumentObject* movingJoint;
 
+    std::vector<std::pair<App::DocumentObject*, bool>> jointVisibilitiesBackup;
     std::vector<std::pair<App::DocumentObject*, double>> objectMasses;
-    std::vector<std::pair<App::DocumentObject*, Base::Placement>> docsToMove;
+    std::vector<MovingObject> docsToMove;
 
-    Gui::SoFCCSysDragger* asmDragger = nullptr;
+    Gui::SoTransformDragger* asmDragger = nullptr;
     SoSwitch* asmDraggerSwitch = nullptr;
     SoFieldSensor* translationSensor = nullptr;
     SoFieldSensor* rotationSensor = nullptr;
+
+private:
+    bool tryMouseMove(const SbVec2s& cursorPos, Gui::View3DInventorViewer* viewer);
+    void tryInitMove(const SbVec2s& cursorPos, Gui::View3DInventorViewer* viewer);
+
+    void collectMovableObjects(App::DocumentObject* selRoot,
+                               const std::string& subNamePrefix,
+                               App::DocumentObject* currentObject,
+                               bool onlySolids);
 };
 
 }  // namespace AssemblyGui

@@ -491,7 +491,7 @@ PyObject* SketchObjectPy::renameConstraint(PyObject* args)
     Py_Return;
 }
 
-PyObject* SketchObjectPy::getIndexByName(PyObject* args)
+PyObject* SketchObjectPy::getIndexByName(PyObject* args) const
 {
     char* utf8Name;
     if (!PyArg_ParseTuple(args, "et", "utf-8", &utf8Name)) {
@@ -555,11 +555,23 @@ PyObject* SketchObjectPy::carbonCopy(PyObject* args)
 
 PyObject* SketchObjectPy::addExternal(PyObject* args)
 {
-    char* ObjectName;
-    char* SubName;
-    if (!PyArg_ParseTuple(args, "ss", &ObjectName, &SubName)) {
+    char* ObjectName = nullptr;
+    char* SubName = nullptr;
+    PyObject* defining = Py_False;
+    PyObject* intersection = Py_False;
+    if (!PyArg_ParseTuple(args,
+                          "ss|O!O!",
+                          &ObjectName,
+                          &SubName,
+                          &PyBool_Type,
+                          &defining,
+                          &PyBool_Type,
+                          &intersection)) {
         return nullptr;
     }
+
+    bool isDefining = Base::asBoolean(defining);
+    bool isIntersection = Base::asBoolean(intersection);
 
     // get the target object for the external link
     Sketcher::SketchObject* skObj = this->getSketchObjectPtr();
@@ -579,7 +591,7 @@ PyObject* SketchObjectPy::addExternal(PyObject* args)
     }
 
     // add the external
-    if (skObj->addExternal(Obj, SubName) < 0) {
+    if (skObj->addExternal(Obj, SubName, isDefining, isIntersection) < 0) {
         std::stringstream str;
         str << "Not able to add external shape element " << SubName;
         PyErr_SetString(PyExc_ValueError, str.str().c_str());
@@ -753,8 +765,8 @@ PyObject* SketchObjectPy::setDatum(PyObject* args)
             str << "Cannot set the datum because the sketch contains conflicting constraints";
         }
         else if (err == -2) {
-            str << "Datum " << (const char*)Quantity.getUserString().toUtf8()
-                << " for the constraint with index " << Index << " is invalid";
+            str << "Datum " << Quantity.getUserString() << " for the constraint with index "
+                << Index << " is invalid";
         }
         else if (err == -4) {
             str << "Negative datum values are not valid for the constraint with index " << Index;
@@ -766,8 +778,7 @@ PyObject* SketchObjectPy::setDatum(PyObject* args)
             str << "Cannot set the datum because of invalid geometry";
         }
         else {
-            str << "Unexpected problem at setting datum "
-                << (const char*)Quantity.getUserString().toUtf8()
+            str << "Unexpected problem at setting datum " << Quantity.getUserString()
                 << " for the constraint with index " << Index;
         }
         PyErr_SetString(PyExc_ValueError, str.str().c_str());
@@ -777,7 +788,7 @@ PyObject* SketchObjectPy::setDatum(PyObject* args)
     Py_Return;
 }
 
-PyObject* SketchObjectPy::getDatum(PyObject* args)
+PyObject* SketchObjectPy::getDatum(PyObject* args) const
 {
     const std::vector<Constraint*>& vals = this->getSketchObjectPtr()->Constraints.getValues();
     Constraint* constr = nullptr;
@@ -896,7 +907,7 @@ PyObject* SketchObjectPy::moveDatumsToEnd(PyObject* args)
 }
 
 
-PyObject* SketchObjectPy::getDriving(PyObject* args)
+PyObject* SketchObjectPy::getDriving(PyObject* args) const
 {
     int constrid;
     bool driving;
@@ -1037,7 +1048,7 @@ PyObject* SketchObjectPy::setActive(PyObject* args)
     Py_Return;
 }
 
-PyObject* SketchObjectPy::getActive(PyObject* args)
+PyObject* SketchObjectPy::getActive(PyObject* args) const
 {
     int constrid;
     bool isactive;
@@ -1072,7 +1083,7 @@ PyObject* SketchObjectPy::toggleActive(PyObject* args)
     Py_Return;
 }
 
-PyObject* SketchObjectPy::getLabelPosition(PyObject* args)
+PyObject* SketchObjectPy::getLabelPosition(PyObject* args) const
 {
     int constrid {};
     float pos {};
@@ -1106,7 +1117,7 @@ PyObject* SketchObjectPy::setLabelPosition(PyObject* args)
     Py_Return;
 }
 
-PyObject* SketchObjectPy::getLabelDistance(PyObject* args)
+PyObject* SketchObjectPy::getLabelDistance(PyObject* args) const
 {
     int constrid {};
     float dist {};
@@ -1140,7 +1151,59 @@ PyObject* SketchObjectPy::setLabelDistance(PyObject* args)
     Py_Return;
 }
 
-PyObject* SketchObjectPy::movePoint(PyObject* args)
+PyObject* SketchObjectPy::moveGeometries(PyObject* args)
+{
+    PyObject* pyList;
+    PyObject* pcObj;
+    int relative = 0;
+
+    // Parse arguments: list of pairs, Base::VectorPy, optional relative flag
+    if (!PyArg_ParseTuple(args,
+                          "O!O!|i",
+                          &PyList_Type,
+                          &pyList,  // List of pairs (geoId, pointPos)
+                          &(Base::VectorPy::Type),
+                          &pcObj,        // Target vector
+                          &relative)) {  // Optional relative flag
+        return nullptr;
+    }
+
+    // Convert Python list to std::vector<GeoElementId>
+    std::vector<GeoElementId> geoEltIds;
+    Py_ssize_t listSize = PyList_Size(pyList);
+
+    for (Py_ssize_t i = 0; i < listSize; ++i) {
+        PyObject* pyPair = PyList_GetItem(pyList, i);  // Borrowed reference
+
+        if (!PyTuple_Check(pyPair) || PyTuple_Size(pyPair) != 2) {
+            PyErr_SetString(PyExc_ValueError, "List must contain pairs (geoId, pointPos).");
+            return nullptr;
+        }
+
+        int geoId = PyLong_AsLong(PyTuple_GetItem(pyPair, 0));
+        int pointPos = PyLong_AsLong(PyTuple_GetItem(pyPair, 1));
+
+        if (PyErr_Occurred()) {
+            PyErr_SetString(PyExc_ValueError, "Invalid geoId or pointPos in the list.");
+            return nullptr;
+        }
+
+        geoEltIds.emplace_back(GeoElementId(geoId, static_cast<Sketcher::PointPos>(pointPos)));
+    }
+
+    // Convert Python vector to Base::Vector3d
+    Base::Vector3d v1 = static_cast<Base::VectorPy*>(pcObj)->value();
+
+    // Call the C++ method
+    if (this->getSketchObjectPtr()->moveGeometries(geoEltIds, v1, (relative > 0))) {
+        PyErr_SetString(PyExc_ValueError, "Failed to move geometries.");
+        return nullptr;
+    }
+
+    Py_RETURN_NONE;
+}
+
+PyObject* SketchObjectPy::moveGeometry(PyObject* args)
 {
     PyObject* pcObj;
     int GeoId, PointType;
@@ -1158,10 +1221,10 @@ PyObject* SketchObjectPy::movePoint(PyObject* args)
 
     Base::Vector3d v1 = static_cast<Base::VectorPy*>(pcObj)->value();
 
-    if (this->getSketchObjectPtr()->movePoint(GeoId,
-                                              static_cast<Sketcher::PointPos>(PointType),
-                                              v1,
-                                              (relative > 0))) {
+    if (this->getSketchObjectPtr()->moveGeometry(GeoId,
+                                                 static_cast<Sketcher::PointPos>(PointType),
+                                                 v1,
+                                                 (relative > 0))) {
         std::stringstream str;
         str << "Not able to move point with the id and type: (" << GeoId << ", " << PointType
             << ")";
@@ -1172,7 +1235,7 @@ PyObject* SketchObjectPy::movePoint(PyObject* args)
     Py_Return;
 }
 
-PyObject* SketchObjectPy::getGeoVertexIndex(PyObject* args)
+PyObject* SketchObjectPy::getGeoVertexIndex(PyObject* args) const
 {
     int index;
     if (!PyArg_ParseTuple(args, "i", &index)) {
@@ -1189,7 +1252,7 @@ PyObject* SketchObjectPy::getGeoVertexIndex(PyObject* args)
     return Py::new_reference_to(tuple);
 }
 
-PyObject* SketchObjectPy::getPoint(PyObject* args)
+PyObject* SketchObjectPy::getPoint(PyObject* args) const
 {
     int GeoId, PointType;
     if (!PyArg_ParseTuple(args, "ii", &GeoId, &PointType)) {
@@ -1211,7 +1274,7 @@ PyObject* SketchObjectPy::getPoint(PyObject* args)
         new Base::Vector3d(obj->getPoint(GeoId, static_cast<Sketcher::PointPos>(PointType))));
 }
 
-PyObject* SketchObjectPy::getAxis(PyObject* args)
+PyObject* SketchObjectPy::getAxis(PyObject* args) const
 {
     int AxId;
     if (!PyArg_ParseTuple(args, "i", &AxId)) {
@@ -1855,7 +1918,7 @@ PyObject* SketchObjectPy::insertBSplineKnot(PyObject* args)
 PyObject* SketchObjectPy::autoconstraint(PyObject* args)
 {
     double precision = Precision::Confusion() * 1000;
-    double angleprecision = M_PI / 8;
+    double angleprecision = std::numbers::pi / 8;
     PyObject* includeconstruction = Py_True;
 
 
@@ -1897,7 +1960,7 @@ PyObject* SketchObjectPy::detectMissingPointOnPointConstraints(PyObject* args)
 
 PyObject* SketchObjectPy::detectMissingVerticalHorizontalConstraints(PyObject* args)
 {
-    double angleprecision = M_PI / 8;
+    double angleprecision = std::numbers::pi / 8;
 
     if (!PyArg_ParseTuple(args, "|d", &angleprecision)) {
         return nullptr;
@@ -1921,7 +1984,7 @@ PyObject* SketchObjectPy::detectMissingEqualityConstraints(PyObject* args)
 
 PyObject* SketchObjectPy::analyseMissingPointOnPointCoincident(PyObject* args)
 {
-    double angleprecision = M_PI / 8;
+    double angleprecision = std::numbers::pi / 8;
 
     if (!PyArg_ParseTuple(args, "|d", &angleprecision)) {
         return nullptr;
@@ -1972,7 +2035,7 @@ PyObject* SketchObjectPy::makeMissingEquality(PyObject* args)
     Py_Return;
 }
 
-PyObject* SketchObjectPy::evaluateConstraints()
+PyObject* SketchObjectPy::evaluateConstraints() const
 {
     bool ok = this->getSketchObjectPtr()->evaluateConstraints();
     return Py::new_reference_to(Py::Boolean(ok));
@@ -2384,6 +2447,49 @@ PyObject* SketchObjectPy::setGeometryId(PyObject* args)
 
     Py_Return;
 }
+PyObject* SketchObjectPy::setGeometryIds(PyObject* args)
+{
+    PyObject* pyList;
+
+    // Parse arguments: list of pairs, Base::VectorPy, optional relative flag
+    if (!PyArg_ParseTuple(args, "O!", &PyList_Type, &pyList)) {
+        return nullptr;
+    }
+
+    // Convert Python list to std::vector<std::pair<int, long>>
+    std::vector<std::pair<int, long>> geoIdsToIds;
+    Py_ssize_t listSize = PyList_Size(pyList);
+
+    for (Py_ssize_t i = 0; i < listSize; ++i) {
+        PyObject* pyPair = PyList_GetItem(pyList, i);  // Borrowed reference
+
+        if (!PyTuple_Check(pyPair) || PyTuple_Size(pyPair) != 2) {
+            PyErr_SetString(PyExc_ValueError, "List must contain pairs (geoId, id).");
+            return nullptr;
+        }
+
+        int geoId = PyLong_AsLong(PyTuple_GetItem(pyPair, 0));
+        long id = PyLong_AsLong(PyTuple_GetItem(pyPair, 1));
+
+        if (PyErr_Occurred()) {
+            PyErr_SetString(PyExc_ValueError, "Invalid geoId or id in the list.");
+            return nullptr;
+        }
+
+        geoIdsToIds.emplace_back(geoId, id);
+    }
+
+    // Call the C++ method
+    if (this->getSketchObjectPtr()->setGeometryIds(geoIdsToIds)) {
+        std::stringstream str;
+        str << "Not able to set geometry Ids of geometries with the given indices: ";
+        PyErr_SetString(PyExc_ValueError, str.str().c_str());
+        return nullptr;
+    }
+
+    Py_Return;
+}
+
 
 Py::Long SketchObjectPy::getDoF() const
 {
@@ -2399,7 +2505,7 @@ Py::List SketchObjectPy::getConflictingConstraints() const
     Py::List conflicting;
 
     for (auto cid : conflictinglist) {
-        conflicting.append(Py::Int(cid));
+        conflicting.append(Py::Long(cid));
     }
 
     return conflicting;
@@ -2412,7 +2518,7 @@ Py::List SketchObjectPy::getRedundantConstraints() const
     Py::List redundant;
 
     for (auto cid : redundantlist) {
-        redundant.append(Py::Int(cid));
+        redundant.append(Py::Long(cid));
     }
 
     return redundant;
@@ -2425,7 +2531,7 @@ Py::List SketchObjectPy::getPartiallyRedundantConstraints() const
     Py::List redundant;
 
     for (auto cid : redundantlist) {
-        redundant.append(Py::Int(cid));
+        redundant.append(Py::Long(cid));
     }
 
     return redundant;
@@ -2438,7 +2544,7 @@ Py::List SketchObjectPy::getMalformedConstraints() const
     Py::List malformed;
 
     for (auto cid : malformedlist) {
-        malformed.append(Py::Int(cid));
+        malformed.append(Py::Long(cid));
     }
 
     return malformed;

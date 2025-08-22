@@ -1,23 +1,26 @@
-#*****************************************************************************
-#*   Copyright (c) 2019 furti <daniel.furtlehner@gmx.net>                    *
-#*                                                                           *
-#*   This program is free software; you can redistribute it and/or modify    *
-#*   it under the terms of the GNU Lesser General Public License (LGPL)      *
-#*   as published by the Free Software Foundation; either version 2 of       *
-#*   the License, or (at your option) any later version.                     *
-#*   for detail see the LICENCE text file.                                   *
-#*                                                                           *
-#*   This program is distributed in the hope that it will be useful,         *
-#*   but WITHOUT ANY WARRANTY; without even the implied warranty of          *
-#*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the           *
-#*   GNU Library General Public License for more details.                    *
-#*                                                                           *
-#*   You should have received a copy of the GNU Library General Public       *
-#*   License along with this program; if not, write to the Free Software     *
-#*   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307    *
-#*   USA                                                                     *
-#*                                                                           *
-#*****************************************************************************
+# SPDX-License-Identifier: LGPL-2.1-or-later
+
+# *****************************************************************************
+# *                                                                           *
+# *   Copyright (c) 2019 furti <daniel.furtlehner@gmx.net>                    *
+# *                                                                           *
+# *   This file is part of FreeCAD.                                           *
+# *                                                                           *
+# *   FreeCAD is free software: you can redistribute it and/or modify it      *
+# *   under the terms of the GNU Lesser General Public License as             *
+# *   published by the Free Software Foundation, either version 2.1 of the    *
+# *   License, or (at your option) any later version.                         *
+# *                                                                           *
+# *   FreeCAD is distributed in the hope that it will be useful, but          *
+# *   WITHOUT ANY WARRANTY; without even the implied warranty of              *
+# *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU        *
+# *   Lesser General Public License for more details.                         *
+# *                                                                           *
+# *   You should have received a copy of the GNU Lesser General Public        *
+# *   License along with FreeCAD. If not, see                                 *
+# *   <https://www.gnu.org/licenses/>.                                        *
+# *                                                                           *
+# *****************************************************************************
 
 # Fence functionality for the Arch Workbench
 
@@ -28,9 +31,9 @@ import ArchComponent
 import draftobjects.patharray as patharray
 
 if FreeCAD.GuiUp:
-    import FreeCADGui
     from PySide.QtCore import QT_TRANSLATE_NOOP
     import PySide.QtGui as QtGui
+    import FreeCADGui
 else:
     # \cond
     def translate(ctxt, txt):
@@ -47,6 +50,7 @@ class _Fence(ArchComponent.Component):
     def __init__(self, obj):
 
         ArchComponent.Component.__init__(self, obj)
+        self.Type = "Fence"
         self.setProperties(obj)
         # Does a IfcType exist?
         # obj.IfcType = "Fence"
@@ -59,39 +63,35 @@ class _Fence(ArchComponent.Component):
 
         if not "Section" in pl:
             obj.addProperty("App::PropertyLink", "Section", "Fence", QT_TRANSLATE_NOOP(
-                "App::Property", "A single section of the fence"))
+                "App::Property", "A single section of the fence"), locked=True)
 
         if not "Post" in pl:
             obj.addProperty("App::PropertyLink", "Post", "Fence", QT_TRANSLATE_NOOP(
-                "App::Property", "A single fence post"))
+                "App::Property", "A single fence post"), locked=True)
 
         if not "Path" in pl:
             obj.addProperty("App::PropertyLink", "Path", "Fence", QT_TRANSLATE_NOOP(
-                "App::Property", "The Path the fence should follow"))
+                "App::Property", "The Path the fence should follow"), locked=True)
 
         if not "NumberOfSections" in pl:
             obj.addProperty("App::PropertyInteger", "NumberOfSections", "Fence", QT_TRANSLATE_NOOP(
-                "App::Property", "The number of sections the fence is built of"))
+                "App::Property", "The number of sections the fence is built of"), locked=True)
             obj.setEditorMode("NumberOfSections", 1)
 
         if not "NumberOfPosts" in pl:
             obj.addProperty("App::PropertyInteger", "NumberOfPosts", "Fence", QT_TRANSLATE_NOOP(
-                "App::Property", "The number of posts used to build the fence"))
+                "App::Property", "The number of posts used to build the fence"), locked=True)
             obj.setEditorMode("NumberOfPosts", 1)
-
-        self.Type = "Fence"
 
     def dumps(self):
         if hasattr(self, 'sectionFaceNumbers'):
             return self.sectionFaceNumbers
-
         return None
 
     def loads(self, state):
         if state is not None and isinstance(state, tuple):
             self.sectionFaceNumbers = state[0]
-
-        return None
+        self.Type = "Fence"
 
     def execute(self, obj):
         import Part
@@ -147,10 +147,9 @@ class _Fence(ArchComponent.Component):
         obj.Shape = compound
 
     def calculateNumberOfSections(self, pathLength, sectionLength, postLength):
-        withoutLastPost = pathLength - postLength
         realSectionLength = sectionLength + postLength
 
-        return math.ceil(withoutLastPost / realSectionLength)
+        return math.ceil(pathLength / realSectionLength)
 
     def calculatePostPlacements(self, obj, pathwire, rotation):
         postWidth = obj.Post.Shape.BoundBox.YMax
@@ -159,7 +158,7 @@ class _Fence(ArchComponent.Component):
         transformationVector = FreeCAD.Vector(0, - postWidth / 2, 0)
 
         return patharray.placements_on_path(rotation, pathwire,
-                                            obj.NumberOfSections + 1,
+                                            obj.NumberOfPosts,
                                             transformationVector, True)
 
     def calculatePosts(self, obj, postPlacements):
@@ -204,11 +203,12 @@ class _Fence(ArchComponent.Component):
 
             sectionCopy = obj.Section.Shape.copy()
 
-            if sectionLength > sectionLine.length():
+            if sectionLength > sectionLine.length() - postLength:
                 # Part.show(Part.Shape([sectionLine]), 'line')
                 sectionCopy = self.clipSection(
                     sectionCopy, sectionLength, sectionLine.length() - postLength)
 
+            sectionCopy = Part.Compound([sectionCopy])  # nest in compound to ensure correct Placement
             sectionCopy.Placement = placement
 
             shapes.append(sectionCopy)
@@ -260,7 +260,7 @@ class _ViewProviderFence(ArchComponent.ViewProviderComponent):
 
         if not "UseOriginalColors" in pl:
             vobj.addProperty("App::PropertyBool", "UseOriginalColors", "Fence", QT_TRANSLATE_NOOP(
-                "App::Property", "When true, the fence will be colored like the original post and section."))
+                "App::Property", "When true, the fence will be colored like the original post and section."), locked=True)
 
     def attach(self, vobj):
         self.setProperties(vobj)
@@ -301,11 +301,23 @@ class _ViewProviderFence(ArchComponent.ViewProviderComponent):
             super().onChanged(vobj, prop)
 
     def applyColors(self, obj):
-        if not hasattr(obj.ViewObject, "UseOriginalColors") or not obj.ViewObject.UseOriginalColors:
-            obj.ViewObject.DiffuseColor = [obj.ViewObject.ShapeAppeaarance[0].DiffuseColor]
+        # Note that the clipSection function changes the face numbering of the
+        # fence section. This happens even if the total number of faces does not
+        # change. If UseOriginalColors is True, the end result of this function
+        # will only be correct if all faces of the section have the same color.
+
+        vobj = obj.ViewObject
+        if not vobj.UseOriginalColors:
+            vobj.ShapeAppearance = [vobj.ShapeAppearance[0]]
         else:
             post = obj.Post
             section = obj.Section
+
+            # If post and/or section are Std_Parts they may not have a Shape attr (yet):
+            if not hasattr(post, "Shape"):
+                return
+            if not hasattr(section, "Shape"):
+                return
 
             numberOfPostFaces = len(post.Shape.Faces)
             numberOfSectionFaces = len(section.Shape.Faces)
@@ -338,114 +350,42 @@ class _ViewProviderFence(ArchComponent.ViewProviderComponent):
                     ownColors.extend(self.normalizeColors(
                         section, actualSectionFaceCount))
 
-            viewObject = obj.ViewObject
-            viewObject.DiffuseColor = ownColors
+            vobj.DiffuseColor = ownColors
 
     def normalizeColors(self, obj, numberOfFaces):
-        colors = obj.ViewObject.DiffuseColor
-
-        if obj.TypeId == 'PartDesign::Body':
+        if obj.TypeId == "PartDesign::Body":
             # When colorizing a PartDesign Body we have two options
             # 1. The whole body got a shape color, that means the tip has only a single diffuse color set
             #   so we use the shape color of the body
             # 2. "Set colors" was called on the tip and the individual faces where colorized.
             #   We use the diffuseColors of the tip in that case
-            tipColors = obj.Tip.ViewObject.DiffuseColor
-
-            if len(tipColors) > 1:
-                colors = tipColors
+            if len(obj.Tip.ViewObject.DiffuseColor) > 1:
+                colors = obj.Tip.ViewObject.DiffuseColor
+            else:
+                colors = obj.ViewObject.DiffuseColor
+        else:
+            import Draft
+            colors = Draft.get_diffuse_color(obj)  # To handle Std_Parts for example.
 
         numberOfColors = len(colors)
 
         if numberOfColors == 1:
             return colors * numberOfFaces
 
-        colorsToUse = colors.copy()
-
         if numberOfColors == numberOfFaces:
-            return colorsToUse
-        else:
-            # It is possible, that we have less faces than colors when something got clipped.
-            # Remove the unneeded colors at the beginning and end
-            halfNumberOfFacesToRemove = (numberOfColors - numberOfFaces) / 2
-            start = int(math.ceil(halfNumberOfFacesToRemove))
-            end = start + numberOfFaces
+            return colors
 
-            return colorsToUse[start:end]
+        # It is possible, that we have fewer faces than colors when something
+        # got clipped. Remove the unneeded colors at the beginning and end.
+
+        # Even if clipSection did not change the face numbering this code would
+        # not work properly.
+        halfNumberOfFacesToRemove = (numberOfColors - numberOfFaces) / 2
+        start = int(math.ceil(halfNumberOfFacesToRemove))
+        end = start + numberOfFaces
+        return colors[start:end]
 
 
 def hide(obj):
     if hasattr(obj, 'ViewObject') and obj.ViewObject:
         obj.ViewObject.Visibility = False
-
-
-
-
-if __name__ == '__main__':
-    # For testing purposes. When someone runs the File as a macro a default fence will be generated
-    import Part
-
-    def buildSection():
-        parts = []
-
-        parts.append(Part.makeBox(
-            2000, 50, 30, FreeCAD.Vector(0, 0, 1000 - 30)))
-        parts.append(Part.makeBox(2000, 50, 30))
-        parts.append(Part.makeBox(20, 20, 1000 -
-                                  60, FreeCAD.Vector(0, 15, 30)))
-        parts.append(Part.makeBox(20, 20, 1000 - 60,
-                                  FreeCAD.Vector(1980, 15, 30)))
-
-        for i in range(8):
-            parts.append(Part.makeBox(20, 20, 1000 - 60,
-                                      FreeCAD.Vector((2000.0 / 9 * (i + 1)) - 10, 15, 30)))
-
-        Part.show(Part.makeCompound(parts), "Section")
-
-        return FreeCAD.ActiveDocument.getObject('Section')
-
-    def buildPath():
-        sketch = FreeCAD.ActiveDocument.addObject(
-            'Sketcher::SketchObject', 'Path')
-        sketch.Placement = FreeCAD.Placement(
-            FreeCAD.Vector(0, 0, 0), FreeCAD.Rotation(0, 0, 0, 1))
-
-        sketch.addGeometry(Part.LineSegment(FreeCAD.Vector(
-            0, 0, 0), FreeCAD.Vector(20000, 0, 0)), False)
-        sketch.addGeometry(Part.LineSegment(FreeCAD.Vector(
-            20000, 0, 0), FreeCAD.Vector(20000, 20000, 0)), False)
-
-        return sketch
-
-    def buildPost():
-        post = Part.makeBox(100, 100, 1000, FreeCAD.Vector(0, 0, 0))
-
-        Part.show(post, 'Post')
-
-        return FreeCAD.ActiveDocument.getObject('Post')
-
-    def colorizeFaces(o, color=(0.6, 0.0, 0.0, 0.0), faceIndizes=[2]):
-        numberOfFaces = len(o.Shape.Faces)
-        vo = o.ViewObject
-
-        originalColors = vo.DiffuseColor
-
-        if len(originalColors) == 1:
-            newColors = originalColors * numberOfFaces
-        else:
-            newColors = originalColors.copy()
-
-        for i in faceIndizes:
-            newColors[i] = color
-
-        vo.DiffuseColor = newColors
-
-    section = buildSection()
-    path = buildPath()
-    post = buildPost()
-
-    colorizeFaces(post)
-
-    print(makeFence(section, post, path))
-
-    # _CommandFence().Activated()

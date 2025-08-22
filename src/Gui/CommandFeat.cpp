@@ -25,9 +25,12 @@
 #ifndef _PreComp_
 #endif
 
-#include <App/DocumentObject.h>
+#include <App/DocumentObjectGroup.h>
 #include <App/GroupExtension.h>
+#include <App/Part.h>
 #include "Application.h"
+#include "Action.h"
+#include "cet_lut.hpp"
 #include "CommandT.h"
 #include "DockWindowManager.h"
 #include "Document.h"
@@ -54,9 +57,9 @@ StdCmdFeatRecompute::StdCmdFeatRecompute()
     // setting the
     sGroup        = "File";
     sMenuText     = QT_TR_NOOP("&Recompute");
-    sToolTipText  = QT_TR_NOOP("Recompute feature or document");
+    sToolTipText  = QT_TR_NOOP("Recomputes a feature or document");
     sWhatsThis    = "Std_Recompute";
-    sStatusTip    = QT_TR_NOOP("Recompute feature or document");
+    sStatusTip    = sToolTipText;
     sPixmap       = "view-refresh";
     sAccel        = "Ctrl+R";
 }
@@ -76,10 +79,10 @@ StdCmdRandomColor::StdCmdRandomColor()
   :Command("Std_RandomColor")
 {
     sGroup        = "File";
-    sMenuText     = QT_TR_NOOP("Random color");
-    sToolTipText  = QT_TR_NOOP("Set each selected object to a randomly-selected color");
+    sMenuText     = QT_TR_NOOP("Random &Color");
+    sToolTipText  = QT_TR_NOOP("Assigns random diffuse colors for the selected objects");
     sWhatsThis    = "Std_RandomColor";
-    sStatusTip    = QT_TR_NOOP("Set each selected object to a randomly-selected color");
+    sStatusTip    = sToolTipText;
     sPixmap       = "Std_RandomColor";
 }
 
@@ -89,14 +92,14 @@ void StdCmdRandomColor::activated(int iMsg)
 
     auto setRandomColor = [](ViewProvider* view) {
         // NOLINTBEGIN
-        auto fMax = (float)RAND_MAX;
-        auto fRed = (float)rand()/fMax;
-        auto fGrn = (float)rand()/fMax;
-        auto fBlu = (float)rand()/fMax;
+        int colIndex = rand() % (CET::R1.size() / 3) * 3;
+        float fRed = CET::R1[colIndex] / 255.0F;
+        float fGrn = CET::R1[colIndex + 1] / 255.0F;
+        float fBlu = CET::R1[colIndex + 2] / 255.0F;
         // NOLINTEND
-        auto objColor = App::Color(fRed, fGrn, fBlu);
+        auto objColor = Base::Color(fRed, fGrn, fBlu);
 
-        auto vpLink = dynamic_cast<ViewProviderLink*>(view);
+        auto vpLink = freecad_cast<ViewProviderLink*>(view);
         if (vpLink) {
             if (!vpLink->OverrideMaterial.getValue()) {
                 vpLink->OverrideMaterial.setValue(true);
@@ -116,6 +119,10 @@ void StdCmdRandomColor::activated(int iMsg)
         }
     };
 
+    auto allowToChangeColor = [](const App::DocumentObject* obj) {
+        return (obj->isDerivedFrom<App::Part>() || obj->isDerivedFrom<App::DocumentObjectGroup>());
+    };
+
     // get the complete selection
     std::vector<SelectionSingleton::SelObj> sel = Selection().getCompleteSelection();
 
@@ -125,10 +132,12 @@ void StdCmdRandomColor::activated(int iMsg)
         setRandomColor(view);
 
         if (auto grp = it.pObject->getExtension<App::GroupExtension>()) {
-            std::vector<App::DocumentObject*> objs = grp->getObjects();
-            for (auto obj : objs) {
-                ViewProvider* view = Application::Instance->getViewProvider(obj);
-                setRandomColor(view);
+            if (allowToChangeColor(it.pObject)) {
+                std::vector<App::DocumentObject*> objs = grp->getObjects();
+                for (auto obj : objs) {
+                    ViewProvider* view = Application::Instance->getViewProvider(obj);
+                    setRandomColor(view);
+                }
             }
         }
     }
@@ -150,7 +159,7 @@ StdCmdToggleFreeze::StdCmdToggleFreeze()
     : Command("Std_ToggleFreeze")
 {
     sGroup = "File";
-    sMenuText = QT_TR_NOOP("Toggle freeze");
+    sMenuText = QT_TR_NOOP("Toggle Freeze");
     static std::string toolTip = std::string("<p>")
         + QT_TR_NOOP("Toggles freeze state of the selected objects. A frozen object is not recomputed when its parents change.")
         + "</p>";
@@ -165,22 +174,29 @@ StdCmdToggleFreeze::StdCmdToggleFreeze()
 void StdCmdToggleFreeze::activated(int iMsg)
 {
     Q_UNUSED(iMsg);
-    getActiveGuiDocument()->openCommand(QT_TRANSLATE_NOOP("Command", "Toggle freeze"));
 
     std::vector<Gui::SelectionSingleton::SelObj> sels = Gui::Selection().getCompleteSelection();
 
+    Command::openCommand(QT_TRANSLATE_NOOP("Command", "Toggle freeze"));
     for (Gui::SelectionSingleton::SelObj& sel : sels) {
         App::DocumentObject* obj = sel.pObject;
         if (!obj)
             continue;
 
-        if (obj->isFreezed())
+        if (obj->isFreezed()){
             obj->unfreeze();
-        else
+            for (auto child : obj->getInListRecursive())
+                child->unfreeze();
+            for (auto child : obj->getOutListRecursive())
+                child->unfreeze();
+        } else {
             obj->freeze();
-    }
+            for (auto parent : obj->getOutListRecursive())
+                parent->freeze();
+        }
 
-    getActiveGuiDocument()->commitCommand();
+    }
+    Command::commitCommand();
 }
 
 bool StdCmdToggleFreeze::isActive()
@@ -205,7 +221,7 @@ StdCmdSendToPythonConsole::StdCmdSendToPythonConsole()
     sMenuText     = QT_TR_NOOP("&Send to Python Console");
     sToolTipText  = QT_TR_NOOP("Sends the selected object to the Python console");
     sWhatsThis    = "Std_SendToPythonConsole";
-    sStatusTip    = QT_TR_NOOP("Sends the selected object to the Python console");
+    sStatusTip    = sToolTipText;
     sPixmap       = "applications-python";
     sAccel        = "Ctrl+Shift+P";
 }
@@ -232,30 +248,30 @@ void StdCmdSendToPythonConsole::activated(int iMsg)
         // clear variables from previous run, if any
         QString cmd = QLatin1String("try:\n    del(doc,lnk,obj,shp,sub,subs)\nexcept Exception:\n    pass\n");
         Gui::Command::runCommand(Gui::Command::Gui,cmd.toLatin1());
-        cmd = QString::fromLatin1("doc = App.getDocument(\"%1\")").arg(docname);
+        cmd = QStringLiteral("doc = App.getDocument(\"%1\")").arg(docname);
         Gui::Command::runCommand(Gui::Command::Gui,cmd.toLatin1());
         //support links
         if (obj->isDerivedFrom<App::Link>()) {
-            cmd = QString::fromLatin1("lnk = doc.getObject(\"%1\")").arg(objname);
+            cmd = QStringLiteral("lnk = doc.getObject(\"%1\")").arg(objname);
             Gui::Command::runCommand(Gui::Command::Gui,cmd.toLatin1());
-            cmd = QString::fromLatin1("obj = lnk.getLinkedObject()");
+            cmd = QStringLiteral("obj = lnk.getLinkedObject()");
             Gui::Command::runCommand(Gui::Command::Gui,cmd.toLatin1());
             const auto link = static_cast<const App::Link*>(obj);
             obj = link->getLinkedObject();
         } else {
-            cmd = QString::fromLatin1("obj = doc.getObject(\"%1\")").arg(objname);
+            cmd = QStringLiteral("obj = doc.getObject(\"%1\")").arg(objname);
             Gui::Command::runCommand(Gui::Command::Gui,cmd.toLatin1());
         }
         if (obj->isDerivedFrom<App::GeoFeature>()) {
             const auto geoObj = static_cast<const App::GeoFeature*>(obj);
             const App::PropertyGeometry* geo = geoObj->getPropertyOfGeometry();
             if (geo){
-                cmd = QString::fromLatin1("shp = obj.") + QLatin1String(geo->getName()); //"Shape", "Mesh", "Points", etc.
+                cmd = QStringLiteral("shp = obj.") + QLatin1String(geo->getName()); //"Shape", "Mesh", "Points", etc.
                 Gui::Command::runCommand(Gui::Command::Gui, cmd.toLatin1());
                 if (sels[0].hasSubNames()) {
                     std::vector<std::string> subnames = sels[0].getSubNames();
                     QString subname = QString::fromLatin1(subnames[0].c_str());
-                    cmd = QString::fromLatin1("sub = obj.getSubObject(\"%1\")").arg(subname);
+                    cmd = QStringLiteral("sub = obj.getSubObject(\"%1\")").arg(subname);
                     Gui::Command::runCommand(Gui::Command::Gui,cmd.toLatin1());
                     if (subnames.size() > 1) {
                         std::ostringstream strm;
@@ -278,11 +294,69 @@ void StdCmdSendToPythonConsole::activated(int iMsg)
         }
     }
     catch (const Base::Exception& e) {
-        e.ReportException();
+        e.reportException();
     }
 
 }
 
+//===========================================================================
+// Std_ToggleSkipRecompute
+//===========================================================================
+
+DEF_STD_CMD_AC(StdCmdToggleSkipRecompute)
+
+StdCmdToggleSkipRecompute::StdCmdToggleSkipRecompute()
+    : Command("Std_ToggleSkipRecompute")
+{
+    sGroup = "File";
+    sMenuText = QT_TR_NOOP("Skip Recomputes");
+    
+    static std::string toolTip = QT_TR_NOOP("Enables or disables the recomputations of the document");
+
+    sToolTipText = toolTip.c_str();
+    sStatusTip = sToolTipText;
+    sWhatsThis = "Std_ToggleSkipRecompute";
+    eType = AlterDoc;
+}
+
+Gui::Action* StdCmdToggleSkipRecompute::createAction()
+{
+    Action* pcAction = Command::createAction();
+    pcAction->setCheckable(true);
+    pcAction->setIcon(QIcon());
+    _pcAction = pcAction;
+    isActive();
+    return pcAction;
+}
+
+void StdCmdToggleSkipRecompute::activated(int iMsg)
+{
+    const auto doc = this->getDocument();
+    if (doc == nullptr) {
+        return;
+    }
+
+    Command::openCommand(QT_TRANSLATE_NOOP("Command", "Skip recomputes"));
+    doc->setStatus(App::Document::SkipRecompute, (bool) iMsg);
+    if (_pcAction) {
+        _pcAction->setChecked((bool) iMsg);
+    }
+    Command::commitCommand();    
+}
+
+bool StdCmdToggleSkipRecompute::isActive()
+{
+    const auto doc = this->getDocument();
+    if (doc == nullptr) {
+        return false;
+    }
+
+    const bool skipRecomputeStatus = doc->testStatus(App::Document::SkipRecompute);
+    if (_pcAction && _pcAction->isChecked() != skipRecomputeStatus) {
+        _pcAction->setChecked(skipRecomputeStatus);
+    }
+    return true;
+}
 
 namespace Gui {
 
@@ -294,6 +368,7 @@ void CreateFeatCommands()
     rcCmdMgr.addCommand(new StdCmdToggleFreeze());
     rcCmdMgr.addCommand(new StdCmdRandomColor());
     rcCmdMgr.addCommand(new StdCmdSendToPythonConsole());
+    rcCmdMgr.addCommand(new StdCmdToggleSkipRecompute());
 }
 
 } // namespace Gui

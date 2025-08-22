@@ -26,7 +26,7 @@
 #include <App/Document.h>
 #include <Gui/Application.h>
 #include <Gui/Document.h>
-#include <Gui/Selection.h>
+#include <Gui/Selection/Selection.h>
 #include <Gui/ViewProviderDocumentObject.h>
 
 #include "ActiveObjectList.h"
@@ -62,7 +62,7 @@ void ActiveObjectList::setHighlight(const ObjectInfo &info, HighlightMode mode, 
     auto obj = getObject(info, false);
     if (!obj)
         return;
-    auto vp = dynamic_cast<ViewProviderDocumentObject*>(Application::Instance->getViewProvider(obj));
+    auto vp = freecad_cast<ViewProviderDocumentObject*>(Application::Instance->getViewProvider(obj));
     if (!vp)
         return;
 
@@ -184,11 +184,28 @@ bool Gui::ActiveObjectList::hasObject(const char*name)const
 
 void ActiveObjectList::objectDeleted(const ViewProviderDocumentObject &vp)
 {
-    //maybe boost::bimap or boost::multi_index
-    for (auto it = _ObjectMap.begin(); it != _ObjectMap.end(); ++it) {
-        if (it->second.obj == vp.getObject()) {
-            _ObjectMap.erase(it);
-            return;
+    // Hint: With C++20 std::erase_if for containers can be used
+    auto isEqual = [&vp](const auto& item) {
+        return item.second.obj == vp.getObject();
+    };
+    for (auto it = _ObjectMap.begin(); it != _ObjectMap.end();) {
+        if (isEqual(*it)) {
+            it = _ObjectMap.erase(it);
+        }
+        else {
+            ++it;
         }
     }
+}
+
+App::DocumentObject* ActiveObjectList::getObjectWithExtension(const Base::Type extensionTypeId) const
+{
+    for (const auto& pair : _ObjectMap) {
+        App::DocumentObject* obj = getObject(pair.second, true);
+        if (obj && obj->hasExtension(extensionTypeId)) {
+            return obj;
+        }
+    }
+
+    return nullptr;
 }

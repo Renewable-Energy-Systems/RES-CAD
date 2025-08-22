@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>546</width>
-    <height>897</height>
+    <width>676</width>
+    <height>1200</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -31,18 +31,6 @@
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
-     <property name="minimumSize">
-      <size>
-       <width>0</width>
-       <height>0</height>
-      </size>
-     </property>
-     <property name="maximumSize">
-      <size>
-       <width>16777215</width>
-       <height>200</height>
-      </size>
-     </property>
      <property name="title">
       <string>Drawing Update</string>
      </property>
@@ -61,7 +49,7 @@
            <string>Whether or not pages are updated every time the 3D model is changed</string>
           </property>
           <property name="text">
-           <string>Update With 3D (global policy)</string>
+           <string>Update with 3D (global policy)</string>
           </property>
           <property name="checked">
            <bool>true</bool>
@@ -82,18 +70,12 @@
             <verstretch>0</verstretch>
            </sizepolicy>
           </property>
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>20</height>
-           </size>
-          </property>
           <property name="toolTip">
-           <string>Whether or not a page's 'Keep Updated' property
-can override the global 'Update With 3D' parameter</string>
+           <string>Controls whether or not a page's 'Keep Updated' property
+can override the global 'Update with 3D' parameter</string>
           </property>
           <property name="text">
-           <string>Allow Page Override (global policy)</string>
+           <string>Allow page override (global policy)</string>
           </property>
           <property name="checked">
            <bool>true</bool>
@@ -124,7 +106,7 @@ can override the global 'Update With 3D' parameter</string>
 This can slow down the response time.</string>
           </property>
           <property name="text">
-           <string>Keep Page Up To Date</string>
+           <string>Keep page up to date</string>
           </property>
           <property name="checked">
            <bool>true</bool>
@@ -145,12 +127,6 @@ This can slow down the response time.</string>
             <verstretch>0</verstretch>
            </sizepolicy>
           </property>
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>20</height>
-           </size>
-          </property>
           <property name="font">
            <font>
             <italic>true</italic>
@@ -161,7 +137,7 @@ This can slow down the response time.</string>
 for ProjectionGroups</string>
           </property>
           <property name="text">
-           <string>Auto-distribute Secondary Views</string>
+           <string>Auto-distribute secondary views</string>
           </property>
           <property name="checked">
            <bool>true</bool>
@@ -187,12 +163,6 @@ for ProjectionGroups</string>
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
-     <property name="minimumSize">
-      <size>
-       <width>0</width>
-       <height>85</height>
-      </size>
-     </property>
      <property name="title">
       <string>Labels</string>
      </property>
@@ -201,12 +171,6 @@ for ProjectionGroups</string>
        <layout class="QGridLayout" name="gridLayout_2" rowstretch="0,0" columnstretch="1,0,1">
         <item row="0" column="0">
          <widget class="QLabel" name="lbl_LabelFont">
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>0</height>
-           </size>
-          </property>
           <property name="baseSize">
            <size>
             <width>0</width>
@@ -214,11 +178,11 @@ for ProjectionGroups</string>
            </size>
           </property>
           <property name="toolTip">
-           <string>* this font is also used for dimensions
+           <string>* This font is also used for dimensions.
    Changes have no effect on existing dimensions.</string>
           </property>
           <property name="text">
-           <string>Label Font*</string>
+           <string>Label font*</string>
           </property>
          </widget>
         </item>
@@ -246,18 +210,6 @@ for ProjectionGroups</string>
             <verstretch>0</verstretch>
            </sizepolicy>
           </property>
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="maximumSize">
-           <size>
-            <width>16777215</width>
-            <height>16777215</height>
-           </size>
-          </property>
           <property name="baseSize">
            <size>
             <width>0</width>
@@ -284,7 +236,7 @@ for ProjectionGroups</string>
         <item row="1" column="0">
          <widget class="QLabel" name="label_6">
           <property name="text">
-           <string>Label Size</string>
+           <string>Label size</string>
           </property>
          </widget>
         </item>
@@ -302,7 +254,7 @@ for ProjectionGroups</string>
          </spacer>
         </item>
         <item row="1" column="2">
-         <widget class="Gui::PrefUnitSpinBox" name="plsb_LabelSize">
+         <widget class="Gui::PrefUnitSpinBox" name="plsb_LabelSize" native="true">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
             <horstretch>0</horstretch>
@@ -312,10 +264,7 @@ for ProjectionGroups</string>
           <property name="toolTip">
            <string>Label size</string>
           </property>
-          <property name="alignment">
-           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-          </property>
-          <property name="value">
+          <property name="value" stdset="0">
            <double>8.000000000000000</double>
           </property>
           <property name="prefEntry" stdset="0">
@@ -338,18 +287,6 @@ for ProjectionGroups</string>
        <horstretch>0</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
-     </property>
-     <property name="minimumSize">
-      <size>
-       <width>0</width>
-       <height>85</height>
-      </size>
-     </property>
-     <property name="maximumSize">
-      <size>
-       <width>16777215</width>
-       <height>500</height>
-      </size>
      </property>
      <property name="baseSize">
       <size>
@@ -379,7 +316,7 @@ for ProjectionGroups</string>
         <item row="0" column="0">
          <widget class="QLabel" name="label_7">
           <property name="text">
-           <string>Projection Group Angle</string>
+           <string>Projection group angle</string>
           </property>
          </widget>
         </item>
@@ -391,14 +328,8 @@ for ProjectionGroups</string>
             <verstretch>0</verstretch>
            </sizepolicy>
           </property>
-          <property name="minimumSize">
-           <size>
-            <width>184</width>
-            <height>0</height>
-           </size>
-          </property>
           <property name="toolTip">
-           <string>Use first- or third-angle multiview projection convention</string>
+           <string>Use first or third-angle multiview projection convention</string>
           </property>
           <property name="sizeAdjustPolicy">
            <enum>QComboBox::AdjustToContents</enum>
@@ -411,12 +342,12 @@ for ProjectionGroups</string>
           </property>
           <item>
            <property name="text">
-            <string>First</string>
+            <string>First-angle</string>
            </property>
           </item>
           <item>
            <property name="text">
-            <string>Third</string>
+            <string>Third-angle</string>
            </property>
           </item>
           <item>
@@ -434,14 +365,8 @@ for ProjectionGroups</string>
             <verstretch>0</verstretch>
            </sizepolicy>
           </property>
-          <property name="minimumSize">
-           <size>
-            <width>184</width>
-            <height>22</height>
-           </size>
-          </property>
           <property name="toolTip">
-           <string>Standard to be used to draw section lines.  This affects the position of arrows and symbol.</string>
+           <string>Standard to be used to draw section lines. This affects the position of arrows and symbol.</string>
           </property>
           <property name="currentIndex">
            <number>0</number>
@@ -454,12 +379,12 @@ for ProjectionGroups</string>
           </property>
           <item>
            <property name="text">
-            <string>ANSI</string>
+            <string notr="true">ANSI</string>
            </property>
           </item>
           <item>
            <property name="text">
-            <string>ISO</string>
+            <string notr="true">ISO</string>
            </property>
           </item>
          </widget>
@@ -472,7 +397,7 @@ for ProjectionGroups</string>
            </font>
           </property>
           <property name="text">
-           <string>Section Line Convention</string>
+           <string>Section line convention</string>
           </property>
          </widget>
         </item>
@@ -488,12 +413,6 @@ for ProjectionGroups</string>
        <horstretch>0</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
-     </property>
-     <property name="minimumSize">
-      <size>
-       <width>481</width>
-       <height>225</height>
-      </size>
      </property>
      <property name="title">
       <string>Files</string>
@@ -516,38 +435,26 @@ for ProjectionGroups</string>
         </item>
         <item row="5" column="0">
          <widget class="QLabel" name="label_9">
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>0</height>
-           </size>
-          </property>
           <property name="font">
            <font>
             <italic>true</italic>
            </font>
           </property>
           <property name="text">
-           <string>PAT File</string>
+           <string>PAT file</string>
           </property>
          </widget>
         </item>
         <item row="2" column="2">
-         <widget class="Gui::PrefFileChooser" name="pfc_HatchFile">
+         <widget class="Gui::PrefFileChooser" name="pfc_HatchFile" native="true">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
             <horstretch>1</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
           </property>
-          <property name="minimumSize">
-           <size>
-            <width>191</width>
-            <height>0</height>
-           </size>
-          </property>
           <property name="toolTip">
-           <string>Preferred SVG or bitmap file for hatching.  This value will also control the initial directory for choosing hatch patterns.  You can use this to get hatch files from a local directory.</string>
+           <string>Preferred SVG or bitmap file for hatching. This value will also control the initial directory for choosing hatch patterns. You can use this to get hatch files from a local directory.</string>
           </property>
           <property name="prefEntry" stdset="0">
            <cstring>FileHatch</cstring>
@@ -558,18 +465,12 @@ for ProjectionGroups</string>
          </widget>
         </item>
         <item row="3" column="2">
-         <widget class="Gui::PrefFileChooser" name="pfc_LineGroup">
+         <widget class="Gui::PrefFileChooser" name="pfc_LineGroup" native="true">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
             <horstretch>1</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>191</width>
-            <height>0</height>
-           </size>
           </property>
           <property name="toolTip">
            <string>Alternate file for personal LineGroup definition</string>
@@ -583,18 +484,12 @@ for ProjectionGroups</string>
          </widget>
         </item>
         <item row="0" column="2">
-         <widget class="Gui::PrefFileChooser" name="pfc_DefTemp">
+         <widget class="Gui::PrefFileChooser" name="pfc_DefTemp" native="true">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
             <horstretch>1</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>191</width>
-            <height>0</height>
-           </size>
           </property>
           <property name="toolTip">
            <string>Default template file for new pages</string>
@@ -609,35 +504,23 @@ for ProjectionGroups</string>
         </item>
         <item row="4" column="0">
          <widget class="QLabel" name="label_11">
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>0</height>
-           </size>
-          </property>
           <property name="font">
            <font>
             <italic>true</italic>
            </font>
           </property>
           <property name="text">
-           <string>Welding Directory</string>
+           <string>Welding directory</string>
           </property>
          </widget>
         </item>
         <item row="5" column="2">
-         <widget class="Gui::PrefFileChooser" name="pfc_FilePattern">
+         <widget class="Gui::PrefFileChooser" name="pfc_FilePattern" native="true">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
             <horstretch>1</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>191</width>
-            <height>0</height>
-           </size>
           </property>
           <property name="toolTip">
            <string>Default PAT pattern definition file for geometric hatching</string>
@@ -651,24 +534,15 @@ for ProjectionGroups</string>
          </widget>
         </item>
         <item row="4" column="2">
-         <widget class="Gui::PrefFileChooser" name="pfc_Welding">
+         <widget class="Gui::PrefFileChooser" name="pfc_Welding" native="true">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
             <horstretch>1</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
           </property>
-          <property name="minimumSize">
-           <size>
-            <width>191</width>
-            <height>0</height>
-           </size>
-          </property>
           <property name="toolTip">
            <string>Default directory for welding symbols</string>
-          </property>
-          <property name="mode">
-           <enum>Gui::FileChooser::Directory</enum>
           </property>
           <property name="prefEntry" stdset="0">
            <cstring>WeldingDir</cstring>
@@ -679,24 +553,15 @@ for ProjectionGroups</string>
          </widget>
         </item>
         <item row="1" column="2">
-         <widget class="Gui::PrefFileChooser" name="pfc_DefDir">
+         <widget class="Gui::PrefFileChooser" name="pfc_DefDir" native="true">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
             <horstretch>1</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
           </property>
-          <property name="minimumSize">
-           <size>
-            <width>191</width>
-            <height>0</height>
-           </size>
-          </property>
           <property name="toolTip">
-           <string>Starting directory for menu 'Insert Page using Template'</string>
-          </property>
-          <property name="mode">
-           <enum>Gui::FileChooser::Directory</enum>
+           <string>Starting directory for 'Insert Page From Template' tool</string>
           </property>
           <property name="prefEntry" stdset="0">
            <cstring>TemplateDir</cstring>
@@ -708,19 +573,13 @@ for ProjectionGroups</string>
         </item>
         <item row="1" column="0">
          <widget class="QLabel" name="label_2">
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>0</height>
-           </size>
-          </property>
           <property name="text">
-           <string>Template Directory</string>
+           <string>Template directory</string>
           </property>
          </widget>
         </item>
         <item row="7" column="2">
-         <widget class="Gui::PrefFileChooser" name="fcSymbolDir">
+         <widget class="Gui::PrefFileChooser" name="fcSymbolDir" native="true">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
             <horstretch>1</horstretch>
@@ -728,10 +587,7 @@ for ProjectionGroups</string>
            </sizepolicy>
           </property>
           <property name="toolTip">
-           <string>Alternate directory to search for Svg symbol files.</string>
-          </property>
-          <property name="mode">
-           <enum>Gui::FileChooser::Directory</enum>
+           <string>Alternate directory to search for SVG symbol files.</string>
           </property>
           <property name="prefEntry" stdset="0">
            <cstring>DirSymbol</cstring>
@@ -743,32 +599,20 @@ for ProjectionGroups</string>
         </item>
         <item row="2" column="0">
          <widget class="QLabel" name="lbl_Hatch">
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>0</height>
-           </size>
-          </property>
           <property name="font">
            <font>
             <italic>true</italic>
            </font>
           </property>
           <property name="text">
-           <string>Hatch Pattern File</string>
+           <string>Hatch pattern file</string>
           </property>
          </widget>
         </item>
         <item row="0" column="0">
          <widget class="QLabel" name="label">
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>0</height>
-           </size>
-          </property>
           <property name="text">
-           <string>Default Template</string>
+           <string>Default template</string>
           </property>
          </widget>
         </item>
@@ -780,7 +624,7 @@ for ProjectionGroups</string>
            </font>
           </property>
           <property name="text">
-           <string>Symbol Directory</string>
+           <string>Symbol directory</string>
           </property>
          </widget>
         </item>
@@ -791,12 +635,6 @@ for ProjectionGroups</string>
             <horstretch>1</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>191</width>
-            <height>22</height>
-           </size>
           </property>
           <property name="toolTip">
            <string>Name of the default PAT pattern</string>
@@ -817,37 +655,25 @@ for ProjectionGroups</string>
         </item>
         <item row="3" column="0">
          <widget class="QLabel" name="label_10">
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>0</height>
-           </size>
-          </property>
           <property name="font">
            <font>
             <italic>true</italic>
            </font>
           </property>
           <property name="text">
-           <string>Line Group File</string>
+           <string>Line group file</string>
           </property>
          </widget>
         </item>
         <item row="6" column="0">
          <widget class="QLabel" name="label_8">
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>0</height>
-           </size>
-          </property>
           <property name="font">
            <font>
             <italic>true</italic>
            </font>
           </property>
           <property name="text">
-           <string>Pattern Name</string>
+           <string>Pattern name</string>
           </property>
          </widget>
         </item>
@@ -885,10 +711,10 @@ for ProjectionGroups</string>
            </font>
           </property>
           <property name="toolTip">
-           <string>Set ShowGrid property to true on new Pages.</string>
+           <string>Set 'Show grid' property to true on new pages</string>
           </property>
           <property name="text">
-           <string>Show Grid</string>
+           <string>Show grid</string>
           </property>
           <property name="checked">
            <bool>true</bool>
@@ -909,19 +735,16 @@ for ProjectionGroups</string>
            </font>
           </property>
           <property name="text">
-           <string>Grid Spacing</string>
+           <string>Grid spacing</string>
           </property>
          </widget>
         </item>
         <item row="1" column="2">
-         <widget class="Gui::PrefUnitSpinBox" name="psb_GridSpacing">
+         <widget class="Gui::PrefUnitSpinBox" name="psb_GridSpacing" native="true">
           <property name="toolTip">
-           <string>Distance between Page grid lines.</string>
+           <string>Distance between page grid lines</string>
           </property>
-          <property name="alignment">
-           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-          </property>
-          <property name="value">
+          <property name="value" stdset="0">
            <double>10.000000000000000</double>
           </property>
           <property name="prefEntry" stdset="0">
@@ -945,18 +768,6 @@ for ProjectionGroups</string>
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
-     <property name="minimumSize">
-      <size>
-       <width>0</width>
-       <height>0</height>
-      </size>
-     </property>
-     <property name="maximumSize">
-      <size>
-       <width>16777215</width>
-       <height>100</height>
-      </size>
-     </property>
      <property name="title">
       <string>Selection</string>
      </property>
@@ -975,7 +786,7 @@ for ProjectionGroups</string>
            <string>If enabled, clicking without Ctrl does not clear existing vertex/edge/face selection</string>
           </property>
           <property name="text">
-           <string>Enable Multiselection Mode</string>
+           <string>Enable multi-selection mode</string>
           </property>
           <property name="checked">
            <bool>false</bool>
@@ -994,7 +805,215 @@ for ProjectionGroups</string>
     </widget>
    </item>
    <item>
+    <widget class="QGroupBox" name="gbViewDefaut">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="title">
+      <string>View Defaults</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_8">
+      <item>
+       <layout class="QVBoxLayout" name="verticalLayout_7">
+        <item>
+         <widget class="Gui::PrefCheckBox" name="cb_useCameraDirection">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="font">
+           <font>
+            <italic>true</italic>
+           </font>
+          </property>
+          <property name="toolTip">
+           <string>Uses the 3D camera direction (or normal of a selected face) as the view direction. Otherwise, views will be created as front views.</string>
+          </property>
+          <property name="text">
+           <string>Use 3D camera direction</string>
+          </property>
+          <property name="prefEntry" stdset="0">
+           <cstring>UseCameraDirection</cstring>
+          </property>
+          <property name="prefPath" stdset="0">
+           <cstring>/Mod/TechDraw/General</cstring>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="Gui::PrefCheckBox" name="cb_alwaysShowLabel">
+          <property name="font">
+           <font>
+            <italic>true</italic>
+           </font>
+          </property>
+          <property name="toolTip">
+           <string>Displays view labels even when frames are suppressed</string>
+          </property>
+          <property name="text">
+           <string>Always Show Label</string>
+          </property>
+          <property name="prefEntry" stdset="0">
+           <cstring>AlwaysShowLabel</cstring>
+          </property>
+          <property name="prefPath" stdset="0">
+           <cstring>/Mod/TechDraw/General</cstring>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="groupBox">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="title">
+      <string>Snapping</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_9">
+      <item>
+       <layout class="QGridLayout" name="gridLayout_8" columnstretch="1,0,2,0">
+        <item row="0" column="0">
+         <widget class="Gui::PrefCheckBox" name="cb_SnapViews">
+          <property name="toolTip">
+           <string>Snaps views into alignment when being dragged</string>
+          </property>
+          <property name="text">
+           <string>Snap view alignment</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+          <property name="prefEntry" stdset="0">
+           <cstring>SnapViews</cstring>
+          </property>
+          <property name="prefPath" stdset="0">
+           <cstring>/Mod/TechDraw/General</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="Gui::PrefCheckBox" name="cb_SnapHighlights">
+          <property name="toolTip">
+           <string>Check this box if you want detail view highlights to snap to the nearest vertex when dragging in TaskDetail.</string>
+          </property>
+          <property name="text">
+           <string>Snap detail highlights</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+          <property name="prefEntry" stdset="0">
+           <cstring>SnapHighlights</cstring>
+          </property>
+          <property name="prefPath" stdset="0">
+           <cstring>/Mod/TechDraw/General</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="2">
+         <widget class="Gui::PrefDoubleSpinBox" name="psb_SnapFactor">
+          <property name="toolTip">
+           <string>When dragging a view, if it is within this fraction of view size of the correct alignment, it will snap into alignment.</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+          </property>
+          <property name="value">
+           <double>0.050000000000000</double>
+          </property>
+          <property name="prefEntry" stdset="0">
+           <cstring>SnapLimitFactor</cstring>
+          </property>
+          <property name="prefPath" stdset="0">
+           <cstring>/Mod/TechDraw/General</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <spacer name="horizontalSpacer_4">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="label_3">
+          <property name="text">
+           <string>View snapping factor</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="0">
+         <widget class="QLabel" name="label_14">
+          <property name="text">
+           <string>Highlight snapping factor</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="2">
+         <widget class="Gui::PrefDoubleSpinBox" name="psb_HighlightSnapFactor">
+          <property name="toolTip">
+           <string>Controls the snap radius for highlights. Vertex must be within this factor times the highlight size to be a snap target.</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+          </property>
+          <property name="value">
+           <double>0.600000000000000</double>
+          </property>
+          <property name="prefEntry" stdset="0">
+           <cstring>DetailSnapRadius</cstring>
+          </property>
+          <property name="prefPath" stdset="0">
+           <cstring>/Mod/TechDraw/General</cstring>
+          </property>
+
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
     <widget class="QLabel" name="label_12">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>64</height>
+      </size>
+     </property>
+     <property name="baseSize">
+      <size>
+       <width>0</width>
+       <height>64</height>
+      </size>
+     </property>
      <property name="font">
       <font>
        <pointsize>10</pointsize>
@@ -1008,19 +1027,6 @@ for ProjectionGroups</string>
       <bool>true</bool>
      </property>
     </widget>
-   </item>
-   <item>
-    <spacer name="verticalSpacer">
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>20</width>
-       <height>40</height>
-      </size>
-     </property>
-    </spacer>
    </item>
   </layout>
  </widget>
@@ -1056,6 +1062,11 @@ for ProjectionGroups</string>
    <header>Gui/PrefWidgets.h</header>
   </customwidget>
   <customwidget>
+   <class>Gui::PrefDoubleSpinBox</class>
+   <extends>QDoubleSpinBox</extends>
+   <header>Gui/PrefWidgets.h</header>
+  </customwidget>
+  <customwidget>
    <class>Gui::PrefFontBox</class>
    <extends>QFontComboBox</extends>
    <header>Gui/PrefWidgets.h</header>
@@ -1066,8 +1077,6 @@ for ProjectionGroups</string>
    <header>Gui/PrefWidgets.h</header>
   </customwidget>
  </customwidgets>
- <resources>
-  <include location="Resources/TechDraw.qrc"/>
- </resources>
+ <resources/>
  <connections/>
 </ui>

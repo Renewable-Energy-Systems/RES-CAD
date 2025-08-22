@@ -50,7 +50,10 @@ using namespace Spreadsheet;
 
 PROPERTY_SOURCE(SpreadsheetGui::ViewProviderSheet, Gui::ViewProviderDocumentObject)
 
-ViewProviderSheet::ViewProviderSheet() = default;
+ViewProviderSheet::ViewProviderSheet()
+{
+    setToggleVisibility(ToggleVisibilityMode::NoToggleVisibility);
+}
 
 ViewProviderSheet::~ViewProviderSheet()
 {
@@ -59,45 +62,9 @@ ViewProviderSheet::~ViewProviderSheet()
     }
 }
 
-void ViewProviderSheet::setDisplayMode(const char* ModeName)
-{
-    ViewProviderDocumentObject::setDisplayMode(ModeName);
-}
-
-std::vector<std::string> ViewProviderSheet::getDisplayModes() const
-{
-    std::vector<std::string> StrList;
-    StrList.emplace_back("Spreadsheet");
-    return StrList;
-}
-
 QIcon ViewProviderSheet::getIcon() const
 {
-    // clang-format off
-    static const char* const Points_Feature_xpm[] = {
-        "16 16 3 1",
-        "       c None",
-        ".      c #000000",
-        "+      c #FFFFFF",
-        "                ",
-        "                ",
-        "................",
-        ".++++.++++.++++.",
-        ".++++.++++.++++.",
-        "................",
-        ".++++.++++.++++.",
-        ".++++.++++.++++.",
-        "................",
-        ".++++.++++.++++.",
-        ".++++.++++.++++.",
-        "................",
-        ".++++.++++.++++.",
-        ".++++.++++.++++.",
-        "................",
-        "                "};
-    QPixmap px(Points_Feature_xpm);
-    return px;
-    // clang-format on
+    return QIcon(QLatin1String(":icons/Spreadsheet.svg"));
 }
 
 bool ViewProviderSheet::setEdit(int ModNum)
@@ -135,17 +102,19 @@ void ViewProviderSheet::showSheetMdi()
 
 void ViewProviderSheet::exportAsFile()
 {
-    auto* sheet = static_cast<Spreadsheet::Sheet*>(getObject());
+    auto* sheet = getObject<Spreadsheet::Sheet>();
     QString selectedFilter;
     QString formatList = QObject::tr("CSV (*.csv *.CSV);;All (*)");
     QString fileName = Gui::FileDialog::getSaveFileName(Gui::getMainWindow(),
-                                                        QObject::tr("Export file"),
+                                                        QObject::tr("Export File"),
                                                         QString(),
                                                         formatList,
                                                         &selectedFilter);
     if (!fileName.isEmpty()) {
         if (sheet) {
-            char delim, quote, escape;
+            char delim = '\0';
+            char quote = '\0';
+            char escape = '\0';
             std::string errMsg = "Export";
             bool isValid = sheet->getCharsFromPrefs(delim, quote, escape, errMsg);
 
@@ -153,8 +122,7 @@ void ViewProviderSheet::exportAsFile()
                 sheet->exportToFile(fileName.toStdString(), delim, quote, escape);
             }
             else {
-                Base::Console().Error(errMsg.c_str());
-                return;
+                Base::Console().error(errMsg.c_str());
             }
         }
     }
@@ -163,13 +131,13 @@ void ViewProviderSheet::exportAsFile()
 void ViewProviderSheet::setupContextMenu(QMenu* menu, QObject* receiver, const char* member)
 {
     QAction* act;
-    act = menu->addAction(QObject::tr("Show spreadsheet"), receiver, member);
+    act = menu->addAction(QObject::tr("Show Spreadsheet"), receiver, member);
     act->setData(QVariant((int)ViewProvider::Default));
 }
 
 Sheet* ViewProviderSheet::getSpreadsheetObject() const
 {
-    return freecad_dynamic_cast<Sheet>(pcObject);
+    return freecad_cast<Sheet*>(pcObject);
 }
 
 void ViewProviderSheet::beforeDelete()
@@ -190,8 +158,7 @@ SheetView* ViewProviderSheet::showSpreadsheetView()
         Gui::Document* doc = Gui::Application::Instance->getDocument(this->pcObject->getDocument());
         view = new SheetView(doc, this->pcObject, Gui::getMainWindow());
         view->setWindowIcon(Gui::BitmapFactory().pixmap(":icons/Spreadsheet.svg"));
-        view->setWindowTitle(QString::fromUtf8(pcObject->Label.getValue())
-                             + QString::fromLatin1("[*]"));
+        view->setWindowTitle(QString::fromUtf8(pcObject->Label.getValue()) + QStringLiteral("[*]"));
         Gui::getMainWindow()->addWindow(view);
         startEditing();
     }
@@ -229,5 +196,5 @@ PROPERTY_SOURCE_TEMPLATE(SpreadsheetGui::ViewProviderSheetPython, SpreadsheetGui
 /// @endcond
 
 // explicit template instantiation
-template class SpreadsheetGuiExport ViewProviderPythonFeatureT<ViewProviderSheet>;
+template class SpreadsheetGuiExport ViewProviderFeaturePythonT<ViewProviderSheet>;
 }  // namespace Gui

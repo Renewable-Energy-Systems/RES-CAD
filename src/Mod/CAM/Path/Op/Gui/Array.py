@@ -23,12 +23,14 @@
 import FreeCAD
 import FreeCADGui
 import Path
-import PathScripts
+import Path.Op.Base as PathOp
 import PathScripts.PathUtils as PathUtils
+import Path.Base.Util as PathUtil
 from Path.Dressup.Utils import toolController
 from PySide import QtCore
-import math
+
 import random
+
 from PySide.QtCore import QT_TRANSLATE_NOOP
 
 __doc__ = """CAM Array object and FreeCAD command"""
@@ -42,7 +44,7 @@ class ObjectArray:
             "App::PropertyLinkList",
             "Base",
             "Path",
-            QT_TRANSLATE_NOOP("App::Property", "The toolpath(s) to array"),
+            QT_TRANSLATE_NOOP("App::Property", "The toolpaths to array"),
         )
         obj.addProperty(
             "App::PropertyEnumeration",
@@ -56,7 +58,7 @@ class ObjectArray:
             "Path",
             QT_TRANSLATE_NOOP(
                 "App::Property",
-                "The spacing between the array copies in Linear pattern",
+                "The spacing between the array copies in linear pattern",
             ),
         )
         obj.addProperty(
@@ -64,7 +66,7 @@ class ObjectArray:
             "CopiesX",
             "Path",
             QT_TRANSLATE_NOOP(
-                "App::Property", "The number of copies in X direction in Linear pattern"
+                "App::Property", "The number of copies in X direction in linear pattern"
             ),
         )
         obj.addProperty(
@@ -72,30 +74,28 @@ class ObjectArray:
             "CopiesY",
             "Path",
             QT_TRANSLATE_NOOP(
-                "App::Property", "The number of copies in Y direction in Linear pattern"
+                "App::Property", "The number of copies in Y direction in linear pattern"
             ),
         )
         obj.addProperty(
             "App::PropertyAngle",
             "Angle",
             "Path",
-            QT_TRANSLATE_NOOP("App::Property", "Total angle in Polar pattern"),
+            QT_TRANSLATE_NOOP("App::Property", "Total angle in polar pattern"),
         )
         obj.addProperty(
             "App::PropertyInteger",
             "Copies",
             "Path",
             QT_TRANSLATE_NOOP(
-                "App::Property", "The number of copies in Linear 1D and Polar pattern"
+                "App::Property", "The number of copies in linear 1D and polar pattern"
             ),
         )
         obj.addProperty(
             "App::PropertyVector",
             "Centre",
             "Path",
-            QT_TRANSLATE_NOOP(
-                "App::Property", "The centre of rotation in Polar pattern"
-            ),
+            QT_TRANSLATE_NOOP("App::Property", "The centre of rotation in polar pattern"),
         )
         obj.addProperty(
             "App::PropertyBool",
@@ -137,11 +137,16 @@ class ObjectArray:
             "App::PropertyBool",
             "Active",
             "Path",
-            QT_TRANSLATE_NOOP(
-                "PathOp", "Make False, to prevent operation from generating code"
-            ),
+            QT_TRANSLATE_NOOP("PathOp", "Make False, to prevent operation from generating code"),
+        )
+        obj.addProperty(
+            "App::PropertyString",
+            "CycleTime",
+            "Path",
+            QT_TRANSLATE_NOOP("App::Property", "Operations cycle time estimation"),
         )
 
+        obj.setEditorMode("CycleTime", 1)  # read-only
         obj.Active = True
         obj.Type = ["Linear1D", "Linear2D", "Polar"]
 
@@ -164,17 +169,6 @@ class ObjectArray:
         elif obj.Type == "Polar":
             angleMode = copiesMode = centreMode = 0
             copiesXMode = copiesYMode = offsetMode = swapDirectionMode = 2
-
-        if not hasattr(obj, "JitterSeed"):
-            obj.addProperty(
-                "App::PropertyInteger",
-                "JitterSeed",
-                "Path",
-                QtCore.QT_TRANSLATE_NOOP(
-                    "App::Property", "Seed value for jitter randomness"
-                ),
-            )
-            obj.JitterSeed = 0
 
         obj.setEditorMode("Angle", angleMode)
         obj.setEditorMode("Copies", copiesMode)
@@ -206,6 +200,24 @@ class ObjectArray:
             )
             obj.Active = True
 
+        if not hasattr(obj, "JitterSeed"):
+            obj.addProperty(
+                "App::PropertyInteger",
+                "JitterSeed",
+                "Path",
+                QtCore.QT_TRANSLATE_NOOP("App::Property", "Seed value for jitter randomness"),
+            )
+            obj.JitterSeed = 0
+
+        if not hasattr(obj, "CycleTime"):
+            obj.addProperty(
+                "App::PropertyString",
+                "CycleTime",
+                "Path",
+                QT_TRANSLATE_NOOP("App::Property", "Operations cycle time estimation"),
+            )
+            obj.CycleTime = self.getCycleTimeEstimate(obj)
+
         self.setEditorModes(obj)
 
     def execute(self, obj):
@@ -215,16 +227,13 @@ class ObjectArray:
         else:
             base = [obj.Base]
 
-        if len(base) == 0:
+        # Do not generate paths and clear current Path data
+        # if operation not Active or no base operations or operations not compatible
+        if not obj.Active or len(base) == 0 or not self.isBaseCompatible(obj):
+            obj.Path = Path.Path()
             return
 
         obj.ToolController = toolController(base[0])
-
-        # Do not generate paths and clear current Path data if operation not
-        if not obj.Active:
-            if obj.Path:
-                obj.Path = Path.Path()
-            return
 
         # use seed if specified, otherwise default to object name for consistency during recomputes
         seed = obj.JitterSeed or obj.Name
@@ -245,6 +254,38 @@ class ObjectArray:
         )
 
         obj.Path = pa.getPath()
+        obj.CycleTime = PathOp.getCycleTimeEstimate(obj)
+
+    def isBaseCompatible(self, obj):
+        if not obj.Base:
+            return False
+        tcs = []
+        cms = []
+        for sel in obj.Base:
+            if not sel.isDerivedFrom("Path::Feature"):
+                return False
+            tcs.append(toolController(sel))
+            cms.append(PathUtil.coolantModeForOp(sel))
+
+        if tcs == {None} or len(set(tcs)) > 1:
+            Path.Log.warning(
+                translate(
+                    "PathArray",
+                    "Arrays of toolpaths having different tool controllers or tool controller not selected.",
+                )
+            )
+            return False
+
+        if set(cms) != {"None"}:
+            Path.Log.warning(
+                translate(
+                    "PathArray",
+                    "Arrays not compatible with coolant modes.",
+                )
+            )
+            return False
+
+        return True
 
 
 class PathArray:
@@ -293,25 +334,15 @@ class PathArray:
         if self.jitterPercent == 0:
             pass
         elif random.randint(0, 100) < self.jitterPercent:
-            pos.x = pos.x + random.uniform(
-                -self.jitterMagnitude.x, self.jitterMagnitude.x
-            )
-            pos.y = pos.y + random.uniform(
-                -self.jitterMagnitude.y, self.jitterMagnitude.y
-            )
-            pos.z = pos.z + random.uniform(
-                -self.jitterMagnitude.z, self.jitterMagnitude.z
-            )
+            pos.x = pos.x + random.uniform(-self.jitterMagnitude.x, self.jitterMagnitude.x)
+            pos.y = pos.y + random.uniform(-self.jitterMagnitude.y, self.jitterMagnitude.y)
+            pos.z = pos.z + random.uniform(-self.jitterMagnitude.z, self.jitterMagnitude.z)
         return pos
 
     # Public method
     def getPath(self):
         """getPath() ... Call this method on an instance of the class to generate and return
         path data for the requested path array."""
-
-        if len(self.baseList) == 0:
-            Path.Log.error(translate("PathArray", "No base objects for PathArray."))
-            return None
 
         base = self.baseList
         for b in base:
@@ -323,15 +354,6 @@ class PathArray:
             b_tool_controller = toolController(b)
             if not b_tool_controller:
                 return
-
-            if b_tool_controller != toolController(base[0]):
-                # this may be important if Job output is split by tool controller
-                Path.Log.warning(
-                    translate(
-                        "PathArray",
-                        "Arrays of toolpaths having different tool controllers are handled according to the tool controller of the first path.",
-                    )
-                )
 
         # build copies
         output = ""
@@ -349,7 +371,9 @@ class PathArray:
                 for b in base:
                     pl = FreeCAD.Placement()
                     pl.move(pos)
-                    np = Path.Path([cm.transform(pl) for cm in PathUtils.getPathWithPlacement(b).Commands])
+                    np = Path.Path(
+                        [cm.transform(pl) for cm in PathUtils.getPathWithPlacement(b).Commands]
+                    )
                     output += np.toGCode()
 
         elif self.arrayType == "Linear2D":
@@ -376,7 +400,10 @@ class PathArray:
                             if not (i == 0 and j == 0):
                                 pl.move(pos)
                                 np = Path.Path(
-                                    [cm.transform(pl) for cm in PathUtils.getPathWithPlacement(b).Commands]
+                                    [
+                                        cm.transform(pl)
+                                        for cm in PathUtils.getPathWithPlacement(b).Commands
+                                    ]
                                 )
                                 output += np.toGCode()
             else:
@@ -402,7 +429,10 @@ class PathArray:
                             if not (i == 0 and j == 0):
                                 pl.move(pos)
                                 np = Path.Path(
-                                    [cm.transform(pl) for cm in PathUtils.getPathWithPlacement(b).Commands]
+                                    [
+                                        cm.transform(pl)
+                                        for cm in PathUtils.getPathWithPlacement(b).Commands
+                                    ]
                                 )
                                 output += np.toGCode()
             # Eif
@@ -450,17 +480,29 @@ class CommandPathArray:
         return {
             "Pixmap": "CAM_Array",
             "MenuText": QT_TRANSLATE_NOOP("CAM_Array", "Array"),
-            "ToolTip": QT_TRANSLATE_NOOP(
-                "CAM_Array", "Creates an array from selected toolpath(s)"
-            ),
+            "ToolTip": QT_TRANSLATE_NOOP("CAM_Array", "Creates an array from selected toolpaths"),
         }
 
     def IsActive(self):
-        selections = [
-            sel.isDerivedFrom("Path::Feature")
-            for sel in FreeCADGui.Selection.getSelection()
-        ]
-        return selections and all(selections)
+        selection = FreeCADGui.Selection.getSelection()
+        if not selection:
+            return False
+        tcs = []
+        for sel in selection:
+            if not sel.isDerivedFrom("Path::Feature"):
+                return False
+            tc = toolController(sel)
+            if tc:
+                # Active only for operations with identical tool controller
+                tcs.append(tc)
+                if len(set(tcs)) != 1:
+                    return False
+            else:
+                return False
+            if PathUtil.coolantModeForOp(sel) != "None":
+                # Active only for operations without cooling
+                return False
+        return True
 
     def Activated(self):
 
@@ -470,9 +512,7 @@ class CommandPathArray:
         for sel in selection:
             if not (sel.isDerivedFrom("Path::Feature")):
                 FreeCAD.Console.PrintError(
-                    translate(
-                        "CAM_Array", "Arrays can be created only from toolpath operations."
-                    )
+                    translate("CAM_Array", "Arrays can be created only from toolpath operations.")
                     + "\n"
                 )
                 return

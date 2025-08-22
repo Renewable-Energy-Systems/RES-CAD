@@ -55,9 +55,7 @@ def fillThreads(form, dataFile, defaultSelect):
     select = form.threadName.currentText()
     Path.Log.debug("select = '{}'".format(select))
     form.threadName.clear()
-    with open(
-        "{}Mod/CAM/Data/Threads/{}".format(FreeCAD.getHomePath(), dataFile)
-    ) as fp:
+    with open("{}Mod/CAM/Data/Threads/{}".format(FreeCAD.getHomePath(), dataFile)) as fp:
         reader = csv.DictReader(fp)
         for row in reader:
             form.threadName.addItem(row["name"], row)
@@ -73,12 +71,8 @@ class TaskPanelOpPage(PathCircularHoleBaseGui.TaskPanelOpPage):
     """Controller for the thread milling operation's page"""
 
     def initPage(self, obj):
-        self.majorDia = PathGuiUtil.QuantitySpinBox(
-            self.form.threadMajor, obj, "MajorDiameter"
-        )
-        self.minorDia = PathGuiUtil.QuantitySpinBox(
-            self.form.threadMinor, obj, "MinorDiameter"
-        )
+        self.majorDia = PathGuiUtil.QuantitySpinBox(self.form.threadMajor, obj, "MajorDiameter")
+        self.minorDia = PathGuiUtil.QuantitySpinBox(self.form.threadMinor, obj, "MinorDiameter")
         self.pitch = PathGuiUtil.QuantitySpinBox(self.form.threadPitch, obj, "Pitch")
 
     def getForm(self):
@@ -89,9 +83,7 @@ class TaskPanelOpPage(PathCircularHoleBaseGui.TaskPanelOpPage):
             ("threadType", "ThreadType"),
             ("opDirection", "Direction"),
         ]
-        enumTups = PathThreadMilling.ObjectThreadMilling.propertyEnumerations(
-            dataType="raw"
-        )
+        enumTups = PathThreadMilling.ObjectThreadMilling.propertyEnumerations(dataType="raw")
         self.populateCombobox(form, enumTups, comboToPropertyMap)
 
         return form
@@ -143,9 +135,9 @@ class TaskPanelOpPage(PathCircularHoleBaseGui.TaskPanelOpPage):
             QtCore.Qt.Checked if obj.LeadInOut else QtCore.Qt.Unchecked
         )
 
-        self.majorDia.updateSpinBox()
-        self.minorDia.updateSpinBox()
-        self.pitch.updateSpinBox()
+        self.majorDia.updateWidget()
+        self.minorDia.updateWidget()
+        self.pitch.updateWidget()
 
         self.setupToolController(obj, self.form.toolController)
         self._updateFromThreadType()
@@ -157,22 +149,16 @@ class TaskPanelOpPage(PathCircularHoleBaseGui.TaskPanelOpPage):
         ]
 
     def _isThreadImperial(self):
-        return (
-            self.form.threadType.currentData() in PathThreadMilling.ThreadTypesImperial
-        )
+        return self.form.threadType.currentData() in PathThreadMilling.ThreadTypesImperial
 
     def _isThreadMetric(self):
         return self.form.threadType.currentData() in PathThreadMilling.ThreadTypesMetric
 
     def _isThreadInternal(self):
-        return (
-            self.form.threadType.currentData() in PathThreadMilling.ThreadTypesInternal
-        )
+        return self.form.threadType.currentData() in PathThreadMilling.ThreadTypesInternal
 
     def _isThreadExternal(self):
-        return (
-            self.form.threadType.currentData() in PathThreadMilling.ThreadTypesExternal
-        )
+        return self.form.threadType.currentData() in PathThreadMilling.ThreadTypesExternal
 
     def _updateFromThreadType(self):
 
@@ -198,7 +184,7 @@ class TaskPanelOpPage(PathCircularHoleBaseGui.TaskPanelOpPage):
                 self.form.threadPitchLabel.setEnabled(False)
                 self.form.threadTPI.setEnabled(True)
                 self.form.threadTPILabel.setEnabled(True)
-                self.pitch.updateSpinBox(0)
+                self.pitch.updateWidget(0)
             fillThreads(
                 self.form,
                 PathThreadMilling.ThreadTypeData[self.form.threadType.currentData()],
@@ -219,7 +205,7 @@ class TaskPanelOpPage(PathCircularHoleBaseGui.TaskPanelOpPage):
 
             if self._isThreadMetric():
                 pitch = float(thread["pitch"])
-                self.pitch.updateSpinBox(pitch)
+                self.pitch.updateWidget(pitch)
 
             if self._isThreadImperial():
                 tpi = int(thread["tpi"])
@@ -227,8 +213,8 @@ class TaskPanelOpPage(PathCircularHoleBaseGui.TaskPanelOpPage):
                 minor = minor * 25.4
                 major = major * 25.4
 
-            self.majorDia.updateSpinBox(major)
-            self.minorDia.updateSpinBox(minor)
+            self.majorDia.updateWidget(major)
+            self.minorDia.updateWidget(minor)
 
         self.setDirty()
 
@@ -243,7 +229,10 @@ class TaskPanelOpPage(PathCircularHoleBaseGui.TaskPanelOpPage):
         signals.append(self.form.threadTPI.editingFinished)
         signals.append(self.form.opDirection.currentIndexChanged)
         signals.append(self.form.opPasses.editingFinished)
-        signals.append(self.form.leadInOut.stateChanged)
+        if hasattr(self.form.leadInOut, "checkStateChanged"):  # Qt version >= 6.7.0
+            signals.append(self.form.leadInOut.checkStateChanged)
+        else:  # Qt version < 6.7.0
+            signals.append(self.form.leadInOut.stateChanged)
 
         signals.append(self.form.toolController.currentIndexChanged)
 

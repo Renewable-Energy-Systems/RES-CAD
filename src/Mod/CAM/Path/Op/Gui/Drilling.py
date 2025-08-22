@@ -48,15 +48,11 @@ class TaskPanelOpPage(PathCircularHoleBaseGui.TaskPanelOpPage):
     """Controller for the drilling operation's page"""
 
     def initPage(self, obj):
-        self.peckDepthSpinBox = PathGuiUtil.QuantitySpinBox(
-            self.form.peckDepth, obj, "PeckDepth"
-        )
+        self.peckDepthSpinBox = PathGuiUtil.QuantitySpinBox(self.form.peckDepth, obj, "PeckDepth")
         self.peckRetractSpinBox = PathGuiUtil.QuantitySpinBox(
             self.form.peckRetractHeight, obj, "RetractHeight"
         )
-        self.dwellTimeSpinBox = PathGuiUtil.QuantitySpinBox(
-            self.form.dwellTime, obj, "DwellTime"
-        )
+        self.dwellTimeSpinBox = PathGuiUtil.QuantitySpinBox(self.form.dwellTime, obj, "DwellTime")
         self.form.chipBreakEnabled.setEnabled(False)
 
     def registerSignalHandlers(self, obj):
@@ -111,9 +107,9 @@ class TaskPanelOpPage(PathCircularHoleBaseGui.TaskPanelOpPage):
         return form
 
     def updateQuantitySpinBoxes(self, index=None):
-        self.peckDepthSpinBox.updateSpinBox()
-        self.peckRetractSpinBox.updateSpinBox()
-        self.dwellTimeSpinBox.updateSpinBox()
+        self.peckDepthSpinBox.updateWidget()
+        self.peckRetractSpinBox.updateWidget()
+        self.dwellTimeSpinBox.updateWidget()
 
     def getFields(self, obj):
         """setFields(obj) ... update obj's properties with values from the UI"""
@@ -143,9 +139,16 @@ class TaskPanelOpPage(PathCircularHoleBaseGui.TaskPanelOpPage):
         Path.Log.track()
         self.updateQuantitySpinBoxes()
 
-        if not hasattr(obj,"KeepToolDown"):
-            obj.addProperty("App::PropertyBool", "KeepToolDown", "Drill",
-                QtCore.QT_TRANSLATE_NOOP("App::Property", "Apply G99 retraction: only retract to RetractHeight between holes in this operation"))
+        if not hasattr(obj, "KeepToolDown"):
+            obj.addProperty(
+                "App::PropertyBool",
+                "KeepToolDown",
+                "Drill",
+                QtCore.QT_TRANSLATE_NOOP(
+                    "App::Property",
+                    "Apply G99 retraction: only retract to RetractHeight between holes in this operation",
+                ),
+            )
 
         if obj.KeepToolDown:
             self.form.KeepToolDownEnabled.setCheckState(QtCore.Qt.Checked)
@@ -185,15 +188,23 @@ class TaskPanelOpPage(PathCircularHoleBaseGui.TaskPanelOpPage):
         signals.append(self.form.peckRetractHeight.editingFinished)
         signals.append(self.form.peckDepth.editingFinished)
         signals.append(self.form.dwellTime.editingFinished)
-        signals.append(self.form.dwellEnabled.stateChanged)
-        signals.append(self.form.peckEnabled.stateChanged)
-        signals.append(self.form.chipBreakEnabled.stateChanged)
+        if hasattr(self.form.dwellEnabled, "checkStateChanged"):  # Qt version >= 6.7.0
+            signals.append(self.form.dwellEnabled.checkStateChanged)
+            signals.append(self.form.peckEnabled.checkStateChanged)
+            signals.append(self.form.chipBreakEnabled.checkStateChanged)
+        else:  # Qt version < 6.7.0
+            signals.append(self.form.dwellEnabled.stateChanged)
+            signals.append(self.form.peckEnabled.stateChanged)
+            signals.append(self.form.chipBreakEnabled.stateChanged)
         signals.append(self.form.toolController.currentIndexChanged)
         signals.append(self.form.coolantController.currentIndexChanged)
         signals.append(self.form.ExtraOffset.currentIndexChanged)
-        signals.append(self.form.KeepToolDownEnabled.stateChanged)
-        signals.append(self.form.feedRetractEnabled.stateChanged)
-
+        if hasattr(self.form.KeepToolDownEnabled, "checkStateChanged"):  # Qt version >= 6.7.0
+            signals.append(self.form.KeepToolDownEnabled.checkStateChanged)
+            signals.append(self.form.feedRetractEnabled.checkStateChanged)
+        else:  # Qt version < 6.7.0
+            signals.append(self.form.KeepToolDownEnabled.stateChanged)
+            signals.append(self.form.feedRetractEnabled.stateChanged)
         return signals
 
     def updateData(self, obj, prop):

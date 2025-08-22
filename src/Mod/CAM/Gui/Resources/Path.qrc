@@ -47,11 +47,14 @@
         <file>icons/CAM_SelectLoop.svg</file>
         <file>icons/CAM_SetupSheet.svg</file>
         <file>icons/CAM_Shape.svg</file>
+        <file>icons/CAM_ShapeTC.svg</file>
         <file>icons/CAM_SimpleCopy.svg</file>
         <file>icons/CAM_Simulator.svg</file>
         <file>icons/CAM_SimulatorGL.svg</file>
         <file>icons/CAM_Slot.svg</file>
+        <file>icons/CAM_StartPoint.svg</file>
         <file>icons/CAM_Stop.svg</file>
+        <file>icons/CAM_Tapping.svg</file>
         <file>icons/CAM_ThreadMilling.svg</file>
         <file>icons/CAM_ToolBit.svg</file>
         <file>icons/CAM_ToolChange.svg</file>
@@ -108,6 +111,7 @@
         <file>panels/PageOpProfileFullEdit.ui</file>
         <file>panels/PageOpSlotEdit.ui</file>
         <file>panels/PageOpSurfaceEdit.ui</file>
+        <file>panels/PageOpTappingEdit.ui</file>
         <file>panels/PageOpThreadMillingEdit.ui</file>
         <file>panels/PageOpWaterlineEdit.ui</file>
         <file>panels/PageOpVcarveEdit.ui</file>
@@ -115,26 +119,33 @@
         <file>panels/PointEdit.ui</file>
         <file>panels/PropertyBag.ui</file>
         <file>panels/PropertyCreate.ui</file>
+        <file>panels/ShapeSelector.ui</file>
         <file>panels/SetupGlobal.ui</file>
         <file>panels/SetupOp.ui</file>
         <file>panels/ToolBitEditor.ui</file>
         <file>panels/ToolBitLibraryEdit.ui</file>
-        <file>panels/ToolBitSelector.ui</file>
         <file>panels/TaskPathCamoticsSim.ui</file>
         <file>panels/TaskPathSimulator.ui</file>
         <file>panels/TaskCAMSimulator.ui</file>
         <file>panels/ZCorrectEdit.ui</file>
-        <file>gl_simulator/0.png</file>
-        <file>gl_simulator/1.png</file>
-        <file>gl_simulator/4.png</file>
-        <file>gl_simulator/X.png</file>
+        <file>gl_simulator/Slower.png</file>
         <file>gl_simulator/Faster.png</file>
+        <file>gl_simulator/x.png</file>
+        <file>gl_simulator/1.png</file>
+        <file>gl_simulator/5.png</file>
+        <file>gl_simulator/10.png</file>
+        <file>gl_simulator/25.png</file>
+        <file>gl_simulator/50.png</file>
         <file>gl_simulator/Pause.png</file>
         <file>gl_simulator/Play.png</file>
         <file>gl_simulator/Rotate.png</file>
         <file>gl_simulator/SingleStep.png</file>
         <file>gl_simulator/Slider.png</file>
         <file>gl_simulator/Thumb.png</file>
+        <file>gl_simulator/Path.png</file>
+        <file>gl_simulator/View.png</file>
+        <file>gl_simulator/AmbientOclusion.png</file>
+        <file>gl_simulator/Home.png</file>
         <file>preferences/Advanced.ui</file>
         <file>preferences/PathDressupHoldingTags.ui</file>
         <file>preferences/PathJob.ui</file>

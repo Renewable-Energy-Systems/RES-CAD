@@ -31,7 +31,7 @@
 #include <Base/PyObjectBase.h>
 #include <Gui/Application.h>
 #include <Gui/BitmapFactory.h>
-#include <Gui/DlgPreferencesImp.h>
+#include <Gui/Dialogs/DlgPreferencesImp.h>
 #include <Gui/WidgetFactory.h>
 #include <Gui/Language/Translator.h>
 
@@ -47,6 +47,7 @@
 #include "ViewProvider.h"
 #include "ViewProvider2DObject.h"
 #include "ViewProviderAttachExtension.h"
+#include "ViewProviderDatum.h"
 #include "ViewProviderGridExtension.h"
 #include "ViewProviderBoolean.h"
 #include "ViewProviderBox.h"
@@ -67,6 +68,7 @@
 #include "ViewProviderMirror.h"
 #include "ViewProviderPlaneParametric.h"
 #include "ViewProviderPointParametric.h"
+#include "ViewProviderPreviewExtension.h"
 #include "ViewProviderPrism.h"
 #include "ViewProviderProjectOnSurface.h"
 #include "ViewProviderRegularPolygon.h"
@@ -132,12 +134,12 @@ PyMOD_INIT_FUNC(PartGui)
 
     PyObject* partGuiModule = PartGui::initModule();
 
-    Base::Console().Log("Loading GUI of Part module... done\n");
+    Base::Console().log("Loading GUI of Part module… done\n");
 
-    Gui::BitmapFactory().addPath(QString::fromLatin1(":/icons/booleans"));
-    Gui::BitmapFactory().addPath(QString::fromLatin1(":/icons/create"));
-    Gui::BitmapFactory().addPath(QString::fromLatin1(":/icons/parametric"));
-    Gui::BitmapFactory().addPath(QString::fromLatin1(":/icons/tools"));
+    Gui::BitmapFactory().addPath(QStringLiteral(":/icons/booleans"));
+    Gui::BitmapFactory().addPath(QStringLiteral(":/icons/create"));
+    Gui::BitmapFactory().addPath(QStringLiteral(":/icons/parametric"));
+    Gui::BitmapFactory().addPath(QStringLiteral(":/icons/tools"));
 
     // clang-format off
     static struct PyModuleDef pAttachEngineTextsModuleDef = {
@@ -161,12 +163,19 @@ PyMOD_INIT_FUNC(PartGui)
     PartGui::SoBrepEdgeSet                          ::initClass();
     PartGui::SoBrepPointSet                         ::initClass();
     PartGui::SoFCControlPoints                      ::initClass();
+    PartGui::SoPreviewShape                         ::initClass();
     PartGui::ViewProviderAttachExtension            ::init();
     PartGui::ViewProviderAttachExtensionPython      ::init();
     PartGui::ViewProviderGridExtension              ::init();
     PartGui::ViewProviderGridExtensionPython        ::init();
+    PartGui::ViewProviderPreviewExtension           ::init();
+    PartGui::ViewProviderPreviewExtensionPython     ::init();
     PartGui::ViewProviderSplineExtension            ::init();
     PartGui::ViewProviderSplineExtensionPython      ::init();
+    PartGui::ViewProviderLine                       ::init();
+    PartGui::ViewProviderPlane                      ::init();
+    PartGui::ViewProviderPoint                      ::init();
+    PartGui::ViewProviderLCS                        ::init();
     PartGui::ViewProviderPartExt                    ::init();
     PartGui::ViewProviderPart                       ::init();
     PartGui::ViewProviderPrimitive                  ::init();
@@ -231,7 +240,7 @@ PyMOD_INIT_FUNC(PartGui)
         Py::Module(partGuiModule).setAttr(std::string("AttachmentEditor"), ae);
     }
     catch (Base::PyException& err) {
-        err.ReportException();
+        err.reportException();
     }
 
     // register preferences pages

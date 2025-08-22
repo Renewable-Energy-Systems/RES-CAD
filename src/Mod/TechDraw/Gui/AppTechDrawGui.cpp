@@ -27,7 +27,6 @@
 
 #include <Base/Console.h>
 #include <Base/Interpreter.h>
-#include <Base/Tools.h>
 #include <Gui/Application.h>
 #include <Gui/Language/Translator.h>
 #include <Gui/WidgetFactory.h>
@@ -75,6 +74,7 @@ void CreateTechDrawCommandsAnnotate();
 void CreateTechDrawCommandsExtensionDims();
 void CreateTechDrawCommandsExtensions();
 void CreateTechDrawCommandsStack();
+void CreateTechDrawCommandsAlign();
 
 void loadTechDrawResource()
 {
@@ -90,10 +90,10 @@ void loadTechDrawResource()
         {"osifont-lgpl3fe.ttf", "osifont-italic.ttf", "Y14.5-2018.ttf", "Y14.5-FreeCAD.ttf"});
 
     for (auto& font : fontsAll) {
-        QString fontFile = Base::Tools::fromStdString(fontDir + font);
+        QString fontFile = QString::fromStdString(fontDir + font);
         int rc = QFontDatabase::addApplicationFont(fontFile);
         if (rc < 0) {
-            Base::Console().Warning(
+            Base::Console().warning(
                 "TechDraw failed to load font file: %d from: %s\n", rc, qPrintable(fontFile));
         }
     }
@@ -121,7 +121,7 @@ PyMOD_INIT_FUNC(TechDrawGui)
     }
     PyObject* mod = TechDrawGui::initModule();
 
-    Base::Console().Log("Loading TechDrawGui module... done\n");
+    Base::Console().log("Loading TechDrawGui module… done\n");
 
     // instantiating the commands
     CreateTechDrawCommands();
@@ -131,6 +131,7 @@ PyMOD_INIT_FUNC(TechDrawGui)
     CreateTechDrawCommandsExtensions();
     CreateTechDrawCommandsDims();
     CreateTechDrawCommandsStack();
+    CreateTechDrawCommandsAlign();
 
     TechDrawGui::Workbench::init();
     TechDrawGui::MDIViewPage::init();

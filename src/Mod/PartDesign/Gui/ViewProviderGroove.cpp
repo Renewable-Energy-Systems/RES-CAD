@@ -43,11 +43,11 @@ ViewProviderGroove::~ViewProviderGroove() = default;
 
 void ViewProviderGroove::setupContextMenu(QMenu* menu, QObject* receiver, const char* member)
 {
-    addDefaultAction(menu, QObject::tr("Edit groove"));
+    addDefaultAction(menu, QObject::tr("Edit Groove"));
     PartDesignGui::ViewProviderSketchBased::setupContextMenu(menu, receiver, member);
 }
 
 TaskDlgFeatureParameters *ViewProviderGroove::getEditDialog()
 {
-    return new TaskDlgRevolutionParameters( this );
+    return new TaskDlgGrooveParameters( this );
 }

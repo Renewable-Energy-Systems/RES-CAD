@@ -24,9 +24,16 @@
 
 #ifndef _PreComp_
 #include <boost/tokenizer.hpp>
+#include <boost/regex.hpp>
 #include <deque>
 #include <memory>
 #include <sstream>
+#include <tuple>
+#include <list>
+#include <map>
+#include <string>
+#include <set>
+#include <vector>
 #endif
 
 #include <App/Application.h>
@@ -38,7 +45,6 @@
 #include <Base/FileInfo.h>
 #include <Base/Reader.h>
 #include <Base/Stream.h>
-#include <Base/Tools.h>
 
 #include "Sheet.h"
 #include "SheetObserver.h"
@@ -105,11 +111,23 @@ Sheet::Sheet()
 
 Sheet::~Sheet()
 {
-    clearAll();
+    try {
+        clearAll();
+    }
+    catch (...) {
+        // Don't let an exception propagate out of a destructor (calls terminate())
+        Base::Console().error(
+            "clearAll() resulted in an exception when deleting the spreadsheet : %s\n",
+            getNameInDocument());
+    }
 }
 
 /**
- * Clear all cells in the sheet.
+ * Clear all cells in the sheet.  These are implemented as dynamic
+ * properties, for example "A1" is added as a dynamic property. Since
+ * now users may add dynamic properties, we need to try to avoid
+ * removing those, too, so we check whether the dynamic property name
+ * is a valid cell address name before removing it.
  */
 
 void Sheet::clearAll()
@@ -119,18 +137,15 @@ void Sheet::clearAll()
     std::vector<std::string> propNames = props.getDynamicPropertyNames();
 
     for (const auto& propName : propNames) {
-        this->removeDynamicProperty(propName.c_str());
+        if (cells.isValidCellAddressName(propName.c_str())) {
+            this->removeDynamicProperty(propName.c_str());
+        }
     }
 
     propAddress.clear();
     cellErrors.clear();
     columnWidths.clear();
     rowHeights.clear();
-
-    for (auto& observer : observers) {
-        delete observer.second;
-    }
-    observers.clear();
 }
 
 // validate import/export parameters
@@ -324,17 +339,17 @@ bool Sheet::exportToFile(const std::string& filename,
 
         std::stringstream field;
 
-        if (prop->isDerivedFrom((PropertyQuantity::getClassTypeId()))) {
-            field << static_cast<PropertyQuantity*>(prop)->getValue();
+        if (auto p = freecad_cast<PropertyQuantity*>(prop)) {
+            field << p->getValue();
         }
-        else if (prop->isDerivedFrom((PropertyFloat::getClassTypeId()))) {
-            field << static_cast<PropertyFloat*>(prop)->getValue();
+        else if (auto p = freecad_cast<PropertyFloat*>(prop)) {
+            field << p->getValue();
         }
-        else if (prop->isDerivedFrom((PropertyInteger::getClassTypeId()))) {
-            field << static_cast<PropertyInteger*>(prop)->getValue();
+        else if (auto p = freecad_cast<PropertyInteger*>(prop)) {
+            field << p->getValue();
         }
-        else if (prop->isDerivedFrom((PropertyString::getClassTypeId()))) {
-            field << static_cast<PropertyString*>(prop)->getValue();
+        else if (auto p = freecad_cast<PropertyString*>(prop)) {
+            field << p->getValue();
         }
         else {
             assert(0);
@@ -342,7 +357,8 @@ bool Sheet::exportToFile(const std::string& filename,
 
         std::string str = field.str();
 
-        if (quoteChar && str.find(quoteChar) != std::string::npos) {
+        if (quoteChar
+            && str.find_first_of(std::string(quoteChar, delimiter)) != std::string::npos) {
             writeEscaped(str, quoteChar, escapeChar, file);
         }
         else {
@@ -567,12 +583,12 @@ Property* Sheet::setFloatProperty(CellAddress key, double value)
     Property* prop = props.getDynamicPropertyByName(name.c_str());
     PropertyFloat* floatProp;
 
-    if (!prop || prop->getTypeId() != PropertyFloat::getClassTypeId()) {
+    if (!prop || !prop->is<PropertyFloat>()) {
         if (prop) {
             this->removeDynamicProperty(name.c_str());
             propAddress.erase(prop);
         }
-        floatProp = freecad_dynamic_cast<PropertyFloat>(
+        floatProp = freecad_cast<PropertyFloat*>(
             addDynamicProperty("App::PropertyFloat",
                                name.c_str(),
                                nullptr,
@@ -595,12 +611,12 @@ Property* Sheet::setIntegerProperty(CellAddress key, long value)
     Property* prop = props.getDynamicPropertyByName(name.c_str());
     PropertyInteger* intProp;
 
-    if (!prop || prop->getTypeId() != PropertyInteger::getClassTypeId()) {
+    if (!prop || !prop->is<PropertyInteger>()) {
         if (prop) {
             this->removeDynamicProperty(name.c_str());
             propAddress.erase(prop);
         }
-        intProp = freecad_dynamic_cast<PropertyInteger>(
+        intProp = freecad_cast<PropertyInteger*>(
             addDynamicProperty("App::PropertyInteger",
                                name.c_str(),
                                nullptr,
@@ -635,7 +651,7 @@ Property* Sheet::setQuantityProperty(CellAddress key, double value, const Base::
     Property* prop = props.getDynamicPropertyByName(name.c_str());
     PropertySpreadsheetQuantity* quantityProp;
 
-    if (!prop || prop->getTypeId() != PropertySpreadsheetQuantity::getClassTypeId()) {
+    if (!prop || !prop->is<PropertySpreadsheetQuantity>()) {
         if (prop) {
             this->removeDynamicProperty(name.c_str());
             propAddress.erase(prop);
@@ -645,7 +661,7 @@ Property* Sheet::setQuantityProperty(CellAddress key, double value, const Base::
                                          nullptr,
                                          nullptr,
                                          Prop_ReadOnly | Prop_Hidden | Prop_NoPersist);
-        quantityProp = freecad_dynamic_cast<PropertySpreadsheetQuantity>(p);
+        quantityProp = freecad_cast<PropertySpreadsheetQuantity*>(p);
     }
     else {
         quantityProp = static_cast<PropertySpreadsheetQuantity*>(prop);
@@ -674,14 +690,14 @@ Property* Sheet::setStringProperty(CellAddress key, const std::string& value)
 {
     std::string name = key.toString(CellAddress::Cell::ShowRowColumn);
     Property* prop = props.getDynamicPropertyByName(name.c_str());
-    PropertyString* stringProp = freecad_dynamic_cast<PropertyString>(prop);
+    PropertyString* stringProp = freecad_cast<PropertyString*>(prop);
 
     if (!stringProp) {
         if (prop) {
             this->removeDynamicProperty(name.c_str());
             propAddress.erase(prop);
         }
-        stringProp = freecad_dynamic_cast<PropertyString>(
+        stringProp = freecad_cast<PropertyString*>(
             addDynamicProperty("App::PropertyString",
                                name.c_str(),
                                nullptr,
@@ -699,14 +715,14 @@ Property* Sheet::setObjectProperty(CellAddress key, Py::Object object)
 {
     std::string name = key.toString(CellAddress::Cell::ShowRowColumn);
     Property* prop = props.getDynamicPropertyByName(name.c_str());
-    PropertyPythonObject* pyProp = freecad_dynamic_cast<PropertyPythonObject>(prop);
+    PropertyPythonObject* pyProp = freecad_cast<PropertyPythonObject*>(prop);
 
     if (!pyProp) {
         if (prop) {
             this->removeDynamicProperty(name.c_str());
             propAddress.erase(prop);
         }
-        pyProp = freecad_dynamic_cast<PropertyPythonObject>(
+        pyProp = freecad_cast<PropertyPythonObject*>(
             addDynamicProperty("App::PropertyPythonObject",
                                name.c_str(),
                                nullptr,
@@ -773,15 +789,15 @@ void Sheet::updateProperty(CellAddress key)
 
         /* Eval returns either NumberExpression or StringExpression, or
          * PyObjectExpression objects */
-        auto number = freecad_dynamic_cast<NumberExpression>(output.get());
+        auto number = freecad_cast<NumberExpression*>(output.get());
         if (number) {
             long l;
-            auto constant = freecad_dynamic_cast<ConstantExpression>(output.get());
+            auto constant = freecad_cast<ConstantExpression*>(output.get());
             if (constant && !constant->isNumber()) {
                 Base::PyGILStateLocker lock;
                 setObjectProperty(key, constant->getPyValue());
             }
-            else if (!number->getUnit().isEmpty()) {
+            else if (number->getUnit() != Unit::One) {
                 setQuantityProperty(key, number->getValue(), number->getUnit());
             }
             else if (number->isInteger(&l)) {
@@ -792,13 +808,13 @@ void Sheet::updateProperty(CellAddress key)
             }
         }
         else {
-            auto str_expr = freecad_dynamic_cast<StringExpression>(output.get());
+            auto str_expr = freecad_cast<StringExpression*>(output.get());
             if (str_expr) {
                 setStringProperty(key, str_expr->getText().c_str());
             }
             else {
                 Base::PyGILStateLocker lock;
-                auto py_expr = freecad_dynamic_cast<PyObjectExpression>(output.get());
+                auto py_expr = freecad_cast<PyObjectExpression*>(output.get());
                 if (py_expr) {
                     setObjectProperty(key, py_expr->getPyValue());
                 }
@@ -866,6 +882,17 @@ void Sheet::getPropertyNamedList(std::vector<std::pair<const char*, Property*>>&
     }
 }
 
+void Sheet::visitProperties(const std::function<void(App::Property*)>& visitor) const
+{
+    DocumentObject::visitProperties(visitor);
+    for (const auto& v : cells.aliasProp) {
+        auto prop = getProperty(v.first);
+        if (prop != nullptr) {
+            visitor(prop);
+        }
+    };
+}
+
 void Sheet::touchCells(Range range)
 {
     do {
@@ -904,21 +931,21 @@ void Sheet::recomputeCell(CellAddress p)
         }
     }
     catch (const Base::Exception& e) {
-        QString msg = QString::fromUtf8("ERR: %1").arg(QString::fromUtf8(e.what()));
+        QString msg = QStringLiteral("ERR: %1").arg(QString::fromUtf8(e.what()));
 
-        setStringProperty(p, Base::Tools::toStdString(msg));
+        setStringProperty(p, msg.toStdString());
         if (cell) {
             cell->setException(e.what());
         }
         else {
-            e.ReportException();
+            e.reportException();
         }
 
         // Mark as erroneous
         cellErrors.insert(p);
         cellUpdated(p);
 
-        if (e.isDerivedFrom(Base::AbortException::getClassTypeId())) {
+        if (e.isDerivedFrom<Base::AbortException>()) {
             throw;
         }
     }
@@ -1127,8 +1154,8 @@ DocumentObjectExecReturn* Sheet::execute()
             }
             catch (std::exception&) {  // TODO: evaluate using a more specific exception (not_a_dag)
                 // Cycle detected; flag all with errors
-                Base::Console().Error("Cyclic dependency detected in spreadsheet : %s\n",
-                                      *pcNameInDocument);
+                Base::Console().error("Cyclic dependency detected in spreadsheet : %s\n",
+                                      getNameInDocument());
                 std::ostringstream ss;
                 ss << "Cyclic dependency";
                 int count = 0;
@@ -1629,33 +1656,6 @@ void Sheet::onDocumentRestored()
     }
 }
 
-/**
- * @brief Create a document observer for this sheet. Used to track changes.
- * @param document document to observer.
- */
-
-void Sheet::observeDocument(Document* document)
-{
-    // observer is no longer required as PropertySheet is now derived from
-    // PropertyLinkBase and will handle all the link related behavior
-#if 1
-    (void)document;
-#else
-    ObserverMap::const_iterator it = observers.find(document->getName());
-
-    if (it != observers.end()) {
-        // An observer already exists, increase reference counter for it
-        it->second->ref();
-    }
-    else {
-        // Create a new observer
-        SheetObserver* observer = new SheetObserver(document, &cells);
-
-        observers[document->getName()] = observer;
-    }
-#endif
-}
-
 void Sheet::renameObjectIdentifiers(const std::map<ObjectIdentifier, ObjectIdentifier>& paths)
 {
     DocumentObject::renameObjectIdentifiers(paths);
@@ -1785,7 +1785,7 @@ PROPERTY_SOURCE_TEMPLATE(Spreadsheet::SheetPython, Spreadsheet::Sheet)
 template<>
 const char* Spreadsheet::SheetPython::getViewProviderName() const
 {
-    return "SpreadsheetGui::ViewProviderSheet";
+    return "SpreadsheetGui::ViewProviderSheetPython";
 }
 template<>
 PyObject* Spreadsheet::SheetPython::getPyObject()

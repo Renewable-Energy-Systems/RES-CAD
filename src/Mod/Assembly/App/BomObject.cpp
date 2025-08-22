@@ -39,6 +39,7 @@
 #include <Base/Rotation.h>
 #include <Base/Tools.h>
 #include <Base/Interpreter.h>
+#include <QObject>
 
 #include <Mod/Part/App/PartFeature.h>
 #include <Mod/PartDesign/App/Body.h>
@@ -46,9 +47,6 @@
 
 
 #include "AssemblyObject.h"
-#include "BomGroup.h"
-#include "JointGroup.h"
-#include "ViewGroup.h"
 #include "BomObject.h"
 #include "BomObjectPy.h"
 
@@ -122,7 +120,7 @@ void BomObject::saveCustomColumnData()
             std::string columnName = getText(0, i);
             if (columnName != "Index" && columnName != "Name" && columnName != "Quantity"
                 && columnName != "File Name") {
-                // Base::Console().Warning("row col %d %d\n", row, col);
+                // Base::Console().warning("row col %d %d\n", row, col);
                 //  save custom data if any.
                 std::string text = getText(row, col);
                 if (text != "") {
@@ -141,6 +139,7 @@ void BomObject::generateBOM()
 {
     saveCustomColumnData();
     clearAll();
+    obj_list.clear();
     size_t row = 0;
     size_t col = 0;
 
@@ -164,11 +163,10 @@ void BomObject::addObjectChildrenToBom(std::vector<App::DocumentObject*> objs,
                                        size_t& row,
                                        std::string index)
 {
-    int nameColIndex = getColumnIndex("Name");
     int quantityColIndex = getColumnIndex("Quantity");
     bool hasQuantityCol = hasQuantityColumn();
 
-    int siblingsInitialRow = row;
+    size_t siblingsInitialRow = row;
 
     if (index != "") {
         index = index + ".";
@@ -177,24 +175,30 @@ void BomObject::addObjectChildrenToBom(std::vector<App::DocumentObject*> objs,
     size_t sub_i = 1;
 
     for (auto* child : objs) {
+        if (!child) {
+            continue;
+        }
         if (child->isDerivedFrom<App::Link>()) {
             child = static_cast<App::Link*>(child)->getLinkedObject();
+            if (!child) {
+                continue;
+            }
         }
 
-        if (child->isDerivedFrom<BomGroup>() || child->isDerivedFrom<JointGroup>()
-            || child->isDerivedFrom<ViewGroup>()) {
+        if (!child->isDerivedFrom<AssemblyObject>() && !child->isDerivedFrom<App::Part>()
+            && !(child->isDerivedFrom<Part::Feature>() && !onlyParts.getValue())) {
             continue;
         }
 
-        if (hasQuantityCol) {
+        if (hasQuantityCol && row != siblingsInitialRow) {
             // Check if the object is not already in (case of links). And if so just increment.
             // Note: an object can be used in several parts. In which case we do no want to blindly
             // increment.
             bool found = false;
             for (size_t i = siblingsInitialRow; i <= row; ++i) {
-                std::string childName = child->Label.getValue();
+                size_t idInList = i - 1;  // -1 for the header
+                if (idInList < obj_list.size() && child == obj_list[idInList]) {
 
-                if (childName == getText(i, nameColIndex) && childName != "") {
                     int qty = std::stoi(getText(i, quantityColIndex)) + 1;
                     setCell(App::CellAddress(i, quantityColIndex), std::to_string(qty).c_str());
                     found = true;
@@ -206,31 +210,26 @@ void BomObject::addObjectChildrenToBom(std::vector<App::DocumentObject*> objs,
             }
         }
 
-        if (child->isDerivedFrom<App::DocumentObjectGroup>()
-            || child->isDerivedFrom<AssemblyObject>() || child->isDerivedFrom<App::Part>()
-            || (child->isDerivedFrom<Part::Feature>() && !onlyParts.getValue())) {
+        std::string sub_index = index + std::to_string(sub_i);
+        ++sub_i;
 
-            std::string sub_index = index + std::to_string(sub_i);
-            ++sub_i;
+        addObjectToBom(child, row, sub_index);
+        ++row;
 
-            addObjectToBom(child, row, sub_index);
-            ++row;
-
-            if (child->isDerivedFrom<App::DocumentObjectGroup>()
-                || (child->isDerivedFrom<AssemblyObject>() && detailSubAssemblies.getValue())
-                || (child->isDerivedFrom<App::Part>() && detailParts.getValue())) {
-                addObjectChildrenToBom(child->getOutList(), row, sub_index);
-            }
+        if ((child->isDerivedFrom<AssemblyObject>() && detailSubAssemblies.getValue())
+            || (child->isDerivedFrom<App::Part>() && detailParts.getValue())) {
+            addObjectChildrenToBom(child->getOutList(), row, sub_index);
         }
     }
 }
 
 void BomObject::addObjectToBom(App::DocumentObject* obj, size_t row, std::string index)
 {
+    obj_list.push_back(obj);
     size_t col = 0;
     for (auto& columnName : columnsNames.getValues()) {
         if (columnName == "Index") {
-            setCell(App::CellAddress(row, col), index.c_str());
+            setCell(App::CellAddress(row, col), (std::string("'") + index).c_str());
         }
         else if (columnName == "Name") {
             setCell(App::CellAddress(row, col), obj->Label.getValue());
@@ -240,6 +239,16 @@ void BomObject::addObjectToBom(App::DocumentObject* obj, size_t row, std::string
         }
         else if (columnName == "Quantity") {
             setCell(App::CellAddress(row, col), std::to_string(1).c_str());
+        }
+        else if (columnName.starts_with(".")) {
+            // Column names that start with a dot are considered property names
+            // Extract the property name
+            std::string baseName = columnName.substr(1);
+
+            auto propertyValue = getBomPropertyValue(obj, baseName);
+            if (!propertyValue.empty()) {
+                setCell(App::CellAddress(row, col), propertyValue.c_str());
+            }
         }
         else {
             // load custom data if any.
@@ -252,6 +261,39 @@ void BomObject::addObjectToBom(App::DocumentObject* obj, size_t row, std::string
         }
         ++col;
     }
+}
+
+std::string BomObject::getBomPropertyValue(App::DocumentObject* obj, const std::string& baseName)
+{
+    App::Property* prop = obj->getPropertyByName(baseName.c_str());
+
+    if (!prop) {
+        Base::Console().warning("Property not found: %s\n", baseName.c_str());
+        return QObject::tr("N/A").toStdString();
+    }
+
+    // Only support a subset of property types for BOM
+    if (auto propStr = freecad_cast<App::PropertyString*>(prop)) {
+        return propStr->getValue();
+    }
+    else if (auto propQuantity = freecad_cast<App::PropertyQuantity*>(prop)) {
+        return propQuantity->getQuantityValue().getUserString();
+    }
+    else if (auto propEnum = freecad_cast<App::PropertyEnumeration*>(prop)) {
+        return propEnum->getValueAsString();
+    }
+    else if (auto propFloat = freecad_cast<App::PropertyFloat*>(prop)) {
+        return std::to_string(propFloat->getValue());
+    }
+    else if (auto propInt = freecad_cast<App::PropertyInteger*>(prop)) {
+        return std::to_string(propInt->getValue());
+    }
+    else if (auto propBool = freecad_cast<App::PropertyBool*>(prop)) {
+        return propBool->getValue() ? "True" : "False";
+    }
+
+    Base::Console().warning("Property type not supported for: %s\n", prop->getName());
+    return QObject::tr("Not supported").toStdString();
 }
 
 AssemblyObject* BomObject::getAssembly()
@@ -281,7 +323,7 @@ std::string Assembly::BomObject::getText(size_t row, size_t col)
     if (cell) {
         cell->getStringContent(cellName);
 
-        // getStringContent is addind a ' before the string for whatever reason.
+        // getStringContent is adding a ' before the string for whatever reason.
         if (!cellName.empty() && cellName.front() == '\'') {
             cellName.erase(0, 1);  // Remove the first character if it's a '
         }

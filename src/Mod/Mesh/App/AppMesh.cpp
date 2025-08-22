@@ -23,6 +23,7 @@
 #include "PreCompiled.h"
 
 #include <App/Application.h>
+#include <App/MeasureManager.h>
 #include <Base/Console.h>
 #include <Base/Interpreter.h>
 
@@ -53,7 +54,7 @@ extern PyObject* initModule();
 PyMOD_INIT_FUNC(Mesh)
 {
     PyObject* meshModule = Mesh::initModule();
-    Base::Console().Log("Loading Mesh module... done\n");
+    Base::Console().log("Loading Mesh module... done\n");
 
     // NOTE: To finish the initialization of our own type objects we must
     // call PyType_Ready, otherwise we run into a segmentation fault, later on.
@@ -72,6 +73,11 @@ PyMOD_INIT_FUNC(Mesh)
     Base::Interpreter().addType(&Mesh::MeshFeaturePy::Type,meshModule,"Feature");
 
     Mesh::Extension3MFFactory::addProducer(new Mesh::GuiExtension3MFProducer);
+
+    // This registration is sufficient to allow one to measure free distances with a mesh
+    App::MeasureManager::addMeasureHandler("Mesh", [](App::DocumentObject*, const char*) {
+        return App::MeasureElementType::INVALID;
+    });
 
     // init Type system
     Mesh::PropertyNormalList    ::init();

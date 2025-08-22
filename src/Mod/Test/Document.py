@@ -22,7 +22,9 @@
 # ***************************************************************************/
 
 import FreeCAD, os, unittest, tempfile
+from FreeCAD import Base
 import math
+import xml.etree.ElementTree as ET
 
 # ---------------------------------------------------------------------------
 # define the functions to test the FreeCAD Document code
@@ -42,6 +44,16 @@ class Proxy:
         self.Dictionary = data
 
 
+class MyFeature:
+    def __init__(self, obj):
+        obj.Proxy = self
+        obj.addProperty("App::PropertyLinkList", "propLink")
+
+    def onDocumentRestored(self, obj):
+        if hasattr(obj, "propLink"):
+            obj.removeProperty("propLink")
+
+
 class DocumentBasicCases(unittest.TestCase):
     def setUp(self):
         self.Doc = FreeCAD.newDocument("CreateTest")
@@ -53,6 +65,15 @@ class DocumentBasicCases(unittest.TestCase):
         FreeCAD.closeDocument("CreateTest")
         self.Doc = FreeCAD.open(SaveName)
         return self.Doc
+
+    def testIssue18601(self):
+        lnk = self.Doc.addObject("App::FeaturePython", "MyLink")
+        obj = self.Doc.addObject("App::FeaturePython", "MyFeature")
+        fea = MyFeature(obj)
+        obj.propLink = [lnk]
+        doc = self.saveAndRestore()
+        FreeCAD.closeDocument(doc.Name)
+        self.Doc = FreeCAD.newDocument("CreateTest")
 
     def testAccessByNameOrID(self):
         obj = self.Doc.addObject("App::DocumentObject", "MyName")
@@ -166,8 +187,6 @@ class DocumentBasicCases(unittest.TestCase):
         self.assertTrue(L1.Float - 47.11 < 0.001)
         self.assertTrue(L1.Bool == True)
         self.assertTrue(L1.String == "4711")
-        # temporarily not checked because of strange behavior of boost::filesystem JR
-        # self.assertTrue(L1.Path  == "c:/temp")
         self.assertTrue(float(L1.Angle) - 3.0 < 0.001)
         self.assertTrue(float(L1.Distance) - 47.11 < 0.001)
 
@@ -412,7 +431,7 @@ class DocumentBasicCases(unittest.TestCase):
 
         # test if the method override works
         class SpecialGroup:
-            def allowObject(self, obj):
+            def allowObject(self, ext, obj):
                 return False
 
         callback = SpecialGroup()
@@ -425,7 +444,7 @@ class DocumentBasicCases(unittest.TestCase):
             grp2.addObject(obj)
             self.assertTrue(len(grp2.Group) == 0)
         except Exception:
-            self.assertTrue(True)
+            self.assertTrue(False)
 
         self.Doc.removeObject(grp.Name)
         self.Doc.removeObject(grp2.Name)
@@ -635,9 +654,65 @@ class DocumentBasicCases(unittest.TestCase):
 
         self.assertEqual(obj.Dictionary, {"Stored data": [3, 5, 7]})
 
+    def testContent(self):
+        test = self.Doc.addObject("App::FeaturePython", "Python")
+        types = Base.TypeId.getAllDerivedFrom("App::Property")
+        for type in types:
+            try:
+                test.addProperty(type.Name, type.Name.replace(":", "_"))
+                print("Add property type: {}".format(type.Name))
+            except Exception as e:
+                pass
+        root = ET.fromstring(test.Content)
+        self.assertEqual(root.tag, "Properties")
+
     def tearDown(self):
         # closing doc
         FreeCAD.closeDocument("CreateTest")
+
+
+class DocumentImportCases(unittest.TestCase):
+    def testDXFImportCPPIssue20195(self):
+        if "BUILD_DRAFT" in FreeCAD.__cmake__:
+            import importDXF
+            from draftutils import params
+
+            # Set options, doing our best to restore them:
+            wasShowDialog = params.get_param("dxfShowDialog")
+            wasUseLayers = params.get_param("dxfUseDraftVisGroups")
+            wasUseLegacyImporter = params.get_param("dxfUseLegacyImporter")
+            wasCreatePart = params.get_param("dxfCreatePart")
+            wasCreateDraft = params.get_param("dxfCreateDraft")
+            wasCreateSketch = params.get_param("dxfCreateSketch")
+
+            try:
+                # disable Preferences dialog in gui mode (avoids popup prompt to user)
+                params.set_param("dxfShowDialog", False)
+                # Preserve the DXF layers (makes the checking of document contents easier)
+                params.set_param("dxfUseDraftVisGroups", True)
+                # Use the new C++ importer -- that's where the bug was
+                params.set_param("dxfUseLegacyImporter", False)
+                # create simple part shapes (3 params)
+                # This is required to display the bug because creation of Draft objects clears out the
+                # pending exception this test is looking for, whereas creation of the simple shape object
+                # actually throws on the pending exception so the entity is absent from the document.
+                params.set_param("dxfCreatePart", True)
+                params.set_param("dxfCreateDraft", False)
+                params.set_param("dxfCreateSketch", False)
+                importDXF.insert(
+                    FreeCAD.getHomePath() + "Mod/Test/TestData/DXFSample.dxf", "ImportedDocName"
+                )
+            finally:
+                params.set_param("dxfShowDialog", wasShowDialog)
+                params.set_param("dxfUseDraftVisGroups", wasUseLayers)
+                params.set_param("dxfUseLegacyImporter", wasUseLegacyImporter)
+                params.set_param("dxfCreatePart", wasCreatePart)
+                params.set_param("dxfCreateDraft", wasCreateDraft)
+                params.set_param("dxfCreateSketch", wasCreateSketch)
+            doc = FreeCAD.getDocument("ImportedDocName")
+            # This doc should have 3 objects: The Layers container, the DXF layer called 0, and one Line
+            self.assertEqual(len(doc.Objects), 3)
+            FreeCAD.closeDocument("ImportedDocName")
 
 
 # class must be defined in global scope to allow it to be reloaded on document open
@@ -646,7 +721,7 @@ class SaveRestoreSpecialGroup:
         obj.addExtension("App::GroupExtensionPython")
         obj.Proxy = self
 
-    def allowObject(self, obj):
+    def allowObject(self, ext, obj):
         return False
 
 
@@ -1437,11 +1512,11 @@ class DocumentPlatformCases(unittest.TestCase):
         self.assertTrue(abs(self.Doc.Test.ColourList[0][0] - 1.0) < 0.01)
         self.assertTrue(abs(self.Doc.Test.ColourList[0][1] - 0.5) < 0.01)
         self.assertTrue(abs(self.Doc.Test.ColourList[0][2] - 0.0) < 0.01)
-        self.assertTrue(abs(self.Doc.Test.ColourList[0][3] - 0.0) < 0.01)
+        self.assertTrue(abs(self.Doc.Test.ColourList[0][3] - 1.0) < 0.01)
         self.assertTrue(abs(self.Doc.Test.ColourList[1][0] - 0.0) < 0.01)
         self.assertTrue(abs(self.Doc.Test.ColourList[1][1] - 0.5) < 0.01)
         self.assertTrue(abs(self.Doc.Test.ColourList[1][2] - 1.0) < 0.01)
-        self.assertTrue(abs(self.Doc.Test.ColourList[1][3] - 0.0) < 0.01)
+        self.assertTrue(abs(self.Doc.Test.ColourList[1][3] - 1.0) < 0.01)
 
     def testVectorList(self):
         self.Doc.Test.VectorList = [(-0.05, 2.5, 5.2), (-0.05, 2.5, 5.2)]
@@ -2078,7 +2153,7 @@ class DocumentObserverCases(unittest.TestCase):
         FreeCAD.closeDocument(self.Doc2.Name)
         self.assertEqual(self.Obs.signal.pop(), "DocDeleted")
         self.assertTrue(self.Obs.parameter.pop() is self.Doc2)
-        if FreeCAD.GuiUp:
+        if FreeCAD.GuiUp and not FreeCAD.Gui.HasQtBug_129596:
             # only has document activated signal when running in GUI mode
             self.assertEqual(self.Obs.signal.pop(), "DocActivated")
             self.assertTrue(self.Obs.parameter.pop() is self.Doc1)
@@ -2589,3 +2664,46 @@ class FeatureTestAttribute(unittest.TestCase):
 
     def tearDown(self):
         FreeCAD.closeDocument("TestAttribute")
+
+
+class DocumentAutoCreatedCases(unittest.TestCase):
+    def setUp(self):
+        self.doc = FreeCAD.newDocument("TestDoc")
+
+    def tearDown(self):
+        for doc_name in FreeCAD.listDocuments().keys():
+            FreeCAD.closeDocument(doc_name)
+
+    def test_set_get_auto_created(self):
+        self.doc.setAutoCreated(True)
+        self.assertTrue(self.doc.isAutoCreated(), "autoCreated flag should be True")
+
+        self.doc.setAutoCreated(False)
+        self.assertFalse(self.doc.isAutoCreated(), "autoCreated flag should be False")
+
+    def test_auto_created_document_closes_on_opening_existing_document(self):
+        self.doc.setAutoCreated(True)
+        self.assertEqual(len(self.doc.Objects), 0)
+        saved_doc = FreeCAD.newDocument("SavedDoc")
+        file_path = tempfile.gettempdir() + os.sep + "SavedDoc.FCStd"
+        saved_doc.saveAs(file_path)
+        FreeCAD.closeDocument("SavedDoc")
+        FreeCAD.setActiveDocument("TestDoc")
+        FreeCAD.open(file_path)
+        if self.doc.isAutoCreated() and len(self.doc.Objects) == 0:
+            FreeCAD.closeDocument("TestDoc")
+        self.assertNotIn("TestDoc", FreeCAD.listDocuments())
+
+    def test_manual_document_does_not_close_on_opening_existing_document(self):
+        self.assertFalse(self.doc.isAutoCreated())
+        self.assertEqual(len(self.doc.Objects), 0)
+        saved_doc = FreeCAD.newDocument("SavedDoc")
+        file_path = tempfile.gettempdir() + os.sep + "SavedDoc.FCStd"
+        saved_doc.saveAs(file_path)
+        FreeCAD.closeDocument("SavedDoc")
+        FreeCAD.setActiveDocument("TestDoc")
+        FreeCAD.open(file_path)
+        if self.doc.isAutoCreated() and len(self.doc.Objects) == 0:
+            FreeCAD.closeDocument("TestDoc")
+        self.assertIn("TestDoc", FreeCAD.listDocuments())
+        self.assertIn("SavedDoc", FreeCAD.listDocuments())

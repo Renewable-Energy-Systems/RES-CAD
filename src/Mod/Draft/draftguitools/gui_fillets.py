@@ -39,11 +39,11 @@ from PySide.QtCore import QT_TRANSLATE_NOOP
 import FreeCADGui as Gui
 import Draft
 import Draft_rc
-import draftutils.utils as utils
-import draftguitools.gui_base_original as gui_base_original
-import draftguitools.gui_tool_utils as gui_tool_utils
-
+from draftguitools import gui_base_original
+from draftguitools import gui_tool_utils
 from draftmake import make_fillet
+from draftutils import params
+from draftutils import utils
 from draftutils.messages import _err, _toolmsg
 from draftutils.translate import translate
 
@@ -55,26 +55,29 @@ class Fillet(gui_base_original.Creator):
     """Gui command for the Fillet tool."""
 
     def __init__(self):
-        super(Fillet, self).__init__()
+        super().__init__()
         self.featureName = "Fillet"
+
+    def IsActive(self):
+        """Return True when this command should be available."""
+        return bool(Gui.Selection.getSelection())
 
     def GetResources(self):
         """Set icon, menu and tooltip."""
-        return {'Pixmap': 'Draft_Fillet',
-                'Accel':'F,I',
-                'MenuText': QT_TRANSLATE_NOOP("Draft_Fillet", "Fillet"),
-                'ToolTip': QT_TRANSLATE_NOOP("Draft_Fillet", "Creates a fillet between two selected wires or edges.")}
+        return {"Pixmap": "Draft_Fillet",
+                "Accel": "F,I",
+                "MenuText": QT_TRANSLATE_NOOP("Draft_Fillet", "Fillet"),
+                "ToolTip": QT_TRANSLATE_NOOP("Draft_Fillet", "Creates a fillet between 2 selected edges")}
 
     def Activated(self, name="Fillet"):
         """Execute when the command is called."""
-        super(Fillet, self).Activated(name=name)
+        super().Activated(name=name)
 
         if self.ui:
-            self.rad = 100
-            self.chamfer = False
-            self.delete = False
+            self.chamfer = params.get_param("FilletChamferMode")
+            self.delete = params.get_param("FilletDeleteMode")
             label = translate("draft", "Fillet radius")
-            tooltip = translate("draft", "Radius of fillet")
+            tooltip = translate("draft", "Radius of the fillet")
 
             # Call the task panel defined in DraftGui to enter a radius.
             self.ui.taskUi(title=translate("Draft", "Fillet"), icon="Draft_Fillet")
@@ -82,7 +85,8 @@ class Fillet(gui_base_original.Creator):
             self.ui.sourceCmd = self
             self.ui.labelRadius.setText(label)
             self.ui.radiusValue.setToolTip(tooltip)
-            self.ui.setRadiusValue(self.rad, "Length")
+            self.ui.radius = params.get_param("FilletRadius")
+            self.ui.setRadiusValue(self.ui.radius, "Length")
             self.ui.check_delete = self.ui._checkbox("isdelete",
                                                      self.ui.layout,
                                                      checked=self.delete)
@@ -96,8 +100,12 @@ class Fillet(gui_base_original.Creator):
                                                     "Create chamfer"))
             self.ui.check_chamfer.show()
 
-            self.ui.check_delete.stateChanged.connect(self.set_delete)
-            self.ui.check_chamfer.stateChanged.connect(self.set_chamfer)
+            if hasattr(self.ui.check_delete, "checkStateChanged"): # Qt version >= 6.7.0
+                self.ui.check_delete.checkStateChanged.connect(self.set_delete)
+                self.ui.check_chamfer.checkStateChanged.connect(self.set_chamfer)
+            else: # Qt version < 6.7.0
+                self.ui.check_delete.stateChanged.connect(self.set_delete)
+                self.ui.check_chamfer.stateChanged.connect(self.set_chamfer)
 
             # TODO: somehow we need to set up the trackers
             # to show a preview of the fillet.
@@ -105,7 +113,7 @@ class Fillet(gui_base_original.Creator):
             # self.linetrack = trackers.lineTracker(dotted=True)
             # self.arctrack = trackers.arcTracker()
             # self.call = self.view.addEventCallback("SoEvent", self.action)
-            _toolmsg(translate("draft", "Enter radius."))
+            _toolmsg(translate("draft", "Enter radius"))
 
     def action(self, arg):
         """Scene event handler. CURRENTLY NOT USED.
@@ -124,51 +132,43 @@ class Fillet(gui_base_original.Creator):
     def set_delete(self):
         """Execute as a callback when the delete checkbox changes."""
         self.delete = self.ui.check_delete.isChecked()
+        params.set_param("FilletDeleteMode", self.delete)
 
     def set_chamfer(self):
         """Execute as a callback when the chamfer checkbox changes."""
         self.chamfer = self.ui.check_chamfer.isChecked()
+        params.set_param("FilletChamferMode", self.chamfer)
 
     def numericRadius(self, rad):
-        """Validate the entry radius in the user interface.
-
-        This function is called by the toolbar or taskpanel interface
-        when a valid radius has been entered in the input field.
+        """This function is called by the taskpanel interface
+        when a radius has been entered in the input field.
         """
-        self.rad = rad
+        params.set_param("FilletRadius", rad)
         self.draw_arc(rad, self.chamfer, self.delete)
 
     def draw_arc(self, rad, chamfer, delete):
         """Process the selection and draw the actual object."""
-        objs = Gui.Selection.getSelection()
-        edges = make_fillet._preprocess(objs, rad, chamfer)
+        sels = Gui.Selection.getSelectionEx("", 0)
+        edges, _ = make_fillet._preprocess(sels, rad, chamfer)
         if edges is None:
             _err(translate("draft", "Fillet cannot be created"))
+            self.finish()
             return
-
-        _doc = 'FreeCAD.ActiveDocument.'
-
-        _objs = '['
-        _objs += _doc + objs[0].Name + ', '
-        _objs += _doc + objs[1].Name
-        _objs += ']'
 
         Gui.addModule("Draft")
 
-        _cmd = 'Draft.make_fillet'
-        _cmd += '('
-        _cmd += _objs + ', '
-        _cmd += 'radius=' + str(rad)
+        cmd = "Draft.make_fillet(sels, radius=" + str(rad)
         if chamfer:
-            _cmd += ', chamfer=' + str(chamfer)
+            cmd += ", chamfer=True"
         if delete:
-            _cmd += ', delete=' + str(delete)
-        _cmd += ')'
-        _cmd_list = ['arc = ' + _cmd,
-                     'Draft.autogroup(arc)',
-                     'FreeCAD.ActiveDocument.recompute()']
+            cmd += ", delete=True"
+        cmd += ")"
+        cmd_list = ["sels = FreeCADGui.Selection.getSelectionEx('', 0)",
+                    "fillet = " + cmd,
+                    "Draft.autogroup(fillet)",
+                    "FreeCAD.ActiveDocument.recompute()"]
 
-        self.commit(translate("draft", "Create fillet"), _cmd_list)
+        self.commit(translate("draft", "Create Fillet"), cmd_list)
         self.finish()
 
 

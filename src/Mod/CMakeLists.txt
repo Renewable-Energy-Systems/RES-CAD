@@ -1,4 +1,8 @@
 if(BUILD_ADDONMGR)
+  if( NOT EXISTS "${CMAKE_SOURCE_DIR}/src/Mod/AddonManager/CMakeLists.txt" )
+    message(FATAL_ERROR "The Addon Manager has been moved into a git submodule. Please run
+    git submodule update --init" )
+  endif()
   add_subdirectory(AddonManager)
 endif(BUILD_ADDONMGR)
 
@@ -17,10 +21,6 @@ endif(BUILD_CLOUD)
 if(BUILD_DRAFT)
   add_subdirectory(Draft)
 endif(BUILD_DRAFT)
-
-if(BUILD_DRAWING)
-  add_subdirectory(Drawing)
-endif(BUILD_DRAWING)
 
 if(BUILD_FEM)
     add_subdirectory(Fem)
@@ -70,9 +70,9 @@ if(BUILD_PART_DESIGN)
   add_subdirectory(PartDesign)
 endif(BUILD_PART_DESIGN)
 
-if(BUILD_PATH)
+if(BUILD_CAM)
     add_subdirectory(CAM)
-endif(BUILD_PATH)
+endif(BUILD_CAM)
 
 if(BUILD_PLOT)
   add_subdirectory(Plot)

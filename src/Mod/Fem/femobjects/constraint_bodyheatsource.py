@@ -43,49 +43,67 @@ class ConstraintBodyHeatSource(base_fempythonobject.BaseFemPythonObject):
     Type = "Fem::ConstraintBodyHeatSource"
 
     def __init__(self, obj):
-        super(ConstraintBodyHeatSource, self).__init__(obj)
+        super().__init__(obj)
 
         for prop in self._get_properties():
             prop.add_to_object(obj)
 
-
     def _get_properties(self):
         prop = []
 
-        prop.append(_PropHelper(
-            type  = "App::PropertyDissipationRate",
-            name  = "DissipationRate",
-            group = "Constraint Body Heat Source",
-            doc   = "Power dissipated per unit mass",
-            value = "0 W/kg"
+        prop.append(
+            _PropHelper(
+                type="App::PropertyDissipationRate",
+                name="DissipationRate",
+                group="Constraint Body Heat Source",
+                doc="Power dissipated per unit mass",
+                value="0 W/kg",
             )
         )
-        prop.append(_PropHelper(
-            type  = "App::PropertyPower",
-            name  = "TotalPower",
-            group = "Constraint Body Heat Source",
-            doc   = "Total power dissipated",
-            value = "0 W"
+        prop.append(
+            _PropHelper(
+                type="App::PropertyPower",
+                name="TotalPower",
+                group="Constraint Body Heat Source",
+                doc="Total power dissipated",
+                value="0 W",
             )
         )
-        prop.append(_PropHelper(
-            type  = "App::PropertyEnumeration",
-            name  = "Mode",
-            group = "Constraint Body Heat Source",
-            doc   = "Switch quantity input mode",
-            value = ["Dissipation Rate", "Total Power"]
+        prop.append(
+            _PropHelper(
+                type="App::PropertyEnumeration",
+                name="Mode",
+                group="Constraint Body Heat Source",
+                doc="Switch quantity input mode",
+                value=["Dissipation Rate", "Total Power"],
             )
         )
-
+        prop.append(
+            _PropHelper(
+                type="App::PropertyBool",
+                name="EnableAmplitude",
+                group="Constraint Body Heat Source",
+                doc="Amplitude of the body heat source",
+                value=False,
+            )
+        )
+        prop.append(
+            _PropHelper(
+                type="App::PropertyStringList",
+                name="AmplitudeValues",
+                group="Constraint Body Heat Source",
+                doc="Amplitude values",
+                value=["0, 0", "1, 1"],
+            )
+        )
         return prop
-
 
     def onDocumentRestored(self, obj):
         # update old project with new properties
         for prop in self._get_properties():
             try:
                 obj.getPropertyByName(prop.name)
-            except:
+            except FreeCAD.Base.PropertyError:
                 prop.add_to_object(obj)
 
         # migrate old HeatSource property
@@ -95,5 +113,5 @@ class ConstraintBodyHeatSource(base_fempythonobject.BaseFemPythonObject):
             obj.Mode = "Dissipation Rate"
             obj.setPropertyStatus("HeatSource", "-LockDynamic")
             obj.removeProperty("HeatSource")
-        except:
+        except FreeCAD.Base.PropertyError:
             pass

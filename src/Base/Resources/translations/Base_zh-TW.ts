@@ -4,59 +4,54 @@
   <context>
     <name>UnitsApi</name>
     <message>
-      <location filename="../../UnitsApi.cpp" line="69"/>
+      <location filename="../../UnitsSchemasData.h" line="85"/>
       <source>Standard (mm, kg, s, °)</source>
-      <translation>標準單位(mm, kg, s, °)</translation>
+      <translation>標準（mm、kg、s、°）</translation>
     </message>
     <message>
-      <location filename="../../UnitsApi.cpp" line="71"/>
+      <location filename="../../UnitsSchemasData.h" line="315"/>
       <source>MKS (m, kg, s, °)</source>
-      <translation type="unfinished">MKS (m, kg, s, °)</translation>
+      <translation>MKS (m, kg, s, °)</translation>
     </message>
     <message>
-      <location filename="../../UnitsApi.cpp" line="73"/>
+      <location filename="../../UnitsSchemasData.h" line="579"/>
       <source>US customary (in, lb)</source>
-      <translation>美制單位(in, lb)</translation>
+      <translation>美制（in、lb）</translation>
     </message>
     <message>
-      <location filename="../../UnitsApi.cpp" line="75"/>
+      <location filename="../../UnitsSchemasData.h" line="70"/>
       <source>Imperial decimal (in, lb)</source>
-      <translation>英制(in, lb)</translation>
+      <translation>英制（in、lb）</translation>
     </message>
     <message>
-      <location filename="../../UnitsApi.cpp" line="77"/>
+      <location filename="../../UnitsSchemasData.h" line="540"/>
       <source>Building Euro (cm, m², m³)</source>
-      <translation type="unfinished">Building Euro (cm, m², m³)</translation>
+      <translation>歐洲建築（cm、m²、m³）</translation>
     </message>
     <message>
-      <location filename="../../UnitsApi.cpp" line="79"/>
+      <location filename="../../UnitsSchemasData.h" line="617"/>
       <source>Building US (ft-in, sqft, cft)</source>
-      <translation type="unfinished">Building US (ft-in, sqft, cft)</translation>
+      <translation>美國建築（ft-in、sqft、cft）</translation>
     </message>
     <message>
-      <location filename="../../UnitsApi.cpp" line="81"/>
-      <source>Metric small parts &amp; CNC(mm, mm/min)</source>
-      <translation type="unfinished">Metric small parts &amp; CNC(mm, mm/min)</translation>
+      <location filename="../../UnitsSchemasData.h" line="48"/>
+      <source>Metric small parts &amp; CNC (mm, mm/min)</source>
+      <translation>公制小零件 &amp; CNC (mm, mm/min)</translation>
     </message>
     <message>
-      <location filename="../../UnitsApi.cpp" line="83"/>
+      <location filename="../../UnitsSchemasData.h" line="628"/>
       <source>Imperial for Civil Eng (ft, ft/s)</source>
-      <translation type="unfinished">Imperial for Civil Eng (ft, ft/s)</translation>
+      <translation>英制土木工程（ft、ft/s）</translation>
     </message>
     <message>
-      <location filename="../../UnitsApi.cpp" line="85"/>
+      <location filename="../../UnitsSchemasData.h" line="567"/>
       <source>FEM (mm, N, s)</source>
-      <translation type="unfinished">FEM (mm, N, s)</translation>
+      <translation>FEM (mm, N, s)</translation>
     </message>
     <message>
-      <location filename="../../UnitsApi.cpp" line="87"/>
+      <location filename="../../UnitsSchemasData.h" line="57"/>
       <source>Meter decimal (m, m², m³)</source>
-      <translation type="unfinished">Meter decimal (m, m², m³)</translation>
-    </message>
-    <message>
-      <location filename="../../UnitsApi.cpp" line="89"/>
-      <source>Unknown schema</source>
-      <translation type="unfinished">Unknown schema</translation>
+      <translation>米十進制（m、m²、m³）</translation>
     </message>
   </context>
 </TS>

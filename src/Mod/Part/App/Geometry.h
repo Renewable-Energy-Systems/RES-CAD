@@ -58,6 +58,7 @@
 #include <list>
 #include <memory>
 #include <vector>
+#include <optional>
 
 #include <boost/uuid/uuid_generators.hpp>
 
@@ -209,8 +210,15 @@ public:
       The default implementation does the same as \ref toBSpline.
       In sub-classes this can be reimplemented to create a real
       NURBS curve and not just an approximation.
-     */
+    */
     virtual GeomBSplineCurve* toNurbs(double first, double last) const;
+    /*!
+     * \brief createArc Generates a curve that is an arc of this curve between given parameters
+     * \param first Parameter at start of arc
+     * \param last Parameter at end of arc. This may be < `first` for periodic curves.
+     * \return the new curve
+     */
+    virtual GeomCurve* createArc(double first, double last) const;
     bool tangent(double u, gp_Dir&) const;
     bool tangent(double u, Base::Vector3d& dir) const;
     Base::Vector3d pointAtParameter(double u) const;
@@ -293,6 +301,8 @@ public:
 
     ~GeomBSplineCurve() override;
     Geometry *copy() const override;
+
+    GeomCurve* createArc(double first, double last) const override;
 
    /*!
     * Interpolate a spline passing through the given points without tangency.
@@ -400,6 +410,7 @@ public:
      */
     Base::Vector3d getCenter() const;
     Base::Vector3d getLocation() const;
+    std::optional<Base::Rotation> getRotation() const;
     void setLocation(const Base::Vector3d& Center);
     /*!
      * \deprecated use setLocation
@@ -430,6 +441,7 @@ public:
     ~GeomTrimmedCurve() override;
     Geometry *copy() const override;
 
+    GeomCurve* createArc(double first, double last) const override;
     // Persistence implementer ---------------------
     unsigned int getMemSize() const override;
     void Save(Base::Writer &/*writer*/) const override;
@@ -514,6 +526,7 @@ public:
     ~GeomCircle() override;
     Geometry *copy() const override;
 
+    GeomCurve* createArc(double first, double last) const override;
     double getRadius() const;
     void setRadius(double Radius);
 
@@ -575,6 +588,7 @@ public:
     ~GeomEllipse() override;
     Geometry *copy() const override;
 
+    GeomCurve* createArc(double first, double last) const override;
     double getMajorRadius() const;
     void setMajorRadius(double Radius);
     double getMinorRadius() const;
@@ -641,7 +655,8 @@ public:
     GeomHyperbola();
     explicit GeomHyperbola(const Handle(Geom_Hyperbola)&);
     ~GeomHyperbola() override;
-    Geometry *copy() const override;
+    Geometry* copy() const override;
+    GeomCurve* createArc(double first, double last) const override;
 
     double getMajorRadius() const;
     void setMajorRadius(double Radius);
@@ -705,7 +720,8 @@ public:
     GeomParabola();
     explicit GeomParabola(const Handle(Geom_Parabola)&);
     ~GeomParabola() override;
-    Geometry *copy() const override;
+    Geometry* copy() const override;
+    GeomCurve* createArc(double first, double last) const override;
 
     double getFocal() const;
     void setFocal(double length);
@@ -868,9 +884,13 @@ public:
 
     GeomPlane *toPlane(bool clone=true, double tol=1e-7) const;
 
+    virtual std::optional<Base::Rotation> getRotation() const;
+
     bool tangentU(double u, double v, gp_Dir& dirU) const;
     bool tangentV(double u, double v, gp_Dir& dirV) const;
     bool normal(double u, double v, gp_Dir& dir) const;
+    std::optional<Base::Vector3d> point(double u, double v) const;
+
     /*!
       Computes the derivative of order Nu in the direction U and Nv
       in the direction V at the point P(U, V).
@@ -947,6 +967,7 @@ public:
     ~GeomElementarySurface() override;
 
     Base::Vector3d getLocation() const;
+
     Base::Vector3d getDir() const;
     Base::Vector3d getXDir() const;
     Base::Vector3d getYDir() const;
@@ -999,6 +1020,8 @@ public:
 
     double getRadius() const;
     double getSemiAngle() const;
+
+    Base::Vector3d getApex() const;
 
     bool isSame(const Geometry &other, double tol, double atol) const override;
 
@@ -1076,6 +1099,8 @@ public:
     explicit GeomPlane(const gp_Pln &pln);
     ~GeomPlane() override;
     Geometry *copy() const override;
+
+    std::optional<Base::Rotation> getRotation() const override;
 
     // Persistence implementer ---------------------
     unsigned int getMemSize() const override;
@@ -1256,8 +1281,11 @@ PartExport
 double suggestFilletRadius(const GeomLineSegment *lineSeg1, const GeomLineSegment *lineSeg2,
                            const Base::Vector3d &refPnt1, const Base::Vector3d &refPnt2);
 PartExport
-GeomArcOfCircle *createFilletGeometry(const GeomLineSegment *lineSeg1, const GeomLineSegment *lineSeg2,
+GeomArcOfCircle* create2LinesFilletGeometry(const GeomLineSegment *lineSeg1, const GeomLineSegment *lineSeg2,
                                       const Base::Vector3d &center, double radius);
+PartExport
+GeomArcOfCircle* createFilletGeometry(const Geometry* geo1, const Geometry* geo2, const Base::Vector3d& refPnt1,
+    const Base::Vector3d& refPnt2, double radius, int& pos1, int& pos2, bool& reverse);
 PartExport
 std::unique_ptr<GeomSurface> makeFromSurface(const Handle(Geom_Surface)&, bool silent=false);
 

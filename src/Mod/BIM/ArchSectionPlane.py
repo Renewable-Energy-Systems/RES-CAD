@@ -1,51 +1,26 @@
-#***************************************************************************
-#*   Copyright (c) 2011 Yorik van Havre <yorik@uncreated.net>              *
-#*                                                                         *
-#*   This program is free software; you can redistribute it and/or modify  *
-#*   it under the terms of the GNU Lesser General Public License (LGPL)    *
-#*   as published by the Free Software Foundation; either version 2 of     *
-#*   the License, or (at your option) any later version.                   *
-#*   for detail see the LICENCE text file.                                 *
-#*                                                                         *
-#*   This program is distributed in the hope that it will be useful,       *
-#*   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
-#*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
-#*   GNU Library General Public License for more details.                  *
-#*                                                                         *
-#*   You should have received a copy of the GNU Library General Public     *
-#*   License along with this program; if not, write to the Free Software   *
-#*   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  *
-#*   USA                                                                   *
-#*                                                                         *
-#***************************************************************************
+# SPDX-License-Identifier: LGPL-2.1-or-later
 
-import FreeCAD
-import math
-import Draft
-import ArchCommands
-import DraftVecUtils
-import ArchComponent
-import re
-import tempfile
-import uuid
-import time
-
-from FreeCAD import Vector
-from draftutils import params
-
-if FreeCAD.GuiUp:
-    import FreeCADGui
-    from PySide import QtCore, QtGui
-    from draftutils.translate import translate
-    from pivy import coin
-    from PySide.QtCore import QT_TRANSLATE_NOOP
-else:
-    # \cond
-    def translate(ctxt,txt):
-        return txt
-    def QT_TRANSLATE_NOOP(ctxt,txt):
-        return txt
-    # \endcond
+# ***************************************************************************
+# *                                                                         *
+# *   Copyright (c) 2011 Yorik van Havre <yorik@uncreated.net>              *
+# *                                                                         *
+# *   This file is part of FreeCAD.                                         *
+# *                                                                         *
+# *   FreeCAD is free software: you can redistribute it and/or modify it    *
+# *   under the terms of the GNU Lesser General Public License as           *
+# *   published by the Free Software Foundation, either version 2.1 of the  *
+# *   License, or (at your option) any later version.                       *
+# *                                                                         *
+# *   FreeCAD is distributed in the hope that it will be useful, but        *
+# *   WITHOUT ANY WARRANTY; without even the implied warranty of            *
+# *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU      *
+# *   Lesser General Public License for more details.                       *
+# *                                                                         *
+# *   You should have received a copy of the GNU Lesser General Public      *
+# *   License along with FreeCAD. If not, see                               *
+# *   <https://www.gnu.org/licenses/>.                                      *
+# *                                                                         *
+# ***************************************************************************
 
 ## @package ArchSectionPlane
 #  \ingroup ARCH
@@ -54,6 +29,35 @@ else:
 #  This module provides tools to build Section plane objects.
 #  It also contains functionality to produce SVG rendering of
 #  section planes, to be used in the TechDraw module
+
+import math
+import re
+import tempfile
+import time
+import uuid
+
+import FreeCAD
+import ArchCommands
+import ArchComponent
+import Draft
+import DraftVecUtils
+
+from FreeCAD import Vector
+from draftutils import params
+
+if FreeCAD.GuiUp:
+    from pivy import coin
+    from PySide import QtCore, QtGui
+    from PySide.QtCore import QT_TRANSLATE_NOOP
+    import FreeCADGui
+    from draftutils.translate import translate
+else:
+    # \cond
+    def translate(ctxt,txt):
+        return txt
+    def QT_TRANSLATE_NOOP(ctxt,txt):
+        return txt
+    # \endcond
 
 ISRENDERING = False # flag to prevent concurrent runs of the coin renderer
 
@@ -94,7 +98,8 @@ def getCutShapes(objs,cutplane,onlySolids,clip,joinArch,showHidden,groupSshapesB
     obtained from performing a series of booleans against the given cut plane
     """
 
-    import Part,DraftGeomUtils
+    import Part
+    import DraftGeomUtils
     shapes = []
     hshapes = []
     sshapes = []
@@ -364,7 +369,8 @@ def getSVG(source,
         if should_update_svg_cache:
             svgcache = ''
             # render using the Arch Vector Renderer
-            import ArchVRM, WorkingPlane
+            import ArchVRM
+            import WorkingPlane
             wp = WorkingPlane.PlaneBase()
             pl = FreeCAD.Placement(source.Placement)
             if source.ViewObject and hasattr(source.ViewObject,"CutMargin"):
@@ -416,7 +422,8 @@ def getSVG(source,
         if should_update_svg_cache:
             svgcache = ""
             # render using the TechDraw module
-            import TechDraw, Part
+            import TechDraw
+            import Part
             if vshapes:
                 baseshape = Part.makeCompound(vshapes)
                 style = {'stroke':       "SVGLINECOLOR",
@@ -560,7 +567,8 @@ def getDXF(obj):
     allOn = getattr(obj, "AllOn", True)
     showHidden = getattr(obj, "ShowHidden", False)
     result = []
-    import TechDraw, Part
+    import TechDraw
+    import Part
     if not obj.Source:
         return result
     source = obj.Source
@@ -569,7 +577,16 @@ def getDXF(obj):
         return result
     if not allOn:
             objs = Draft.removeHidden(objs)
-    objs = [o for o in objs if ((not(Draft.getType(o) in ["Space","Dimension","Annotation"])) and (not (o.isDerivedFrom("Part::Part2DObject"))))]
+    objs = [
+        obj
+        for obj in objs
+        if (
+            not obj.isDerivedFrom("Part::Part2DObject")
+            and Draft.getType(obj) not in [
+                "BezCurve", "BSpline", "Wire", "Annotation", "Dimension", "Space"
+            ]
+        )
+    ]
     vshapes,hshapes,sshapes,cutface,cutvolume,invcutvolume = getCutShapes(objs,cutplane,onlySolids,clip,False,showHidden)
     if vshapes:
         result.append(TechDraw.projectToDXF(Part.makeCompound(vshapes),direction))
@@ -734,7 +751,7 @@ def getCoinSVG(cutplane,objs,cameradata=None,linewidth=0.2,singleface=False,face
     wp.align_to_point_and_axis_svg(Vector(0,0,0),cutplane.normalAt(0,0),0)
     p = wp.get_local_coords(markervec)
     orlength = FreeCAD.Vector(p.x,p.y,0).Length
-    marker = re.findall("<line x1=.*?stroke=\"\#ffffff\".*?\/>",svg)
+    marker = re.findall(r"<line x1=.*?stroke=\"\#ffffff\".*?\/>",svg)
     if marker:
         marker = marker[0].split("\"")
         x1 = float(marker[1])
@@ -750,21 +767,21 @@ def getCoinSVG(cutplane,objs,cameradata=None,linewidth=0.2,singleface=False,face
             scaledp1 = FreeCAD.Vector(p1.x*factor,p1.y*factor,0)
             trans = orig.sub(scaledp1)
         # remove marker
-        svg = re.sub("<line x1=.*?stroke=\"\#ffffff\".*?\/>","",svg,count=1)
+        svg = re.sub(r"<line x1=.*?stroke=\"\#ffffff\".*?\/>","",svg,count=1)
 
     # remove background rectangle
-    svg = re.sub("<path.*?>","",svg,count=1,flags=re.MULTILINE|re.DOTALL)
+    svg = re.sub(r"<path.*?>","",svg,count=1,flags=re.MULTILINE|re.DOTALL)
 
     # set face color to white
     if facecolor:
-        res = re.findall("fill:(.*?); stroke:(.*?);",svg)
+        res = re.findall(r"fill:(.*?); stroke:(.*?);",svg)
         pairs = []
         for pair in res:
             if (pair not in pairs) and (pair[0] == pair[1]) and(pair[0] not in ["#0a0a0a"]):
                 # coin seems to be rendering a lot of lines as thin triangles with the #0a0a0a color...
                 pairs.append(pair)
         for pair in pairs:
-            svg = re.sub("fill:"+pair[0]+"; stroke:"+pair[1]+";","fill:"+facecolor+"; stroke:"+facecolor+";",svg)
+            svg = re.sub(r"fill:"+pair[0]+"; stroke:"+pair[1]+";","fill:"+facecolor+"; stroke:"+facecolor+";",svg)
 
     # embed everything in a scale group and scale the viewport
     if factor:
@@ -778,9 +795,9 @@ def getCoinSVG(cutplane,objs,cameradata=None,linewidth=0.2,singleface=False,face
     QtCore.QTimer.singleShot(1,lambda: closeViewer(view_window_name))
 
     # strip svg tags (needed for TD Arch view)
-    svg = re.sub("<\?xml.*?>","",svg,flags=re.MULTILINE|re.DOTALL)
-    svg = re.sub("<svg.*?>","",svg,flags=re.MULTILINE|re.DOTALL)
-    svg = re.sub("<\/svg>","",svg,flags=re.MULTILINE|re.DOTALL)
+    svg = re.sub(r"<\?xml.*?>","",svg,flags=re.MULTILINE|re.DOTALL)
+    svg = re.sub(r"<svg.*?>","",svg,flags=re.MULTILINE|re.DOTALL)
+    svg = re.sub(r"<\/svg>","",svg,flags=re.MULTILINE|re.DOTALL)
 
     ISRENDERING = False
 
@@ -803,28 +820,28 @@ class _SectionPlane:
 
     def __init__(self,obj):
         obj.Proxy = self
+        self.Type = "SectionPlane"
         self.setProperties(obj)
 
     def setProperties(self,obj):
 
         pl = obj.PropertiesList
         if not "Placement" in pl:
-            obj.addProperty("App::PropertyPlacement","Placement","SectionPlane",QT_TRANSLATE_NOOP("App::Property","The placement of this object"))
+            obj.addProperty("App::PropertyPlacement","Placement","SectionPlane",QT_TRANSLATE_NOOP("App::Property","The placement of this object"), locked=True)
         if not "Shape" in pl:
-            obj.addProperty("Part::PropertyPartShape","Shape","SectionPlane",QT_TRANSLATE_NOOP("App::Property","The shape of this object"))
+            obj.addProperty("Part::PropertyPartShape","Shape","SectionPlane",QT_TRANSLATE_NOOP("App::Property","The shape of this object"), locked=True)
         if not "Objects" in pl:
-            obj.addProperty("App::PropertyLinkList","Objects","SectionPlane",QT_TRANSLATE_NOOP("App::Property","The objects that must be considered by this section plane. Empty means the whole document."))
+            obj.addProperty("App::PropertyLinkList","Objects","SectionPlane",QT_TRANSLATE_NOOP("App::Property","The objects that must be considered by this section plane. Empty means the whole document."), locked=True)
         if not "OnlySolids" in pl:
-            obj.addProperty("App::PropertyBool","OnlySolids","SectionPlane",QT_TRANSLATE_NOOP("App::Property","If false, non-solids will be cut too, with possible wrong results."))
+            obj.addProperty("App::PropertyBool","OnlySolids","SectionPlane",QT_TRANSLATE_NOOP("App::Property","If false, non-solids will be cut too, with possible wrong results."), locked=True)
             obj.OnlySolids = True
         if not "Clip" in pl:
-            obj.addProperty("App::PropertyBool","Clip","SectionPlane",QT_TRANSLATE_NOOP("App::Property","If True, resulting views will be clipped to the section plane area."))
+            obj.addProperty("App::PropertyBool","Clip","SectionPlane",QT_TRANSLATE_NOOP("App::Property","If True, resulting views will be clipped to the section plane area."), locked=True)
         if not "UseMaterialColorForFill" in pl:
-            obj.addProperty("App::PropertyBool","UseMaterialColorForFill","SectionPlane",QT_TRANSLATE_NOOP("App::Property","If true, the color of the objects material will be used to fill cut areas."))
+            obj.addProperty("App::PropertyBool","UseMaterialColorForFill","SectionPlane",QT_TRANSLATE_NOOP("App::Property","If true, the color of the objects material will be used to fill cut areas."), locked=True)
             obj.UseMaterialColorForFill = False
         if not "Depth" in pl:
-            obj.addProperty("App::PropertyLength","Depth","SectionPlane",QT_TRANSLATE_NOOP("App::Property","Geometry further than this value will be cut off. Keep zero for unlimited."))
-        self.Type = "SectionPlane"
+            obj.addProperty("App::PropertyLength","Depth","SectionPlane",QT_TRANSLATE_NOOP("App::Property","Geometry further than this value will be cut off. Keep zero for unlimited."), locked=True)
 
     def onDocumentRestored(self,obj):
 
@@ -843,6 +860,10 @@ class _SectionPlane:
                 # old objects
                 l = obj.ViewObject.DisplaySize.Value
                 h = obj.ViewObject.DisplaySize.Value
+        if not l:
+            l = 1
+        if not h:
+            h = 1
         p = Part.makePlane(l,h,Vector(l/2,-h/2,0),Vector(0,0,-1))
         # make sure the normal direction is pointing outwards, you never know what OCC will decide...
         if p.normalAt(0,0).getAngle(obj.Placement.Rotation.multVec(FreeCAD.Vector(0,0,1))) > 1:
@@ -862,7 +883,7 @@ class _SectionPlane:
 
     def loads(self,state):
 
-        return None
+        self.Type = "SectionPlane"
 
 
 class _ViewProviderSectionPlane:
@@ -882,43 +903,43 @@ class _ViewProviderSectionPlane:
             d = vobj.DisplaySize.Value
             vobj.removeProperty("DisplaySize")
         if not "DisplayLength" in pl:
-            vobj.addProperty("App::PropertyLength","DisplayLength","SectionPlane",QT_TRANSLATE_NOOP("App::Property","The display length of this section plane"))
+            vobj.addProperty("App::PropertyLength","DisplayLength","SectionPlane",QT_TRANSLATE_NOOP("App::Property","The display length of this section plane"), locked=True)
             if d:
                 vobj.DisplayLength = d
             else:
                 vobj.DisplayLength = 1000
         if not "DisplayHeight" in pl:
-            vobj.addProperty("App::PropertyLength","DisplayHeight","SectionPlane",QT_TRANSLATE_NOOP("App::Property","The display height of this section plane"))
+            vobj.addProperty("App::PropertyLength","DisplayHeight","SectionPlane",QT_TRANSLATE_NOOP("App::Property","The display height of this section plane"), locked=True)
             if d:
                 vobj.DisplayHeight = d
             else:
                 vobj.DisplayHeight = 1000
         if not "ArrowSize" in pl:
-            vobj.addProperty("App::PropertyLength","ArrowSize","SectionPlane",QT_TRANSLATE_NOOP("App::Property","The size of the arrows of this section plane"))
+            vobj.addProperty("App::PropertyLength","ArrowSize","SectionPlane",QT_TRANSLATE_NOOP("App::Property","The size of the arrows of this section plane"), locked=True)
             vobj.ArrowSize = 50
         if not "Transparency" in pl:
-            vobj.addProperty("App::PropertyPercent","Transparency","SectionPlane",QT_TRANSLATE_NOOP("App::Property","The transparency of this object"))
+            vobj.addProperty("App::PropertyPercent","Transparency","SectionPlane",QT_TRANSLATE_NOOP("App::Property","The transparency of this object"), locked=True)
             vobj.Transparency = 85
         if not "LineWidth" in pl:
-            vobj.addProperty("App::PropertyFloat","LineWidth","SectionPlane",QT_TRANSLATE_NOOP("App::Property","The line width of this object"))
+            vobj.addProperty("App::PropertyFloat","LineWidth","SectionPlane",QT_TRANSLATE_NOOP("App::Property","The line width of this object"), locked=True)
             vobj.LineWidth = 1
         if not "CutDistance" in pl:
-            vobj.addProperty("App::PropertyLength","CutDistance","SectionPlane",QT_TRANSLATE_NOOP("App::Property","Show the cut in the 3D view"))
+            vobj.addProperty("App::PropertyLength","CutDistance","SectionPlane",QT_TRANSLATE_NOOP("App::Property","Show the cut in the 3D view"), locked=True)
         if not "LineColor" in pl:
-            vobj.addProperty("App::PropertyColor","LineColor","SectionPlane",QT_TRANSLATE_NOOP("App::Property","The color of this object"))
+            vobj.addProperty("App::PropertyColor","LineColor","SectionPlane",QT_TRANSLATE_NOOP("App::Property","The color of this object"), locked=True)
             vobj.LineColor = ArchCommands.getDefaultColor("Helpers")
         if not "CutView" in pl:
-            vobj.addProperty("App::PropertyBool","CutView","SectionPlane",QT_TRANSLATE_NOOP("App::Property","Show the cut in the 3D view"))
+            vobj.addProperty("App::PropertyBool","CutView","SectionPlane",QT_TRANSLATE_NOOP("App::Property","Show the cut in the 3D view"), locked=True)
         if not "CutMargin" in pl:
-            vobj.addProperty("App::PropertyLength","CutMargin","SectionPlane",QT_TRANSLATE_NOOP("App::Property","The distance between the cut plane and the actual view cut (keep this a very small value but not zero)"))
+            vobj.addProperty("App::PropertyLength","CutMargin","SectionPlane",QT_TRANSLATE_NOOP("App::Property","The distance between the cut plane and the actual view cut (keep this a very small value but not zero)"), locked=True)
             vobj.CutMargin = 1
         if not "ShowLabel" in pl:
-            vobj.addProperty("App::PropertyBool","ShowLabel","SectionPlane",QT_TRANSLATE_NOOP("App::Property","Show the label in the 3D view"))
+            vobj.addProperty("App::PropertyBool","ShowLabel","SectionPlane",QT_TRANSLATE_NOOP("App::Property","Show the label in the 3D view"), locked=True)
         if not "FontName" in pl:
-            vobj.addProperty("App::PropertyFont","FontName", "SectionPlane",QT_TRANSLATE_NOOP("App::Property","The name of the font"))
+            vobj.addProperty("App::PropertyFont","FontName", "SectionPlane",QT_TRANSLATE_NOOP("App::Property","The name of the font"), locked=True)
             vobj.FontName = params.get_param("textfont")
         if not "FontSize" in pl:
-            vobj.addProperty("App::PropertyLength","FontSize","SectionPlane",QT_TRANSLATE_NOOP("App::Property","The size of the text font"))
+            vobj.addProperty("App::PropertyLength","FontSize","SectionPlane",QT_TRANSLATE_NOOP("App::Property","The size of the text font"), locked=True)
             vobj.FontSize = params.get_param("textheight") * params.get_param("DefaultAnnoScaleMultiplier")
 
 
@@ -1018,6 +1039,10 @@ class _ViewProviderSectionPlane:
             if hasattr(vobj,"Transparency"):
                 self.mat2.transparency.setValue(vobj.Transparency/100.0)
         elif prop in ["DisplayLength","DisplayHeight","ArrowSize"]:
+            # for IFC objects: propagate to the object
+            if prop in ["DisplayLength","DisplayHeight"]:
+                if hasattr(vobj.Object.Proxy, "onChanged"):
+                    vobj.Object.Proxy.onChanged(vobj.Object, prop)
             if hasattr(vobj,"DisplayLength") and hasattr(vobj,"DisplayHeight"):
                 ld = vobj.DisplayLength.Value/2
                 hd = vobj.DisplayHeight.Value/2
@@ -1135,6 +1160,9 @@ class _ViewProviderSectionPlane:
         self.edit()
 
     def setupContextMenu(self, vobj, menu):
+        if FreeCADGui.activeWorkbench().name() != 'BIMWorkbench':
+            return
+
         actionEdit = QtGui.QAction(translate("Arch", "Edit"),
                                    menu)
         QtCore.QObject.connect(actionEdit,
@@ -1145,7 +1173,7 @@ class _ViewProviderSectionPlane:
         actionToggleCutview = QtGui.QAction(QtGui.QIcon(":/icons/Draft_Edit.svg"),
                                             translate("Arch", "Toggle Cutview"),
                                             menu)
-        actionToggleCutview.triggered.connect(lambda f=self.toggleCutview, arg=vobj: f(arg))
+        actionToggleCutview.triggered.connect(lambda: self.toggleCutview(vobj))
         menu.addAction(actionToggleCutview)
 
     def edit(self):
@@ -1253,7 +1281,7 @@ class SectionPlaneTaskPanel:
             if added:
                 self.update()
             else:
-                FreeCAD.Console.PrintWarning("Please select objects in the 3D view or in the model tree before pressing the button\n")
+                FreeCAD.Console.PrintWarning("Select objects in the 3D view or in the model tree before pressing the button\n")
 
     def removeElement(self):
         if self.obj:
@@ -1337,4 +1365,3 @@ class SectionPlaneTaskPanel:
         self.resizeButton.setToolTip(QtGui.QApplication.translate("Arch", "Resizes the plane to fit the objects in the list above", None))
         self.recenterButton.setText(QtGui.QApplication.translate("Arch", "Center", None))
         self.recenterButton.setToolTip(QtGui.QApplication.translate("Arch", "Centers the plane on the objects in the list above", None))
-

@@ -1,34 +1,37 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+
 # ***************************************************************************
 # *                                                                         *
 # *   Copyright (c) 2018 Yorik van Havre <yorik@uncreated.net>              *
 # *                                                                         *
-# *   This program is free software; you can redistribute it and/or modify  *
-# *   it under the terms of the GNU Lesser General Public License (LGPL)    *
-# *   as published by the Free Software Foundation; either version 2 of     *
-# *   the License, or (at your option) any later version.                   *
-# *   for detail see the LICENCE text file.                                 *
+# *   This file is part of FreeCAD.                                         *
 # *                                                                         *
-# *   This program is distributed in the hope that it will be useful,       *
-# *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
-# *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
-# *   GNU Library General Public License for more details.                  *
+# *   FreeCAD is free software: you can redistribute it and/or modify it    *
+# *   under the terms of the GNU Lesser General Public License as           *
+# *   published by the Free Software Foundation, either version 2.1 of the  *
+# *   License, or (at your option) any later version.                       *
 # *                                                                         *
-# *   You should have received a copy of the GNU Library General Public     *
-# *   License along with this program; if not, write to the Free Software   *
-# *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  *
-# *   USA                                                                   *
+# *   FreeCAD is distributed in the hope that it will be useful, but        *
+# *   WITHOUT ANY WARRANTY; without even the implied warranty of            *
+# *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU      *
+# *   Lesser General Public License for more details.                       *
+# *                                                                         *
+# *   You should have received a copy of the GNU Lesser General Public      *
+# *   License along with FreeCAD. If not, see                               *
+# *   <https://www.gnu.org/licenses/>.                                      *
 # *                                                                         *
 # ***************************************************************************
 
 """This is the tutorial of the BIM workbench"""
 
-
 import os
+
 import FreeCAD
 import FreeCADGui
 
 QT_TRANSLATE_NOOP = FreeCAD.Qt.QT_TRANSLATE_NOOP
 translate = FreeCAD.Qt.translate
+
 PARAMS = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Mod/BIM")
 
 
@@ -84,14 +87,16 @@ class BIM_Tutorial:
             self.pixempty = QtGui.QPixmap()
 
             # fire the loading after displaying the widget
-            from DraftGui import todo
+            from draftutils import todo
 
             # self.load()
-            # todo.delay(self.load,None)
+            # todo.ToDo.delay(self.load,None)
             QtCore.QTimer.singleShot(1000, self.load)
 
     def load(self, arg=None):
-        import re, sys, codecs
+        import codecs
+        import re
+        import sys
 
         if sys.version_info.major < 3:
             import urllib2
@@ -113,7 +118,7 @@ class BIM_Tutorial:
             if sys.version_info.major >= 3:
                 html = html.decode("utf8")
             html = html.replace("\n", " ")
-            html = html.replace('"/wiki/', '"https://www.freecadweb.org/wiki/')
+            html = html.replace('href="/', 'href="https://wiki.freecad.org/')
             html = re.sub(
                 '<div id="toc".*?</ul> </div>', "", html
             )  # remove table of contents
@@ -128,7 +133,7 @@ class BIM_Tutorial:
                 FreeCAD.Console.PrintError(
                     translate(
                         "BIM",
-                        "Unable to access the tutorial. Verify that you are online (This is needed only once).",
+                        "Unable to access the tutorial. Verify the internet connection (This is needed only once).",
                     )
                     + "\n"
                 )
@@ -141,16 +146,16 @@ class BIM_Tutorial:
             f.close()
 
         # setup title and progress bar
-        self.steps = len(re.findall("infotext", html)) - 1
+        self.steps = len(re.findall(r"infotext", html)) - 1
 
         # setup description texts and goals
         self.descriptions = [""] + re.findall(
             "<p><br /> </p><p><br /> </p> (.*?)<p><b>Tutorial step", html
         )
-        self.goal1 = re.findall('goal1">(.*?)</div', html)
-        self.goal2 = re.findall('goal2">(.*?)</div', html)
-        self.test1 = re.findall('test1".*?>(.*?)</div', html)
-        self.test2 = re.findall('test2".*?>(.*?)</div', html)
+        self.goal1 = re.findall(r'goal1">(.*?)</div', html)
+        self.goal2 = re.findall(r'goal2">(.*?)</div', html)
+        self.test1 = re.findall(r'test1".*?>(.*?)</div', html)
+        self.test2 = re.findall(r'test2".*?>(.*?)</div', html)
 
         # fix mediawiki encodes
         self.test1 = [t.replace("&lt;", "<").replace("&gt;", ">") for t in self.test1]
@@ -158,20 +163,23 @@ class BIM_Tutorial:
 
         # download images (QTextEdit cannot load online images)
         self.form.textEdit.setHtml(
-            html.replace("inserthere", translate("BIM", "Downloading images..."))
+            html.replace("inserthere", translate("BIM", "Downloading images…"))
         )
         nd = []
         for descr in self.descriptions:
-            imagepaths = re.findall('<img.*?src="(.*?)"', descr)
+            imagepaths = re.findall(r'<img.*?src="(.*?)"', descr)
             if imagepaths:
                 store = os.path.join(FreeCAD.getUserAppDataDir(), "BIM", "Tutorial")
                 if not os.path.exists(store):
                     os.makedirs(store)
                 for path in imagepaths:
-                    # name = re.findall("[\\w.-]+\\.(?i)(?:jpg|png|gif|bmp)",path)
-                    name = re.findall("(?i)[\\w.-]+\\.(?:jpg|png|gif|bmp)", path)
-                    if name:
-                        name = name[-1]
+                    # name = re.findall(r"[\\w.-]+\\.(?i)(?:jpg|png|gif|bmp)",path)
+                    # name = re.findall(r"(?i)[\\w.-]+\\.(?:jpg|png|gif|bmp)", path)
+                    try:
+                        name = os.path.splitext(os.path.basename(path))[0]
+                    except:
+                        print("unparsable image path:", path)
+                    else:
                         storename = os.path.join(store, name)
                         if not os.path.exists(storename):
                             if path.startswith("/images"):
@@ -190,8 +198,6 @@ class BIM_Tutorial:
                         descr = descr.replace(
                             path, "file:///" + storename.replace("\\", "/")
                         )
-                    else:
-                        print("unparsable image path:", path)
             nd.append(descr)
         self.descriptions = nd
 
@@ -211,7 +217,7 @@ class BIM_Tutorial:
         self.update()
 
     def update(self):
-        from PySide import QtCore, QtGui
+        from PySide import QtCore
 
         if not hasattr(self, "form") or not self.form or not hasattr(self, "dock"):
             return
@@ -270,7 +276,7 @@ class BIM_Tutorial:
             QtCore.QTimer.singleShot(TESTINTERVAL, self.checkGoals)
 
     def checkGoals(self):
-        from PySide import QtCore, QtGui
+        from PySide import QtCore
 
         if not hasattr(self, "form"):
             return

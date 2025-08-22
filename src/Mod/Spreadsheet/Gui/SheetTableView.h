@@ -26,7 +26,7 @@
 #include <QHeaderView>
 #include <QTableView>
 #include <QTimer>
-
+#include <QMenu>
 #include <Mod/Spreadsheet/App/Sheet.h>
 
 
@@ -45,8 +45,10 @@ public:
     }
 Q_SIGNALS:
     void resizeFinished();
+    void cursorChanged(QCursor);
 
 protected:
+    void mouseMoveEvent(QMouseEvent* e) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
     bool viewportEvent(QEvent* e) override;
 
@@ -109,7 +111,7 @@ protected:
     Spreadsheet::Sheet* sheet;
     int tabCounter;
 
-    QMenu* contextMenu;
+    QMenu contextMenu;
 
     QAction* actionProperties;
     QAction* actionRecompute;

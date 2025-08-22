@@ -2,22 +2,21 @@
  *   Copyright (c) 2013 Jan Rheinlaender                                   *
  *                                   <jrheinlaender@users.sourceforge.net> *
  *                                                                         *
- *   This file is part of the FreeCAD CAx development system.              *
+ *   This file is part of FreeCAD.                                         *
  *                                                                         *
- *   This library is free software; you can redistribute it and/or         *
- *   modify it under the terms of the GNU Library General Public           *
- *   License as published by the Free Software Foundation; either          *
- *   version 2 of the License, or (at your option) any later version.      *
+ *   FreeCAD is free software: you can redistribute it and/or modify it    *
+ *   under the terms of the GNU Lesser General Public License as           *
+ *   published by the Free Software Foundation, either version 2.1 of the  *
+ *   License, or (at your option) any later version.                       *
  *                                                                         *
- *   This library  is distributed in the hope that it will be useful,      *
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
- *   GNU Library General Public License for more details.                  *
+ *   FreeCAD is distributed in the hope that it will be useful, but        *
+ *   WITHOUT ANY WARRANTY; without even the implied warranty of            *
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU      *
+ *   Lesser General Public License for more details.                       *
  *                                                                         *
- *   You should have received a copy of the GNU Library General Public     *
- *   License along with this library; see the file COPYING.LIB. If not,    *
- *   write to the Free Software Foundation, Inc., 59 Temple Place,         *
- *   Suite 330, Boston, MA  02111-1307, USA                                *
+ *   You should have received a copy of the GNU Lesser General Public      *
+ *   License along with FreeCAD. If not, see                               *
+ *   <https://www.gnu.org/licenses/>.                                      *
  *                                                                         *
  ***************************************************************************/
 
@@ -46,9 +45,10 @@
 #include <Gui/Application.h>
 #include <Gui/Command.h>
 #include <Gui/Control.h>
+#include <Gui/MainWindow.h>
 #include <Gui/View3DInventor.h>
 #include <Gui/View3DInventorViewer.h>
-#include <Gui/ViewProviderOrigin.h>
+#include <Gui/ViewProviderCoordinateSystem.h>
 #include <Mod/PartDesign/App/Body.h>
 #include <Mod/PartDesign/App/DatumCS.h>
 #include <Mod/PartDesign/App/DatumLine.h>
@@ -66,7 +66,7 @@ using namespace PartDesignGui;
 PROPERTY_SOURCE_WITH_EXTENSIONS(PartDesignGui::ViewProviderDatum,Gui::ViewProviderGeometryObject)
 
 // static data
-const double ViewProviderDatum::defaultSize = Gui::ViewProviderOrigin::defaultSize ();
+const double ViewProviderDatum::defaultSize = Gui::ViewProviderCoordinateSystem::defaultSize ();
 
 ViewProviderDatum::ViewProviderDatum()
 {
@@ -84,7 +84,7 @@ ViewProviderDatum::ViewProviderDatum()
             "User parameter:BaseApp/Preferences/Mod/PartDesign");
     unsigned long shcol = hGrp->GetUnsigned ( "DefaultDatumColor", 0xFFD70099 );
 
-    App::Color col ( (uint32_t) shcol );
+    Base::Color col ( (uint32_t) shcol );
     ShapeAppearance.setDiffuseColor(col);
 
     Transparency.setValue (col.a * 100);
@@ -110,24 +110,24 @@ void ViewProviderDatum::attach(App::DocumentObject *obj)
     // TODO remove this field (2015-09-08, Fat-Zer)
     App::DocumentObject* o = getObject();
     if (o->is<PartDesign::Plane>()) {
-        datumType = QString::fromLatin1("Plane");
+        datumType = QStringLiteral("Plane");
         datumText = QObject::tr("Plane");
-        datumMenuText = tr("Datum Plane parameters");
+        datumMenuText = tr("Datum Plane Parameters");
     }
     else if (o->is<PartDesign::Line>()) {
-        datumType = QString::fromLatin1("Line");
+        datumType = QStringLiteral("Line");
         datumText = QObject::tr("Line");
-        datumMenuText = tr("Datum Line parameters");
+        datumMenuText = tr("Datum Line Parameters");
     }
     else if (o->is<PartDesign::Point>()) {
-        datumType = QString::fromLatin1("Point");
+        datumType = QStringLiteral("Point");
         datumText = QObject::tr("Point");
-        datumMenuText = tr("Datum Point parameters");
+        datumMenuText = tr("Datum Point Parameters");
     }
     else if (o->is<PartDesign::CoordinateSystem>()) {
-        datumType = QString::fromLatin1("CoordinateSystem");
+        datumType = QStringLiteral("CoordinateSystem");
         datumText = QObject::tr("Coordinate System");
-        datumMenuText = tr("Local Coordinate System parameters");
+        datumMenuText = tr("Local Coordinate System Parameters");
     }
 
     SoShapeHints* hints = new SoShapeHints();
@@ -226,7 +226,7 @@ bool ViewProviderDatum::isSelectable() const
 void ViewProviderDatum::setupContextMenu(QMenu* menu, QObject* receiver, const char* member)
 {
     QAction* act;
-    act = menu->addAction(QObject::tr("Edit datum"), receiver, member);
+    act = menu->addAction(QObject::tr("Edit Datum"), receiver, member);
     act->setData(QVariant((int)ViewProvider::Default));
     // Call the extensions
     Gui::ViewProvider::setupContextMenu(menu, receiver, member);
@@ -246,9 +246,9 @@ bool ViewProviderDatum::setEdit(int ModNum)
         if (datumDlg && datumDlg->getViewProvider() != this)
             datumDlg = nullptr; // another datum feature left open its task panel
         if (dlg && !datumDlg) {
-            QMessageBox msgBox;
+            QMessageBox msgBox(Gui::getMainWindow());
             msgBox.setText(QObject::tr("A dialog is already open in the task panel"));
-            msgBox.setInformativeText(QObject::tr("Do you want to close this dialog?"));
+            msgBox.setInformativeText(QObject::tr("Close this dialog?"));
             msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
             msgBox.setDefaultButton(QMessageBox::Yes);
             int ret = msgBox.exec();
@@ -289,7 +289,7 @@ bool ViewProviderDatum::doubleClicked()
     Msg += this->pcObject->Label.getValue();
     Gui::Command::openCommand(Msg.c_str());
 
-    Part::Datum* pcDatum = static_cast<Part::Datum*>(getObject());
+    Part::Datum* pcDatum = getObject<Part::Datum>();
     PartDesign::Body* activeBody = activeView->getActiveObject<PartDesign::Body*>(PDBODYKEY);
     auto datumBody = PartDesignGui::getBodyFor(pcDatum, false);
 

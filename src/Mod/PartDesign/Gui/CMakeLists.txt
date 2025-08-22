@@ -2,18 +2,14 @@ include_directories(
     ${CMAKE_BINARY_DIR}
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_CURRENT_BINARY_DIR}
-    ${Boost_INCLUDE_DIRS}
-    ${OCC_INCLUDE_DIR}
-    ${COIN3D_INCLUDE_DIRS}
-    ${ZLIB_INCLUDE_DIR}
-    ${PYTHON_INCLUDE_DIRS}
-    ${XercesC_INCLUDE_DIRS}
-    ${EIGEN3_INCLUDE_DIR}
+)
+
+include_directories(
+    SYSTEM
     ${CMAKE_SOURCE_DIR}/src/3rdParty/json/single_include/nlohmann/
 )
-link_directories(${OCC_LIBRARY_DIR})
 
-generate_from_xml(ViewProviderPy)
+generate_from_py(ViewProvider)
 
 
 set(PartDesignGui_LIBS
@@ -48,6 +44,7 @@ set(PartDesignGui_UIC_SRCS
     TaskScaledParameters.ui
     TaskMultiTransformParameters.ui
     TaskShapeBinder.ui
+    TaskPreviewParameters.ui
     TaskPrimitiveParameters.ui
     TaskPipeParameters.ui
     TaskPipeOrientation.ui
@@ -113,8 +110,6 @@ SET(PartDesignGuiViewProvider_SRCS
     ViewProviderShapeBinder.cpp
     ViewProviderBoolean.cpp
     ViewProviderBoolean.h
-    ViewProviderAddSub.cpp
-    ViewProviderAddSub.h
     ViewProviderPrimitive.h
     ViewProviderPrimitive.cpp
     ViewProviderPipe.h
@@ -222,6 +217,7 @@ SET(PartDesignGuiModule_SRCS
     PreCompiled.h
     SketchWorkflow.cpp
     SketchWorkflow.h
+    StyleParameters.h
     Utils.cpp
     Utils.h
     Workbench.cpp
@@ -233,7 +229,7 @@ SOURCE_GROUP("Module" FILES ${PartDesignGuiModule_SRCS})
 
 
 SET(Python_SRCS
-    ViewProviderPy.xml
+    ViewProvider.pyi
     ViewProviderPyImp.cpp
 )
 SOURCE_GROUP("Python" FILES ${Python_SRCS})

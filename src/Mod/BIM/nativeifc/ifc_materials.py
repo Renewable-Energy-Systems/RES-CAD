@@ -1,32 +1,35 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+
 # ***************************************************************************
 # *                                                                         *
 # *   Copyright (c) 2023 Yorik van Havre <yorik@uncreated.net>              *
 # *                                                                         *
-# *   This program is free software; you can redistribute it and/or modify  *
-# *   it under the terms of the GNU General Public License (GPL)            *
-# *   as published by the Free Software Foundation; either version 3 of     *
-# *   the License, or (at your option) any later version.                   *
-# *   for detail see the LICENCE text file.                                 *
+# *   This file is part of FreeCAD.                                         *
 # *                                                                         *
-# *   This program is distributed in the hope that it will be useful,       *
-# *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
-# *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
-# *   GNU General Public License for more details.                          *
+# *   FreeCAD is free software: you can redistribute it and/or modify it    *
+# *   under the terms of the GNU Lesser General Public License as           *
+# *   published by the Free Software Foundation, either version 2.1 of the  *
+# *   License, or (at your option) any later version.                       *
 # *                                                                         *
-# *   You should have received a copy of the GNU Library General Public     *
-# *   License along with this program; if not, write to the Free Software   *
-# *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  *
-# *   USA                                                                   *
+# *   FreeCAD is distributed in the hope that it will be useful, but        *
+# *   WITHOUT ANY WARRANTY; without even the implied warranty of            *
+# *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU      *
+# *   Lesser General Public License for more details.                       *
+# *                                                                         *
+# *   You should have received a copy of the GNU Lesser General Public      *
+# *   License along with FreeCAD. If not, see                               *
+# *   <https://www.gnu.org/licenses/>.                                      *
 # *                                                                         *
 # ***************************************************************************
 
 """This NativeIFC module deals with materials"""
 
+import ifcopenshell
+import ifcopenshell.util.element
 
 import FreeCAD
-from nativeifc import ifc_tools
-import ifcopenshell
-from ifcopenshell import util
+
+from . import ifc_tools
 
 
 def create_material(element, parent, recursive=False):
@@ -69,7 +72,7 @@ def show_material(obj):
     if not material:
         return
     if not hasattr(obj, "Material"):
-        obj.addProperty("App::PropertyLink", "Material", "IFC")
+        obj.addProperty("App::PropertyLink", "Material", "IFC", locked=True)
     project = ifc_tools.get_project(obj)
     matobj = create_material(material, project, recursive=True)
     obj.Material = matobj
@@ -88,7 +91,7 @@ def load_materials(obj):
 
 
 def get_material(obj):
-    """Returns a material attched to this object"""
+    """Returns a material attached to this object"""
 
     element = ifc_tools.get_ifc_element(obj)
     if not element:
@@ -134,12 +137,23 @@ def set_material(material, obj):
             if not container.OutList:
                 doc.removeObject(container.Name)
     if material_element:
-        ifc_tools.api_run(
-            "material.assign_material",
-            ifcfile,
-            product=element,
-            type=material_element.is_a(),
-            material=material_element,
-        )
+        try:
+            # IfcOpenShell 0.8
+            ifc_tools.api_run(
+                "material.assign_material",
+                ifcfile,
+                products=[element],
+                type=material_element.is_a(),
+                material=material_element,
+            )
+        except:
+            # IfcOpenShell 0.7
+            ifc_tools.api_run(
+                "material.assign_material",
+                ifcfile,
+                product=element,
+                type=material_element.is_a(),
+                material=material_element,
+            )
         if new:
             show_material(obj)

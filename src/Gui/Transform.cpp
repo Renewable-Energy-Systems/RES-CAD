@@ -26,6 +26,7 @@
 #include <QKeyEvent>
 #include <QSignalMapper>
 
+#include <Base/Tools.h>
 #include <App/GeoFeature.h>
 #include <App/PropertyGeo.h>
 
@@ -279,13 +280,12 @@ Transform::Transform(QWidget* parent, Qt::WindowFlags fl)
 {
     ui = new Ui_Placement();
     ui->setupUi(this);
-    connect(ui->applyButton, &QPushButton::clicked,
+    QPushButton* applyButton = ui->buttonBox->button(QDialogButtonBox::Apply);
+    connect(applyButton, &QPushButton::clicked,
             this, &Transform::onApplyButtonClicked);
 
     ui->resetButton->hide();
     ui->applyIncrementalPlacement->hide();
-
-    ui->closeButton->setText(tr("Cancel"));
     this->setWindowTitle(tr("Transform"));
 
     // create a signal mapper in order to have one slot to perform the change
@@ -299,13 +299,8 @@ Transform::Transform(QWidget* parent, Qt::WindowFlags fl)
         signalMapper->setMapping(it, id++);
     }
 
-#if QT_VERSION < QT_VERSION_CHECK(5,15,0)
-    connect(signalMapper, qOverload<int>(&QSignalMapper::mapped),
-            this, &Transform::onTransformChanged);
-#else
     connect(signalMapper, &QSignalMapper::mappedInt,
             this, &Transform::onTransformChanged);
-#endif
 
     setTransformStrategy(new DefaultTransformStrategy(this));
 }
@@ -332,9 +327,7 @@ void Transform::setTransformStrategy(TransformStrategy* ts)
 
 void Transform::showStandardButtons(bool b)
 {
-    ui->closeButton->setVisible(b);
-    ui->oKButton->setVisible(b);
-    ui->applyButton->setVisible(b);
+    ui->buttonBox->setVisible(b);
 }
 
 void Transform::onTransformChanged(int)
@@ -396,7 +389,8 @@ Base::Placement Transform::getPlacementData() const
 
     if (index == 0) {
         Base::Vector3d dir = getDirection();
-        rot.setValue(Base::Vector3d(dir.x,dir.y,dir.z),ui->angle->value().getValue()*D_PI/180.0);
+        rot.setValue(Base::Vector3d(dir.x,dir.y,dir.z),
+                     Base::toRadians(ui->angle->value().getValue()));
     }
     else if (index == 1) {
         rot.setYawPitchRoll(
@@ -413,7 +407,6 @@ void Transform::changeEvent(QEvent *e)
 {
     if (e->type() == QEvent::LanguageChange) {
         ui->retranslateUi(this);
-        ui->closeButton->setText(tr("Cancel"));
         this->setWindowTitle(tr("Transform"));
     }
     else {

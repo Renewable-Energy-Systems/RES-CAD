@@ -59,9 +59,11 @@
 #include <algorithm>
 #include <cstdlib>
 #include <iterator>
+#include <limits>
 #endif
 
 #include <Base/Console.h>
+#include <Base/Converter.h>
 #include <Mod/Mesh/App/WildMagic4/Wm4ApprLineFit3.h>
 
 #include "CylinderFit.h"
@@ -80,7 +82,7 @@ void CylinderFit::SetApproximations(double radius,
                                     const Base::Vector3d& axis)
 {
     _bIsFitted = false;
-    _fLastResult = FLOAT_MAX;
+    _fLastResult = std::numeric_limits<float>::max();
     _numIter = 0;
     _dRadius = radius;
     _vBase = base;
@@ -93,17 +95,15 @@ void CylinderFit::SetApproximations(double radius,
 void CylinderFit::SetApproximations(const Base::Vector3d& base, const Base::Vector3d& axis)
 {
     _bIsFitted = false;
-    _fLastResult = FLOAT_MAX;
+    _fLastResult = std::numeric_limits<float>::max();
     _numIter = 0;
     _vBase = base;
     _vAxis = axis;
     _vAxis.Normalize();
     _dRadius = 0.0;
     if (!_vPoints.empty()) {
-        for (std::list<Base::Vector3f>::const_iterator cIt = _vPoints.begin();
-             cIt != _vPoints.end();
-             ++cIt) {
-            _dRadius += Base::Vector3d(cIt->x, cIt->y, cIt->z).DistanceToLine(_vBase, _vAxis);
+        for (const auto& it : _vPoints) {
+            _dRadius += Base::Vector3d(it.x, it.y, it.z).DistanceToLine(_vBase, _vAxis);
         }
         _dRadius /= (double)_vPoints.size();
     }
@@ -136,9 +136,8 @@ double CylinderFit::GetRadius() const
     if (_bIsFitted) {
         return _dRadius;
     }
-    else {
-        return 0.0;
-    }
+
+    return 0.0;
 }
 
 Base::Vector3d CylinderFit::GetBase() const
@@ -146,9 +145,8 @@ Base::Vector3d CylinderFit::GetBase() const
     if (_bIsFitted) {
         return _vBase;
     }
-    else {
-        return Base::Vector3d();
-    }
+
+    return Base::Vector3d();
 }
 
 Base::Vector3d CylinderFit::GetAxis() const
@@ -156,9 +154,8 @@ Base::Vector3d CylinderFit::GetAxis() const
     if (_bIsFitted) {
         return _vAxis;
     }
-    else {
-        return Base::Vector3d();
-    }
+
+    return Base::Vector3d();
 }
 
 int CylinderFit::GetNumIterations() const
@@ -166,17 +163,16 @@ int CylinderFit::GetNumIterations() const
     if (_bIsFitted) {
         return _numIter;
     }
-    else {
-        return 0;
-    }
+
+    return 0;
 }
 
 float CylinderFit::GetDistanceToCylinder(const Base::Vector3f& rcPoint) const
 {
-    float fResult = FLOAT_MAX;
+    float fResult = std::numeric_limits<float>::max();
     if (_bIsFitted) {
-        fResult = Base::Vector3d(rcPoint.x, rcPoint.y, rcPoint.z).DistanceToLine(_vBase, _vAxis)
-            - _dRadius;
+        Base::Vector3d pt(rcPoint.x, rcPoint.y, rcPoint.z);
+        fResult = static_cast<float>(pt.DistanceToLine(_vBase, _vAxis) - _dRadius);
     }
     return fResult;
 }
@@ -187,10 +183,12 @@ float CylinderFit::GetStdDeviation() const
     // Variance: VAR=(N/N-1)*[(1/N)*SUM(Xi^2)-M^2]
     // Standard deviation: SD=SQRT(VAR)
     if (!_bIsFitted) {
-        return FLOAT_MAX;
+        return std::numeric_limits<float>::max();
     }
 
-    double sumXi = 0.0, sumXi2 = 0.0, dist = 0.0;
+    double sumXi = 0.0;
+    double sumXi2 = 0.0;
+    double dist = 0.0;
     for (auto it : _vPoints) {
         dist = GetDistanceToCylinder(it);
         sumXi += dist;
@@ -199,13 +197,13 @@ float CylinderFit::GetStdDeviation() const
 
     double N = static_cast<double>(CountPoints());
     double mean = sumXi / N;
-    return sqrt((N / (N - 1.0)) * (sumXi2 / N - mean * mean));
+    return static_cast<float>(sqrt((N / (N - 1.0)) * (sumXi2 / N - mean * mean)));
 }
 
 void CylinderFit::ProjectToCylinder()
 {
-    Base::Vector3f cBase(_vBase.x, _vBase.y, _vBase.z);
-    Base::Vector3f cAxis(_vAxis.x, _vAxis.y, _vAxis.z);
+    auto cBase = Base::convertTo<Base::Vector3f>(_vBase);
+    auto cAxis = Base::convertTo<Base::Vector3f>(_vAxis);
 
     for (auto& cPnt : _vPoints) {
         if (cPnt.DistanceToLine(cBase, cAxis) > 0) {
@@ -242,7 +240,7 @@ void CylinderFit::ProjectToCylinder()
 void CylinderFit::ComputeApproximationsLine()
 {
     _bIsFitted = false;
-    _fLastResult = FLOAT_MAX;
+    _fLastResult = std::numeric_limits<float>::max();
     _numIter = 0;
     _vBase.Set(0.0, 0.0, 0.0);
     _vAxis.Set(0.0, 0.0, 0.0);
@@ -259,10 +257,8 @@ void CylinderFit::ComputeApproximationsLine()
         _vBase.Set(kLine.Origin.X(), kLine.Origin.Y(), kLine.Origin.Z());
         _vAxis.Set(kLine.Direction.X(), kLine.Direction.Y(), kLine.Direction.Z());
 
-        for (std::list<Base::Vector3f>::const_iterator cIt = _vPoints.begin();
-             cIt != _vPoints.end();
-             ++cIt) {
-            _dRadius += Base::Vector3d(cIt->x, cIt->y, cIt->z).DistanceToLine(_vBase, _vAxis);
+        for (const auto& it : _vPoints) {
+            _dRadius += Base::Vector3d(it.x, it.y, it.z).DistanceToLine(_vBase, _vAxis);
         }
         _dRadius /= (double)_vPoints.size();
     }
@@ -271,12 +267,13 @@ void CylinderFit::ComputeApproximationsLine()
 float CylinderFit::Fit()
 {
     _bIsFitted = false;
-    _fLastResult = FLOAT_MAX;
+    _fLastResult = std::numeric_limits<float>::max();
     _numIter = 0;
 
     // A minimum of 5 surface points is needed to define a cylinder
-    if (CountPoints() < 5) {
-        return FLOAT_MAX;
+    const int minPts = 5;
+    if (CountPoints() < minPts) {
+        return std::numeric_limits<float>::max();
     }
 
     // If approximations have not been set/computed then compute some now using the line fit method
@@ -295,9 +292,10 @@ float CylinderFit::Fit()
     findBestSolDirection(solDir);
 
     // Initialise some matrices and vectors
+    const int dim = 5;
     std::vector<Base::Vector3d> residuals(CountPoints(), Base::Vector3d(0.0, 0.0, 0.0));
     Matrix5x5 atpa;
-    Eigen::VectorXd atpl(5);
+    Eigen::VectorXd atpl(dim);
 
     // Iteration loop...
     double sigma0 {};
@@ -311,17 +309,18 @@ float CylinderFit::Fit()
         // Solve the equations for the unknown corrections
         Eigen::LLT<Matrix5x5> llt(atpa);
         if (llt.info() != Eigen::Success) {
-            return FLOAT_MAX;
+            return std::numeric_limits<float>::max();
         }
         Eigen::VectorXd x = llt.solve(atpl);
 
         // Check parameter convergence
         cont = false;
+        // x(0), x(1): the two position parameter corrections
+        // x(2),x(3): the two direction parameter corrections
+        // x(4): the radius correction
         if ((fabs(x(0)) > _posConvLimit) || (fabs(x(1)) > _posConvLimit)
-            ||  // the two position parameter corrections
-            (fabs(x(2)) > _dirConvLimit) || (fabs(x(3)) > _dirConvLimit)
-            ||                               // the two direction parameter corrections
-            (fabs(x(4)) > _posConvLimit)) {  // the radius correction
+            || (fabs(x(2)) > _dirConvLimit) || (fabs(x(3)) > _dirConvLimit)
+            || (fabs(x(4)) > _posConvLimit)) {
             cont = true;
         }
 
@@ -329,7 +328,7 @@ float CylinderFit::Fit()
         // convergence
         bool vConverged {};
         if (!computeResiduals(solDir, x, residuals, sigma0, _vConvLimit, vConverged)) {
-            return FLOAT_MAX;
+            return std::numeric_limits<float>::max();
         }
         if (!vConverged) {
             cont = true;
@@ -337,13 +336,13 @@ float CylinderFit::Fit()
 
         // Update the parameters
         if (!updateParameters(solDir, x)) {
-            return FLOAT_MAX;
+            return std::numeric_limits<float>::max();
         }
     }
 
     // Check for convergence
     if (cont) {
-        return FLOAT_MAX;
+        return std::numeric_limits<float>::max();
     }
 
     _bIsFitted = true;
@@ -381,7 +380,7 @@ void CylinderFit::findBestSolDirection(SolutionD& solDir)
     }
 
     double fixedVal = 0.0;
-    double lambda;
+    double lambda {};
     switch (solDir) {
         case solL:
             fixedVal = meanXObs();
@@ -413,10 +412,8 @@ double CylinderFit::meanXObs()
 {
     double mx = 0.0;
     if (!_vPoints.empty()) {
-        for (std::list<Base::Vector3f>::const_iterator cIt = _vPoints.begin();
-             cIt != _vPoints.end();
-             ++cIt) {
-            mx += cIt->x;
+        for (const auto& it : _vPoints) {
+            mx += it.x;
         }
         mx /= double(_vPoints.size());
     }
@@ -427,10 +424,8 @@ double CylinderFit::meanYObs()
 {
     double my = 0.0;
     if (!_vPoints.empty()) {
-        for (std::list<Base::Vector3f>::const_iterator cIt = _vPoints.begin();
-             cIt != _vPoints.end();
-             ++cIt) {
-            my += cIt->y;
+        for (const auto& it : _vPoints) {
+            my += it.y;
         }
         my /= double(_vPoints.size());
     }
@@ -441,10 +436,8 @@ double CylinderFit::meanZObs()
 {
     double mz = 0.0;
     if (!_vPoints.empty()) {
-        for (std::list<Base::Vector3f>::const_iterator cIt = _vPoints.begin();
-             cIt != _vPoints.end();
-             ++cIt) {
-            mz += cIt->z;
+        for (const auto& it : _vPoints) {
+            mz += it.z;
         }
         mz /= double(_vPoints.size());
     }
@@ -465,11 +458,12 @@ void CylinderFit::setupNormalEquationMatrices(SolutionD solDir,
 
     // For each point, setup the observation equation coefficients and add their
     // contribution into the normal equation matrices
-    double a[5] {}, b[3] {};
-    double f0 {}, qw {};
-    std::vector<Base::Vector3d>::const_iterator vIt = residuals.begin();
-    std::list<Base::Vector3f>::const_iterator cIt;
-    for (cIt = _vPoints.begin(); cIt != _vPoints.end(); ++cIt, ++vIt) {
+    DoubleArray5 a {};
+    DoubleArray3 b {};
+    double f0 {};
+    double qw {};
+    auto vIt = residuals.begin();
+    for (auto cIt = _vPoints.begin(); cIt != _vPoints.end(); ++cIt, ++vIt) {
         // if (using this point) { // currently all given points are used (could modify this if
         // eliminating outliers, etc....
         setupObservation(solDir, *cIt, *vIt, a, f0, qw, b);
@@ -479,6 +473,8 @@ void CylinderFit::setupNormalEquationMatrices(SolutionD solDir,
     setLowerPart(atpa);
 }
 
+// clang-format off
+// NOLINTBEGIN
 // Sets up contributions of given observation to the quasi parametric
 // normal equation matrices. Assumes uncorrelated coordinates.
 // point ... point
@@ -490,10 +486,10 @@ void CylinderFit::setupNormalEquationMatrices(SolutionD solDir,
 void CylinderFit::setupObservation(SolutionD solDir,
                                    const Base::Vector3f& point,
                                    const Base::Vector3d& residual,
-                                   double a[5],
+                                   DoubleArray5& a,
                                    double& f0,
                                    double& qw,
-                                   double b[3]) const
+                                   DoubleArray3& b) const
 {
     // This adjustment requires an update of the observation approximations
     // because the residuals do not have a linear relationship.
@@ -503,8 +499,7 @@ void CylinderFit::setupObservation(SolutionD solDir,
     double zEstimate = (double)point.z + residual.z;
 
     // intermediate parameters
-    double lambda = _vAxis.x * (xEstimate - _vBase.x) + _vAxis.y * (yEstimate - _vBase.y)
-        + _vAxis.z * (zEstimate - _vBase.z);
+    double lambda = _vAxis.x * (xEstimate - _vBase.x) + _vAxis.y * (yEstimate - _vBase.y) + _vAxis.z * (zEstimate - _vBase.z);
     double x0 = _vBase.x + lambda * _vAxis.x;
     double y0 = _vBase.y + lambda * _vAxis.y;
     double z0 = _vBase.z + lambda * _vAxis.z;
@@ -516,12 +511,9 @@ void CylinderFit::setupObservation(SolutionD solDir,
     double dz00 = _vBase.z - zEstimate;
 
     // partials of the observations
-    b[0] =
-        2.0 * (dx - _vAxis.x * _vAxis.x * dx - _vAxis.x * _vAxis.y * dy - _vAxis.x * _vAxis.z * dz);
-    b[1] =
-        2.0 * (dy - _vAxis.x * _vAxis.y * dx - _vAxis.y * _vAxis.y * dy - _vAxis.y * _vAxis.z * dz);
-    b[2] =
-        2.0 * (dz - _vAxis.x * _vAxis.z * dx - _vAxis.y * _vAxis.z * dy - _vAxis.z * _vAxis.z * dz);
+    b[0] = 2.0 * (dx - _vAxis.x * _vAxis.x * dx - _vAxis.x * _vAxis.y * dy - _vAxis.x * _vAxis.z * dz);
+    b[1] = 2.0 * (dy - _vAxis.x * _vAxis.y * dx - _vAxis.y * _vAxis.y * dy - _vAxis.y * _vAxis.z * dz);
+    b[2] = 2.0 * (dz - _vAxis.x * _vAxis.z * dx - _vAxis.y * _vAxis.z * dy - _vAxis.z * _vAxis.z * dz);
 
     double ddxdl {}, ddydl {}, ddzdl {};
     double ddxdm {}, ddydm {}, ddzdm {};
@@ -531,16 +523,12 @@ void CylinderFit::setupObservation(SolutionD solDir,
     switch (solDir) {
         case solL:
             // order of parameters: Yc, Zc, M, N, R
-            ddxdm = -2.0 * _vAxis.y * dx00 + (_vAxis.x - _vAxis.y * _vAxis.y / _vAxis.x) * dy00
-                - (_vAxis.y * _vAxis.z / _vAxis.x) * dz00;
-            ddydm = (_vAxis.x - _vAxis.y * _vAxis.y / _vAxis.x) * dx00 + 2.0 * _vAxis.y * dy00
-                + _vAxis.z * dz00;
+            ddxdm = -2.0 * _vAxis.y * dx00 + (_vAxis.x - _vAxis.y * _vAxis.y / _vAxis.x) * dy00  - (_vAxis.y * _vAxis.z / _vAxis.x) * dz00;
+            ddydm = (_vAxis.x - _vAxis.y * _vAxis.y / _vAxis.x) * dx00 + 2.0 * _vAxis.y * dy00 + _vAxis.z * dz00;
             ddzdm = -(_vAxis.y * _vAxis.z / _vAxis.x) * dx00 + _vAxis.z * dy00;
-            ddxdn = -2.0 * _vAxis.z * dx00 - (_vAxis.y * _vAxis.z / _vAxis.x) * dy00
-                + (_vAxis.x - _vAxis.z * _vAxis.z / _vAxis.x) * dz00;
+            ddxdn = -2.0 * _vAxis.z * dx00 - (_vAxis.y * _vAxis.z / _vAxis.x) * dy00 + (_vAxis.x - _vAxis.z * _vAxis.z / _vAxis.x) * dz00;
             ddydn = -(_vAxis.y * _vAxis.z / _vAxis.x) * dx00 + _vAxis.y * dz00;
-            ddzdn = (_vAxis.x - _vAxis.z * _vAxis.z / _vAxis.x) * dx00 + _vAxis.y * dy00
-                + 2.0 * _vAxis.z * dz00;
+            ddzdn = (_vAxis.x - _vAxis.z * _vAxis.z / _vAxis.x) * dx00 + _vAxis.y * dy00 + 2.0 * _vAxis.z * dz00;
             a[0] = -b[1];
             a[1] = -b[2];
             a[2] = 2.0 * (dx * ddxdm + dy * ddydm + dz * ddzdm);
@@ -549,16 +537,12 @@ void CylinderFit::setupObservation(SolutionD solDir,
             break;
         case solM:
             // order of parameters: Xc, Zc, L, N, R
-            ddxdl = 2.0 * _vAxis.x * dx00 + (_vAxis.y - _vAxis.x * _vAxis.x / _vAxis.y) * dy00
-                + _vAxis.z * dz00;
-            ddydl = (_vAxis.y - _vAxis.x * _vAxis.x / _vAxis.y) * dx00 - 2.0 * _vAxis.x * dy00
-                - (_vAxis.x * _vAxis.z / _vAxis.y) * dz00;
+            ddxdl = 2.0 * _vAxis.x * dx00 + (_vAxis.y - _vAxis.x * _vAxis.x / _vAxis.y) * dy00 + _vAxis.z * dz00;
+            ddydl = (_vAxis.y - _vAxis.x * _vAxis.x / _vAxis.y) * dx00 - 2.0 * _vAxis.x * dy00 - (_vAxis.x * _vAxis.z / _vAxis.y) * dz00;
             ddzdl = _vAxis.z * dx00 - (_vAxis.x * _vAxis.z / _vAxis.y) * dy00;
             ddxdn = -(_vAxis.x * _vAxis.z / _vAxis.y) * dy00 + _vAxis.x * dz00;
-            ddydn = -(_vAxis.x * _vAxis.z / _vAxis.y) * dx00 - 2.0 * _vAxis.z * dy00
-                + (_vAxis.y - _vAxis.z * _vAxis.z / _vAxis.y) * dz00;
-            ddzdn = _vAxis.x * dx00 + (_vAxis.y - _vAxis.z * _vAxis.z / _vAxis.y) * dy00
-                + 2.0 * _vAxis.z * dz00;
+            ddydn = -(_vAxis.x * _vAxis.z / _vAxis.y) * dx00 - 2.0 * _vAxis.z * dy00 + (_vAxis.y - _vAxis.z * _vAxis.z / _vAxis.y) * dz00;
+            ddzdn = _vAxis.x * dx00 + (_vAxis.y - _vAxis.z * _vAxis.z / _vAxis.y) * dy00 + 2.0 * _vAxis.z * dz00;
             a[0] = -b[0];
             a[1] = -b[2];
             a[2] = 2.0 * (dx * ddxdl + dy * ddydl + dz * ddzdl);
@@ -567,16 +551,12 @@ void CylinderFit::setupObservation(SolutionD solDir,
             break;
         case solN:
             // order of parameters: Xc, Yc, L, M, R
-            ddxdl = 2.0 * _vAxis.x * dx00 + _vAxis.y * dy00
-                + (_vAxis.z - _vAxis.x * _vAxis.x / _vAxis.z) * dz00;
+            ddxdl = 2.0 * _vAxis.x * dx00 + _vAxis.y * dy00 + (_vAxis.z - _vAxis.x * _vAxis.x / _vAxis.z) * dz00;
             ddydl = _vAxis.y * dx00 - (_vAxis.x * _vAxis.y / _vAxis.z) * dz00;
-            ddzdl = (_vAxis.z - _vAxis.x * _vAxis.x / _vAxis.z) * dx00
-                - (_vAxis.x * _vAxis.y / _vAxis.z) * dy00 - 2.0 * _vAxis.x * dz00;
+            ddzdl = (_vAxis.z - _vAxis.x * _vAxis.x / _vAxis.z) * dx00 - (_vAxis.x * _vAxis.y / _vAxis.z) * dy00 - 2.0 * _vAxis.x * dz00;
             ddxdm = _vAxis.x * dy00 - (_vAxis.x * _vAxis.y / _vAxis.z) * dz00;
-            ddydm = _vAxis.x * dx00 + 2.0 * _vAxis.y * dy00
-                + (_vAxis.z - _vAxis.y * _vAxis.y / _vAxis.z) * dz00;
-            ddzdm = -(_vAxis.x * _vAxis.y / _vAxis.z) * dx00
-                + (_vAxis.z - _vAxis.y * _vAxis.y / _vAxis.z) * dy00 - 2.0 * _vAxis.y * dz00;
+            ddydm = _vAxis.x * dx00 + 2.0 * _vAxis.y * dy00 + (_vAxis.z - _vAxis.y * _vAxis.y / _vAxis.z) * dz00;
+            ddzdm = -(_vAxis.x * _vAxis.y / _vAxis.z) * dx00 + (_vAxis.z - _vAxis.y * _vAxis.y / _vAxis.z) * dy00 - 2.0 * _vAxis.y * dz00;
             a[0] = -b[0];
             a[1] = -b[1];
             a[2] = 2.0 * (dx * ddxdl + dy * ddydl + dz * ddzdl);
@@ -586,8 +566,7 @@ void CylinderFit::setupObservation(SolutionD solDir,
     }
 
     // free term
-    f0 = _dRadius * _dRadius - dx * dx - dy * dy - dz * dz + b[0] * residual.x + b[1] * residual.y
-        + b[2] * residual.z;
+    f0 = _dRadius * _dRadius - dx * dx - dy * dy - dz * dz + b[0] * residual.x + b[1] * residual.y + b[2] * residual.z;
 
     // quasi weight (using equal weights for cylinder point coordinate observations)
     // w[0] = 1.0;
@@ -596,6 +575,8 @@ void CylinderFit::setupObservation(SolutionD solDir,
     // qw = 1.0 / (b[0] * b[0] / w[0] + b[1] * b[1] / w[1] + b[2] * b[2] / w[2]);
     qw = 1.0 / (b[0] * b[0] + b[1] * b[1] + b[2] * b[2]);
 }
+// NOLINTEND
+// clang-format on
 
 // Computes contribution of the given observation equation on the normal equation matrices
 // Call this for each observation (point)
@@ -607,15 +588,16 @@ void CylinderFit::setupObservation(SolutionD solDir,
 // pi   ... weight of observation (= quasi weight qw for this solution)
 // atpa ... 5x5 normal equation matrix
 // atpl ... 5x1 matrix/vector (right-hand side of equations)
-void CylinderFit::addObservationU(double a[5],
+void CylinderFit::addObservationU(DoubleArray5 a,
                                   double li,
                                   double pi,
                                   Matrix5x5& atpa,
                                   Eigen::VectorXd& atpl) const
 {
-    for (int i = 0; i < 5; ++i) {
+    const int dim = 5;
+    for (int i = 0; i < dim; ++i) {
         double aipi = a[i] * pi;
-        for (int j = i; j < 5; ++j) {
+        for (int j = i; j < dim; ++j) {
             atpa(i, j) += aipi * a[j];
             // atpa(j, i) = atpa(i, j);	// it's a symmetrical matrix, we'll set this later after all
             // observations processed
@@ -628,8 +610,9 @@ void CylinderFit::addObservationU(double a[5],
 // This is done after all the observations have been added
 void CylinderFit::setLowerPart(Matrix5x5& atpa) const
 {
-    for (int i = 0; i < 5; ++i) {
-        for (int j = i + 1; j < 5; ++j) {  // skip the diagonal elements
+    const int dim = 5;
+    for (int i = 0; i < dim; ++i) {
+        for (int j = i + 1; j < dim; ++j) {  // skip the diagonal elements
             atpa(j, i) = atpa(i, j);
         }
     }
@@ -643,25 +626,29 @@ bool CylinderFit::computeResiduals(SolutionD solDir,
                                    double vConvLimit,
                                    bool& vConverged) const
 {
+    const int dim = 5;
+    // A minimum of 5 surface points is needed to define a cylinder
+    const int minPts = 5;
     vConverged = true;
     int nPtsUsed = 0;
     sigma0 = 0.0;
-    double a[5] {}, b[3] {};
-    double f0 {}, qw {};
+    DoubleArray5 a {};
+    DoubleArray3 b {};
+    double f0 {};
+    double qw {};
     // double maxdVx = 0.0;
     // double maxdVy = 0.0;
     // double maxdVz = 0.0;
     // double rmsVv = 0.0;
-    std::vector<Base::Vector3d>::iterator vIt = residuals.begin();
-    std::list<Base::Vector3f>::const_iterator cIt;
-    for (cIt = _vPoints.begin(); cIt != _vPoints.end(); ++cIt, ++vIt) {
+    auto vIt = residuals.begin();
+    for (auto cIt = _vPoints.begin(); cIt != _vPoints.end(); ++cIt, ++vIt) {
         // if (using this point) { // currently all given points are used (could modify this if
         // eliminating outliers, etc....
         ++nPtsUsed;
         Base::Vector3d& v = *vIt;
         setupObservation(solDir, *cIt, v, a, f0, qw, b);
         double qv = -f0;
-        for (int i = 0; i < 5; ++i) {
+        for (int i = 0; i < dim; ++i) {
             qv += a[i] * x(i);
         }
 
@@ -699,12 +686,11 @@ bool CylinderFit::computeResiduals(SolutionD solDir,
     }
 
     // Compute degrees of freedom and sigma0
-    if (nPtsUsed < 5)  // A minimum of 5 surface points is needed to define a cylinder
-    {
+    if (nPtsUsed < minPts) {
         sigma0 = 0.0;
         return false;
     }
-    int df = nPtsUsed - 5;
+    int df = nPtsUsed - minPts;
     if (df == 0) {
         sigma0 = 0.0;
     }
@@ -713,7 +699,7 @@ bool CylinderFit::computeResiduals(SolutionD solDir,
     }
 
     // rmsVv = sqrt(rmsVv / (double)nPtsUsed);
-    // Base::Console().Message("X: %0.3e %0.3e %0.3e %0.3e %0.3e , Max dV: %0.4f %0.4f %0.4f , RMS
+    // Base::Console().message("X: %0.3e %0.3e %0.3e %0.3e %0.3e , Max dV: %0.4f %0.4f %0.4f , RMS
     // Vv: %0.4f\n", x(0), x(1), x(2), x(3), x(4), maxdVx, maxdVy, maxdVz, rmsVv);
 
     return true;
@@ -748,7 +734,9 @@ bool CylinderFit::updateParameters(SolutionD solDir, const Eigen::VectorXd& x)
     }
 
     // Update the dependent axis direction parameter
-    double l2 {}, m2 {}, n2 {};
+    double l2 {};
+    double m2 {};
+    double n2 {};
     switch (solDir) {
         case solL:
             l2 = 1.0 - _vAxis.y * _vAxis.y - _vAxis.z * _vAxis.z;

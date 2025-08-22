@@ -27,8 +27,6 @@
 #endif
 
 #include "GCodeParser.h"
-#include <ctype.h>
-#include <stdio.h>
 
 using namespace MillSim;
 
@@ -43,7 +41,7 @@ GCodeParser::~GCodeParser()
 bool GCodeParser::Parse(const char* filename)
 {
     Operations.clear();
-    lastState = {eNop, -1, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F};
+    lastState = {eNop, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     lastTool = -1;
 
     FILE* fl;
@@ -165,6 +163,13 @@ bool GCodeParser::ParseLine(const char* ptr)
                 }
                 else if (cmd == 73 || cmd == 81 || cmd == 82 || cmd == 83) {
                     lastState.cmd = eDril;
+                    lastState.retract_z = lastState.z;
+                }
+                else if (cmd == 98 || cmd == 99) {
+                    lastState.retract_mode = cmd;
+                }
+                else if (cmd == 80) {
+                    lastState.retract_mode = 0;
                 }
                 break;
 
@@ -214,7 +219,13 @@ bool GCodeParser::AddLine(const char* ptr)
         if (lastState.cmd == eDril) {
             // split to several motions
             lastState.cmd = eMoveLiner;
-            float rPlane = lastState.r;
+            float rPlane;
+            if (lastState.retract_mode == 99) {
+                rPlane = lastState.r;
+            }
+            else {
+                rPlane = lastState.retract_z;
+            }
             float finalDepth = lastState.z;
             lastState.z = rPlane;
             Operations.push_back(lastState);
@@ -222,6 +233,7 @@ bool GCodeParser::AddLine(const char* ptr)
             Operations.push_back(lastState);
             lastState.z = rPlane;
             Operations.push_back(lastState);
+            lastState.cmd = eDril;
         }
         else {
             Operations.push_back(lastState);

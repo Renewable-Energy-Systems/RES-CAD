@@ -27,47 +27,49 @@
 
 ## \addtogroup draftfunctions
 # @{
-import draftutils.utils as utils
-import draftmake.make_wire as make_wire
-
+from draftmake import make_copy
+from draftutils import utils
 
 def split(wire, newPoint, edgeIndex):
     if utils.get_type(wire) != "Wire":
-        return
-    elif wire.Closed:
-        split_closed_wire(wire, edgeIndex)
-    else:
-        split_open_wire(wire, newPoint, edgeIndex)
+        return None
+    if wire.Closed:
+        return split_closed_wire(wire, edgeIndex)
+    return split_open_wire(wire, newPoint, edgeIndex)
 
 
 def split_closed_wire(wire, edgeIndex):
     wire.Closed = False
+    new = make_copy.make_copy(wire)
     if edgeIndex == len(wire.Points):
-        make_wire.make_wire([wire.Placement.multVec(wire.Points[0]),
-            wire.Placement.multVec(wire.Points[-1])], placement=wire.Placement)
+        new.Points = [wire.Points[0], wire.Points[-1]]
     else:
-        make_wire.make_wire([wire.Placement.multVec(wire.Points[edgeIndex-1]),
-            wire.Placement.multVec(wire.Points[edgeIndex])], placement=wire.Placement)
+        new.Points = [wire.Points[edgeIndex-1], wire.Points[edgeIndex]]
         wire.Points = list(reversed(wire.Points[0:edgeIndex])) + list(reversed(wire.Points[edgeIndex:]))
+    return new
 
 
 splitClosedWire = split_closed_wire
 
 
 def split_open_wire(wire, newPoint, edgeIndex):
+    new = make_copy.make_copy(wire)
     wire1Points = []
     wire2Points = []
     for index, point in enumerate(wire.Points):
         if index == edgeIndex:
-            wire1Points.append(wire.Placement.inverse().multVec(newPoint))
+            edge = wire.getSubObject("Edge" + str(edgeIndex))
+            newPoint = wire.Placement.inverse().multVec(edge.Curve.projectPoint(newPoint))
+            wire1Points.append(newPoint)
             wire2Points.append(newPoint)
-            wire2Points.append(wire.Placement.multVec(point))
+            wire2Points.append(point)
         elif index < edgeIndex:
             wire1Points.append(point)
         elif index > edgeIndex:
-            wire2Points.append(wire.Placement.multVec(point))
+            wire2Points.append(point)
     wire.Points = wire1Points
-    make_wire.make_wire(wire2Points, placement=wire.Placement)
+    new.Points = wire2Points
+    return new
 
 
 splitOpenWire = split_open_wire

@@ -41,15 +41,11 @@ PROPERTY_SOURCE(FemGui::ViewProviderSolver, Gui::ViewProviderDocumentObject)
 
 ViewProviderSolver::ViewProviderSolver()
 {
+    setToggleVisibility(ToggleVisibilityMode::NoToggleVisibility);
     sPixmap = "FEM_SolverStandard";
 }
 
 ViewProviderSolver::~ViewProviderSolver() = default;
-
-std::vector<std::string> ViewProviderSolver::getDisplayModes() const
-{
-    return {"Solver"};
-}
 
 bool ViewProviderSolver::onDelete(const std::vector<std::string>&)
 {
@@ -77,5 +73,5 @@ PROPERTY_SOURCE_TEMPLATE(FemGui::ViewProviderSolverPython, FemGui::ViewProviderS
 /// @endcond
 
 // explicit template instantiation
-template class FemGuiExport ViewProviderPythonFeatureT<ViewProviderSolver>;
+template class FemGuiExport ViewProviderFeaturePythonT<ViewProviderSolver>;
 }  // namespace Gui

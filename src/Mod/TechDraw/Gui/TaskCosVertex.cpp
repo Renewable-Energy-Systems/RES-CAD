@@ -27,7 +27,6 @@
 #endif // #ifndef _PreComp_
 
 #include <Base/Console.h>
-#include <Base/Tools.h>
 #include <Base/UnitsApi.h>
 #include <Gui/Application.h>
 #include <Gui/BitmapFactory.h>
@@ -65,7 +64,7 @@ TaskCosVertex::TaskCosVertex(TechDraw::DrawViewPart* baseFeat,
     m_baseFeat(baseFeat),
     m_basePage(page),
     m_qgParent(nullptr),
-    m_trackerMode(QGTracker::None),
+    m_trackerMode(QGTracker::TrackerMode::None),
     m_saveContextPolicy(Qt::DefaultContextMenu),
     m_inProgressLock(false),
     m_btnOK(nullptr),
@@ -105,12 +104,12 @@ void TaskCosVertex::changeEvent(QEvent* event)
 
 void TaskCosVertex::setUiPrimary()
 {
-//    Base::Console().Message("TCV::setUiPrimary()\n");
+//    Base::Console().message("TCV::setUiPrimary()\n");
     setWindowTitle(QObject::tr("New Cosmetic Vertex"));
 
     if (m_baseFeat) {
         std::string baseName = m_baseFeat->getNameInDocument();
-        ui->leBaseView->setText(Base::Tools::fromStdString(baseName));
+        ui->leBaseView->setText(QString::fromStdString(baseName));
     }
     ui->pbTracker->setText(tr("Point Picker"));
     ui->pbTracker->setEnabled(true);
@@ -150,14 +149,14 @@ void TaskCosVertex::addCosVertex(QPointF qPos)
 void TaskCosVertex::onTrackerClicked(bool clicked)
 {
     Q_UNUSED(clicked);
-//    Base::Console().Message("TCV::onTrackerClicked() m_pbTrackerState: %d\n",
+//    Base::Console().message("TCV::onTrackerClicked() m_pbTrackerState: %d\n",
 //                            m_pbTrackerState);
 
     removeTracker();
 
     if (m_pbTrackerState == TrackerAction::CANCEL) {
         m_pbTrackerState = TrackerAction::PICK;
-        ui->pbTracker->setText(tr("Pick Points"));
+        ui->pbTracker->setText(tr("Pick points"));
         enableTaskButtons(true);
 
         setEditCursor(Qt::ArrowCursor);
@@ -182,7 +181,7 @@ void TaskCosVertex::onTrackerClicked(bool clicked)
 
 void TaskCosVertex::startTracker()
 {
-//    Base::Console().Message("TCV::startTracker()\n");
+//    Base::Console().message("TCV::startTracker()\n");
     if (m_trackerMode == QGTracker::TrackerMode::None) {
         return;
     }
@@ -206,10 +205,9 @@ void TaskCosVertex::startTracker()
 
 void TaskCosVertex::onTrackerFinished(std::vector<QPointF> pts, QGIView* qgParent)
 {
-    //    Base::Console().Message("TCV::onTrackerFinished()\n");
     (void)qgParent;
     if (pts.empty()) {
-        Base::Console().Error("TaskCosVertex - no points available\n");
+        Base::Console().error("TaskCosVertex - no points available\n");
         return;
     }
 
@@ -219,16 +217,13 @@ void TaskCosVertex::onTrackerFinished(std::vector<QPointF> pts, QGIView* qgParen
     double y = Rez::guiX(m_baseFeat->Y.getValue());
 
     DrawViewPart* dvp = m_baseFeat;
-    DrawProjGroupItem* dpgi = dynamic_cast<DrawProjGroupItem*>(dvp);
+    DrawProjGroupItem* dpgi = freecad_cast<DrawProjGroupItem*>(dvp);
     if (dpgi) {
         DrawProjGroup* dpg = dpgi->getPGroup();
-        if (!dpg) {
-            Base::Console().Message("TCV:onTrackerFinished - projection group is confused\n");
-            //TODO::throw something.
-            return;
+        if (dpg) {
+            x += Rez::guiX(dpg->X.getValue());
+            y += Rez::guiX(dpg->Y.getValue());
         }
-        x += Rez::guiX(dpg->X.getValue());
-        y += Rez::guiX(dpg->Y.getValue());
     }
     //x, y are scene pos of dvp/dpgi
 
@@ -250,7 +245,7 @@ void TaskCosVertex::onTrackerFinished(std::vector<QPointF> pts, QGIView* qgParen
     m_tracker->sleep(true);
     m_inProgressLock = false;
     m_pbTrackerState = TrackerAction::PICK;
-    ui->pbTracker->setText(tr("Pick Points"));
+    ui->pbTracker->setText(tr("Pick points"));
     ui->pbTracker->setEnabled(true);
     enableTaskButtons(true);
     setEditCursor(Qt::ArrowCursor);
@@ -260,7 +255,7 @@ void TaskCosVertex::onTrackerFinished(std::vector<QPointF> pts, QGIView* qgParen
 
 void TaskCosVertex::removeTracker()
 {
-//    Base::Console().Message("TCV::removeTracker()\n");
+//    Base::Console().message("TCV::removeTracker()\n");
     if (m_tracker && m_tracker->scene()) {
         m_vpp->getQGSPage()->removeItem(m_tracker);
         delete m_tracker;

@@ -30,7 +30,6 @@
 #ifdef _PreComp_
 
 // standard
-#include <cfloat>
 #include <cmath>
 
 // STL
@@ -46,4 +45,4 @@
 
 #endif  //_PreComp_
 
-#endif // MEASUREGUI_PRECOMPILED_H
+#endif  // MEASUREGUI_PRECOMPILED_H

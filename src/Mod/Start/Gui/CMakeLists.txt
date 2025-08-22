@@ -23,21 +23,16 @@
 
 include_directories(
         ${CMAKE_CURRENT_BINARY_DIR}
-        ${Boost_INCLUDE_DIRS}
-        ${COIN3D_INCLUDE_DIRS}
-        ${PYTHON_INCLUDE_DIRS}
-        ${QtCore_INCLUDE_DIRS}
-        ${QtSvg_INCLUDE_DIRS}
-        ${QtUiTools_INCLUDE_DIRS}
-        ${QtWidgets_INCLUDE_DIRS}
-        ${XercesC_INCLUDE_DIRS}
-        ${ZLIB_INCLUDE_DIR}
 )
 
 set(StartGui_LIBS
         Start
         FreeCADGui
         )
+
+set(StartGui_UIC_SRCS
+        DlgStartPreferences.ui
+    )
 
 set(Start_TR_QRC ${CMAKE_CURRENT_BINARY_DIR}/Resources/Start_translation.qrc)
 qt_find_and_add_translation(QM_SRCS "Resources/translations/*_*.ts"
@@ -49,6 +44,8 @@ qt_add_resources(Start_QRC_SRCS Resources/Start.qrc ${Start_TR_QRC})
 SET(StartGui_SRCS
         ${Start_QRC_SRCS}
         ${StartGui_UIC_SRCS}
+        DlgStartPreferencesImp.cpp
+        DlgStartPreferencesImp.h
         AppStartGui.cpp
         FileCardDelegate.cpp
         FileCardDelegate.h
@@ -62,6 +59,8 @@ SET(StartGui_SRCS
         GeneralSettingsWidget.h
         Manipulator.cpp
         Manipulator.h
+        NewFileButton.cpp
+        NewFileButton.h
         PreCompiled.cpp
         PreCompiled.h
         StartView.cpp
@@ -87,6 +86,16 @@ if (FREECAD_USE_PCH)
     GET_MSVC_PRECOMPILED_SOURCE("PreCompiled.cpp" PCH_SRCS ${StartGui_SRCS})
     ADD_MSVC_PRECOMPILED_HEADER(StartGui PreCompiled.h PreCompiled.cpp PCH_SRCS)
 endif (FREECAD_USE_PCH)
+
+# Add CoreFoundation to StartGui_LIBS on macOS
+if (APPLE)
+    find_library(COREFOUNDATION_LIBRARY CoreFoundation)
+    if (COREFOUNDATION_LIBRARY)
+        list(APPEND StartGui_LIBS ${COREFOUNDATION_LIBRARY})
+    else()
+        message(SEND_ERROR "CoreFoundation not found. Please ensure you're building on macOS.")
+    endif()
+endif()
 
 add_library(StartGui SHARED ${StartGui_SRCS} ${StartGuiIcon_SVG} ${StartGuiThumbnail_PNG})
 # target_link_libraries(StartGui ${StartGui_LIBS} Qt::Quick Qt::Qml Qt::QuickWidgets)

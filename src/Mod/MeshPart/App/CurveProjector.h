@@ -23,9 +23,7 @@
 #ifndef _CurveProjector_h_
 #define _CurveProjector_h_
 
-#ifdef FC_USE_GTS
-#include <gts.h>
-#endif
+#include <limits>
 
 #include <TopoDS_Edge.hxx>
 
@@ -70,7 +68,8 @@ public:
             std::hash<T> hasher;
             return hasher(x) < hasher(y);
 #else
-            return x.HashCode(INT_MAX - 1) < y.HashCode(INT_MAX - 1);
+            constexpr int max = std::numeric_limits<int>::max();
+            return x.HashCode(max - 1) < y.HashCode(max - 1);
 #endif
         }
     };

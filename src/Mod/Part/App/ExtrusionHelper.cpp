@@ -22,7 +22,7 @@
 
 #include "PreCompiled.h"
 #ifndef _PreComp_
-# include <BRepAlgoAPI_Cut.hxx>
+# include <Mod/Part/App/FCBRepAlgoAPI_Cut.h>
 # include <BRepBuilderAPI_MakeFace.hxx>
 # include <BRepBuilderAPI_MakeWire.hxx>
 # include <BRepBuilderAPI_Sewing.hxx>
@@ -43,7 +43,6 @@
 #include <Base/Exception.h>
 #include <BRepClass3d_SolidClassifier.hxx>
 #include <ShapeFix_Wire.hxx>
-// #include <BRepLib_FindSurface.hxx>
 
 #include "ExtrusionHelper.h"
 #include "TopoShape.h"
@@ -266,7 +265,7 @@ void ExtrusionHelper::makeDraft(const TopoDS_Shape& shape,
                         // get MomentOfInertia of first shape
                         BRepGProp::VolumeProperties(*itOuter, tempProperties);
                         momentOfInertiaInitial = tempProperties.MomentOfInertia(gp_Ax1(gp_Pnt(), direction));
-                        BRepAlgoAPI_Cut mkCut(*itOuter, *itInner);
+                        FCBRepAlgoAPI_Cut mkCut(*itOuter, *itInner);
                         if (!mkCut.IsDone())
                             Standard_Failure::Raise("Extrusion: Final cut out failed");
                         BRepGProp::VolumeProperties(mkCut.Shape(), tempProperties);
@@ -346,7 +345,7 @@ void ExtrusionHelper::checkInnerWires(std::vector<bool>& isInnerWire, const gp_D
             // get MomentOfInertia of first shape
             BRepGProp::VolumeProperties(*itInner, tempProperties);
             momentOfInertiaInitial = tempProperties.MomentOfInertia(gp_Ax1(gp_Pnt(), direction));
-            BRepAlgoAPI_Cut mkCut(*itInner, *itOuter);
+            FCBRepAlgoAPI_Cut mkCut(*itInner, *itOuter);
             if (!mkCut.IsDone())
                 Standard_Failure::Raise("Extrusion: Cut out failed");
             BRepGProp::VolumeProperties(mkCut.Shape(), tempProperties);
@@ -383,7 +382,7 @@ void ExtrusionHelper::checkInnerWires(std::vector<bool>& isInnerWire, const gp_D
         isInnerWire[0] = false;
         checklist[0] = false;
         --numCheckWires;
-        Base::Console().Warning("Extrusion: could not determine what structure is the outer one.\n\
+        Base::Console().warning("Extrusion: could not determine what structure is the outer one.\n\
                                  The first input one will now be taken as outer one.\n");
     }
 
@@ -400,7 +399,7 @@ void ExtrusionHelper::checkInnerWires(std::vector<bool>& isInnerWire, const gp_D
             }
             ++i;
         }
-        Base::Console().Warning("Extrusion: too many self-intersection structures!\n\
+        Base::Console().warning("Extrusion: too many self-intersection structures!\n\
                                  Impossible to determine what structure is an inner one.\n\
                                  All undeterminable structures will therefore be taken as outer ones.\n");
     }
@@ -451,10 +450,10 @@ void ExtrusionHelper::createTaperedPrismOffset(TopoDS_Wire sourceWire,
     }
     if (offsetShape.IsNull()) {
         if (isSecond)
-            Base::Console().Error("Extrusion: end face of tapered against extrusion is empty\n" \
+            Base::Console().error("Extrusion: end face of tapered against extrusion is empty\n" \
                 "This means most probably that the against taper angle is too large or small.\n");
         else
-            Base::Console().Error("Extrusion: end face of tapered along extrusion is empty\n" \
+            Base::Console().error("Extrusion: end face of tapered along extrusion is empty\n" \
                 "This means most probably that the along taper angle is too large or small.\n");
         Standard_Failure::Raise("Extrusion: end face of tapered extrusion is empty");
     }
@@ -473,10 +472,10 @@ void ExtrusionHelper::createTaperedPrismOffset(TopoDS_Wire sourceWire,
         // FIXME: Standard_Failure::Raise or App::DocumentObjectExecReturn don't output the message to the user
         result = TopoDS_Wire();
         if (isSecond)
-            Base::Console().Error("Extrusion: type of against extrusion end face is not supported.\n" \
+            Base::Console().error("Extrusion: type of against extrusion end face is not supported.\n" \
                 "This means most probably that the against taper angle is too large or small.\n");
         else
-            Base::Console().Error("Extrusion: type of along extrusion is not supported.\n" \
+            Base::Console().error("Extrusion: type of along extrusion is not supported.\n" \
                 "This means most probably that the along taper angle is too large or small.\n");
     }
 

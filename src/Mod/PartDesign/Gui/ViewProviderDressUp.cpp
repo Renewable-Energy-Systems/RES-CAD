@@ -37,12 +37,27 @@
 #include <Mod/PartDesign/App/FeatureDressUp.h>
 
 #include "ViewProviderDressUp.h"
+
+#include "StyleParameters.h"
 #include "TaskDressUpParameters.h"
+
+#include <Base/ServiceProvider.h>
+#include <Gui/Utilities.h>
 
 using namespace PartDesignGui;
 
-PROPERTY_SOURCE(PartDesignGui::ViewProviderDressUp,PartDesignGui::ViewProvider)
+PROPERTY_SOURCE(PartDesignGui::ViewProviderDressUp, PartDesignGui::ViewProvider)
 
+
+void ViewProviderDressUp::attach(App::DocumentObject* pcObject)
+{
+    ViewProvider::attach(pcObject);
+
+    auto* styleParameterManager = Base::provideService<Gui::StyleParameters::ParameterManager>();
+    PreviewColor.setValue(styleParameterManager->resolve(StyleParameters::PreviewDressUpColor));
+
+    setErrorState(false);
+}
 
 void ViewProviderDressUp::setupContextMenu(QMenu* menu, QObject* receiver, const char* member)
 {
@@ -66,14 +81,14 @@ bool ViewProviderDressUp::setEdit(int ModNum) {
     if (ModNum == ViewProvider::Default) {
         // Here we should prevent edit of a Feature with missing base
         // Otherwise it could call unhandled exception.
-        PartDesign::DressUp* dressUp = static_cast<PartDesign::DressUp*>(getObject());
+        PartDesign::DressUp* dressUp = getObject<PartDesign::DressUp>();
         assert (dressUp);
         if (dressUp->getBaseObject (/*silent =*/ true)) {
             return ViewProvider::setEdit(ModNum);
         } else {
             QMessageBox::warning ( nullptr, QObject::tr("Feature error"),
                     QObject::tr("%1 misses a base feature.\n"
-                           "This feature is broken and can't be edited.")
+                           "This feature is broken and cannot be edited.")
                         .arg( QString::fromLatin1(dressUp->getNameInDocument()) )
                 );
             return false;
@@ -86,7 +101,7 @@ bool ViewProviderDressUp::setEdit(int ModNum) {
 
 void ViewProviderDressUp::highlightReferences(const bool on)
 {
-    PartDesign::DressUp* pcDressUp = static_cast<PartDesign::DressUp*>(getObject());
+    PartDesign::DressUp* pcDressUp = getObject<PartDesign::DressUp>();
     Part::Feature* base = pcDressUp->getBaseObject (/*silent =*/ true);
     if (!base)
         return;
@@ -108,7 +123,7 @@ void ViewProviderDressUp::highlightReferences(const bool on)
             vp->setHighlightedFaces(materials);
         }
         if (!edges.empty()) {
-            std::vector<App::Color> colors = vp->LineColorArray.getValues();
+            std::vector<Base::Color> colors = vp->LineColorArray.getValues();
 
             PartGui::ReferenceHighlighter highlighter(base->Shape.getValue(), LineColor.getValue());
             highlighter.getEdgeColors(edges, colors);
@@ -119,5 +134,18 @@ void ViewProviderDressUp::highlightReferences(const bool on)
         vp->unsetHighlightedFaces();
         vp->unsetHighlightedEdges();
     }
+}
+
+void ViewProviderDressUp::setErrorState(bool error)
+{
+    auto* styleParameterManager = Base::provideService<Gui::StyleParameters::ParameterManager>();
+
+    pcPreviewShape->transparency = styleParameterManager
+                                       ->resolve(error ? StyleParameters::PreviewErrorTransparency
+                                                       : StyleParameters::PreviewShapeTransparency)
+                                       .value;
+    pcPreviewShape->color = error
+        ? styleParameterManager->resolve(StyleParameters::PreviewErrorColor).asValue<SbColor>()
+        : PreviewColor.getValue().asValue<SbColor>();
 }
 

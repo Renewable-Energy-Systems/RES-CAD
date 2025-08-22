@@ -51,15 +51,14 @@ class CommandAxoLengthDimension:
         """Return a dictionary with data that will be used by the button or menu item."""
         return {'Pixmap': 'actions/TechDraw_AxoLengthDimension.svg',
                 'Accel': "",
-                'MenuText': QT_TRANSLATE_NOOP("TechDraw_AxoLengthDimension", "Axonometric length dimension"),
-                'ToolTip': QT_TRANSLATE_NOOP("TechDraw_AxoLengthDimension", "Create an axonometric length dimension<br>\
-                - select first edge to define direction and length of the dimension line<br>\
-                - select second edge to define the direction of the extension lines<br>\
-                - optional: select two more vertexes which define the measurement instead of the length<br>\
-                  of the first selected edge")}
+                'MenuText': QT_TRANSLATE_NOOP("TechDraw_AxoLengthDimension", "Axonometric Length Dimension"),
+                'ToolTip': QT_TRANSLATE_NOOP("TechDraw_AxoLengthDimension", "Creates a length dimension in with "
+                            "axonometric view, using selected edges or vertex pairs to define direction and measurement")}
 
     def Activated(self):
         """Run the following code when the command is activated (button press)."""
+
+        App.setActiveTransaction("Create axonometric length dimension")
         vertexes = []
         edges = []
         if Utils.getSelEdges(2):
@@ -69,7 +68,7 @@ class CommandAxoLengthDimension:
         if len(vertexes)<2:
             vertexes.append(edges[0].Vertexes[0])
             vertexes.append(edges[0].Vertexes[1])
-            
+
         view = Utils.getSelView()
         scale = view.getScale()
 
@@ -80,7 +79,7 @@ class CommandAxoLengthDimension:
         xAxis = App.Vector(1,0,0)
         extAngle = degrees(extLineVec.getAngle(xAxis))
         lineAngle = degrees(dimLineVec.getAngle(xAxis))
-        
+
         if extLineVec.y < 0.0:
             extAngle = 180-extAngle
         if dimLineVec.y < 0.0:
@@ -97,7 +96,7 @@ class CommandAxoLengthDimension:
             (px,py,pz) = Utils.getCoordinateVectors(view)
             arrowTips = distanceDim.getArrowPositions()
             value2D = (arrowTips[1].sub(arrowTips[0])).Length
-            value3D = 1.0 
+            value3D = 1.0
             if px.isParallel(dimLineVec,0.1):
                 value3D = value2D/px.Length
             elif py.isParallel(dimLineVec,0.1):
@@ -113,6 +112,7 @@ class CommandAxoLengthDimension:
             distanceDim.recompute()
             view.requestPaint()
         Gui.Selection.clearSelection()
+        App.closeActiveTransaction()
 
     def IsActive(self):
         """Return True when the command should be active or False when it should be disabled (greyed)."""

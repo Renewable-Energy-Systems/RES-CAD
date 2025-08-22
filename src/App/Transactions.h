@@ -42,7 +42,7 @@ class TransactionalObject;
 
 /** Represents a atomic transaction of the document
  */
-class AppExport Transaction : public Base::Persistence
+class AppExport Transaction: public Base::Persistence
 {
     TYPESYSTEM_HEADER_WITH_OVERRIDE();
 
@@ -60,15 +60,15 @@ public:
     ~Transaction() override;
 
     /// apply the content to the document
-    void apply(Document &Doc,bool forward);
+    void apply(Document& Doc, bool forward);
 
     // the utf-8 name of the transaction
     std::string Name;
 
-    unsigned int getMemSize () const override;
-    void Save (Base::Writer &writer) const override;
+    unsigned int getMemSize() const override;
+    void Save(Base::Writer& writer) const override;
     /// This method is used to restore properties from an XML document.
-    void Restore(Base::XMLReader &reader) override;
+    void Restore(Base::XMLReader& reader) override;
 
     /// Return the transaction ID
     int getID() const;
@@ -80,12 +80,17 @@ public:
     /// Returns true if the transaction list is empty; otherwise returns false.
     bool isEmpty() const;
     /// check if this object is used in a transaction
-    bool hasObject(const TransactionalObject *Obj) const;
-    void addOrRemoveProperty(TransactionalObject *Obj, const Property* pcProp, bool add);
+    bool hasObject(const TransactionalObject* Obj) const;
+    void renameProperty(TransactionalObject* Obj, const Property* pcProp, const char* oldName);
+    void addOrRemoveProperty(TransactionalObject* Obj, const Property* pcProp, bool add);
 
-    void addObjectNew(TransactionalObject *Obj);
-    void addObjectDel(const TransactionalObject *Obj);
-    void addObjectChange(const TransactionalObject *Obj, const Property *Prop);
+    void addObjectNew(TransactionalObject* Obj);
+    void addObjectDel(const TransactionalObject* Obj);
+    void addObjectChange(const TransactionalObject* Obj, const Property* Prop);
+
+private:
+    void changeProperty(TransactionalObject* Obj,
+                        std::function<void(TransactionObject* to)> changeFunc);
 
 private:
     int transID;
@@ -94,16 +99,13 @@ private:
         Info,
         bmi::indexed_by<
             bmi::sequenced<>,
-            bmi::hashed_unique<
-                bmi::member<Info, const TransactionalObject*, &Info::first>
-            >
-        >
-    > _Objects;
+            bmi::hashed_unique<bmi::member<Info, const TransactionalObject*, &Info::first>>>>
+        _Objects;
 };
 
 /** Represents an entry for an object in a Transaction
  */
-class AppExport TransactionObject : public Base::Persistence
+class AppExport TransactionObject: public Base::Persistence
 {
     TYPESYSTEM_HEADER_WITH_OVERRIDE();
 
@@ -113,26 +115,35 @@ public:
     /// Destruction
     ~TransactionObject() override;
 
-    virtual void applyNew(Document &Doc, TransactionalObject *pcObj);
-    virtual void applyDel(Document &Doc, TransactionalObject *pcObj);
-    virtual void applyChn(Document &Doc, TransactionalObject *pcObj, bool Forward);
+    virtual void applyNew(Document& Doc, TransactionalObject* pcObj);
+    virtual void applyDel(Document& Doc, TransactionalObject* pcObj);
+    virtual void applyChn(Document& Doc, TransactionalObject* pcObj, bool Forward);
 
     void setProperty(const Property* pcProp);
+    void renameProperty(const Property* pcProp, const char* newName);
     void addOrRemoveProperty(const Property* pcProp, bool add);
 
-    unsigned int getMemSize () const override;
-    void Save (Base::Writer &writer) const override;
+    unsigned int getMemSize() const override;
+    void Save(Base::Writer& writer) const override;
     /// This method is used to restore properties from an XML document.
-    void Restore(Base::XMLReader &reader) override;
+    void Restore(Base::XMLReader& reader) override;
 
     friend class Transaction;
 
 protected:
-    enum Status {New,Del,Chn} status{New};
+    enum Status
+    {
+        New,
+        Del,
+        Chn
+    } status {New};
 
-    struct PropData : DynamicProperty::PropData {
+    struct PropData: DynamicProperty::PropData
+    {
         Base::Type propertyType;
-        const Property *propertyOrig = nullptr;
+        const Property* propertyOrig = nullptr;
+        // for property renaming
+        std::string nameOrig;
     };
     std::unordered_map<int64_t, PropData> _PropChangeMap;
 
@@ -141,7 +152,7 @@ protected:
 
 /** Represents an entry for a document object in a transaction
  */
-class AppExport TransactionDocumentObject : public TransactionObject
+class AppExport TransactionDocumentObject: public TransactionObject
 {
     TYPESYSTEM_HEADER_WITH_OVERRIDE();
 
@@ -151,18 +162,18 @@ public:
     /// Destruction
     ~TransactionDocumentObject() override;
 
-    void applyNew(Document &Doc, TransactionalObject *pcObj) override;
-    void applyDel(Document &Doc, TransactionalObject *pcObj) override;
+    void applyNew(Document& Doc, TransactionalObject* pcObj) override;
+    void applyDel(Document& Doc, TransactionalObject* pcObj) override;
 };
 
 class AppExport TransactionFactory
 {
 public:
     static TransactionFactory& instance();
-    static void destruct ();
+    static void destruct();
 
-    TransactionObject* createTransaction (const Base::Type& type) const;
-    void addProducer (const Base::Type& type, Base::AbstractProducer *producer);
+    TransactionObject* createTransaction(const Base::Type& type) const;
+    void addProducer(const Base::Type& type, Base::AbstractProducer* producer);
 
 private:
     static TransactionFactory* self;
@@ -172,27 +183,26 @@ private:
     ~TransactionFactory() = default;
 };
 
-template <class CLASS>
-class TransactionProducer : public Base::AbstractProducer
+template<class CLASS>
+class TransactionProducer: public Base::AbstractProducer
 {
 public:
-    explicit TransactionProducer (const Base::Type& type)
+    explicit TransactionProducer(const Base::Type& type)
     {
         TransactionFactory::instance().addProducer(type, this);
     }
 
-    ~TransactionProducer () override = default;
+    ~TransactionProducer() override = default;
 
     /**
      * Creates an instance of the specified transaction object.
      */
-    void* Produce () const override
+    void* Produce() const override
     {
         return (new CLASS);
     }
 };
 
-} //namespace App
+}  // namespace App
 
-#endif // APP_TRANSACTION_H
-
+#endif  // APP_TRANSACTION_H

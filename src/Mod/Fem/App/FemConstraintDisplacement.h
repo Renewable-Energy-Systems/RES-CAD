@@ -40,6 +40,9 @@ public:
     /// Constructor
     ConstraintDisplacement();
 
+    App::PropertyBool EnableAmplitude;
+    App::PropertyStringList AmplitudeValues;
+
     // Displacement parameters
     App::PropertyDistance xDisplacement;
     App::PropertyDistance yDisplacement;
@@ -53,15 +56,9 @@ public:
     App::PropertyBool xFree;
     App::PropertyBool yFree;
     App::PropertyBool zFree;
-    App::PropertyBool xFix;
-    App::PropertyBool yFix;
-    App::PropertyBool zFix;
     App::PropertyBool rotxFree;
     App::PropertyBool rotyFree;
     App::PropertyBool rotzFree;
-    App::PropertyBool rotxFix;
-    App::PropertyBool rotyFix;
-    App::PropertyBool rotzFix;
     App::PropertyBool hasXFormula;
     App::PropertyBool hasYFormula;
     App::PropertyBool hasZFormula;

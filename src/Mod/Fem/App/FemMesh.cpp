@@ -82,39 +82,39 @@ using namespace Fem;
 using namespace Base;
 using namespace boost;
 
-#if SMESH_VERSION_MAJOR < 9
-static int StatCount = 0;
-#endif
-
 SMESH_Gen* FemMesh::_mesh_gen = nullptr;
 
 TYPESYSTEM_SOURCE(Fem::FemMesh, Base::Persistence)
 
 FemMesh::FemMesh()
+    : myMesh(nullptr)
+#if SMESH_VERSION_MAJOR < 9
+    , myStudyId(0)
+#endif
 {
-    // Base::Console().Log("FemMesh::FemMesh():%p (id=%i)\n",this,StatCount);
-    //  create a mesh always with new StudyId to avoid overlapping destruction
 #if SMESH_VERSION_MAJOR >= 9
     myMesh = getGenerator()->CreateMesh(false);
 #else
-    myMesh = getGenerator()->CreateMesh(StatCount++, false);
+    myMesh = getGenerator()->CreateMesh(myStudyId, false);
 #endif
 }
 
 FemMesh::FemMesh(const FemMesh& mesh)
+    : myMesh(nullptr)
+#if SMESH_VERSION_MAJOR < 9
+    , myStudyId(0)
+#endif
 {
 #if SMESH_VERSION_MAJOR >= 9
     myMesh = getGenerator()->CreateMesh(false);
 #else
-    myMesh = getGenerator()->CreateMesh(StatCount++, false);
+    myMesh = getGenerator()->CreateMesh(myStudyId, false);
 #endif
     copyMeshData(mesh);
 }
 
 FemMesh::~FemMesh()
 {
-    // Base::Console().Log("FemMesh::~FemMesh():%p\n",this);
-
     try {
         TopoDS_Shape aNull;
         myMesh->ShapeToMesh(aNull);
@@ -132,7 +132,7 @@ FemMesh& FemMesh::operator=(const FemMesh& mesh)
 #if SMESH_VERSION_MAJOR >= 9
         myMesh = getGenerator()->CreateMesh(true);
 #else
-        myMesh = getGenerator()->CreateMesh(0, true);
+        myMesh = getGenerator()->CreateMesh(myStudyId, true);
 #endif
         copyMeshData(mesh);
     }
@@ -143,9 +143,6 @@ void FemMesh::copyMeshData(const FemMesh& mesh)
 {
     _Mtrx = mesh._Mtrx;
 
-    // See file SMESH_I/SMESH_Gen_i.cxx in the git repo of smesh at
-    // https://git.salome-platform.org
-#if 1
     // 1. Get source mesh
     SMESHDS_Mesh* srcMeshDS = mesh.myMesh->GetMeshDS();
 
@@ -267,247 +264,6 @@ void FemMesh::copyMeshData(const FemMesh& mesh)
     }
 
     newMeshDS->Modified();
-
-#else
-    SMESHDS_Mesh* meshds = this->myMesh->GetMeshDS();
-
-    // Some further information is still not copied:
-    // https://forum.freecad.org/viewtopic.php?f=18&t=18982#p148114
-    SMDS_NodeIteratorPtr aNodeIter = mesh.myMesh->GetMeshDS()->nodesIterator();
-    for (; aNodeIter->more();) {
-        const SMDS_MeshNode* aNode = aNodeIter->next();
-        double temp[3];
-        aNode->GetXYZ(temp);
-        meshds->AddNodeWithID(temp[0], temp[1], temp[2], aNode->GetID());
-    }
-    SMDS_EdgeIteratorPtr aEdgeIter = mesh.myMesh->GetMeshDS()->edgesIterator();
-    for (; aEdgeIter->more();) {
-        const SMDS_MeshEdge* aEdge = aEdgeIter->next();
-        meshds->AddEdgeWithID(aEdge->GetNode(0), aEdge->GetNode(1), aEdge->GetID());
-    }
-
-    SMDS_FaceIteratorPtr aFaceIter = mesh.myMesh->GetMeshDS()->facesIterator();
-    for (; aFaceIter->more();) {
-        const SMDS_MeshFace* aFace = aFaceIter->next();
-        switch (aFace->NbNodes()) {
-            case 3:
-                meshds->AddFaceWithID(aFace->GetNode(0),
-                                      aFace->GetNode(1),
-                                      aFace->GetNode(2),
-                                      aFace->GetID());
-                break;
-            case 4:
-                meshds->AddFaceWithID(aFace->GetNode(0),
-                                      aFace->GetNode(1),
-                                      aFace->GetNode(2),
-                                      aFace->GetNode(3),
-                                      aFace->GetID());
-                break;
-            case 6:
-                meshds->AddFaceWithID(aFace->GetNode(0),
-                                      aFace->GetNode(1),
-                                      aFace->GetNode(2),
-                                      aFace->GetNode(3),
-                                      aFace->GetNode(4),
-                                      aFace->GetNode(5),
-                                      aFace->GetID());
-                break;
-            case 8:
-                meshds->AddFaceWithID(aFace->GetNode(0),
-                                      aFace->GetNode(1),
-                                      aFace->GetNode(2),
-                                      aFace->GetNode(3),
-                                      aFace->GetNode(4),
-                                      aFace->GetNode(5),
-                                      aFace->GetNode(6),
-                                      aFace->GetNode(7),
-                                      aFace->GetID());
-                break;
-            default: {
-                std::vector<const SMDS_MeshNode*> aNodes;
-                for (int i = 0; aFace->NbNodes(); i++) {
-                    aNodes.push_back(aFace->GetNode(0));
-                }
-                meshds->AddPolygonalFaceWithID(aNodes, aFace->GetID());
-            } break;
-        }
-    }
-
-    SMDS_VolumeIteratorPtr aVolIter = mesh.myMesh->GetMeshDS()->volumesIterator();
-    for (; aVolIter->more();) {
-        const SMDS_MeshVolume* aVol = aVolIter->next();
-        switch (aVol->NbNodes()) {
-            case 4:
-                meshds->AddVolumeWithID(aVol->GetNode(0),
-                                        aVol->GetNode(1),
-                                        aVol->GetNode(2),
-                                        aVol->GetNode(3),
-                                        aVol->GetID());
-                break;
-            case 5:
-                meshds->AddVolumeWithID(aVol->GetNode(0),
-                                        aVol->GetNode(1),
-                                        aVol->GetNode(2),
-                                        aVol->GetNode(3),
-                                        aVol->GetNode(4),
-                                        aVol->GetID());
-                break;
-            case 6:
-                meshds->AddVolumeWithID(aVol->GetNode(0),
-                                        aVol->GetNode(1),
-                                        aVol->GetNode(2),
-                                        aVol->GetNode(3),
-                                        aVol->GetNode(4),
-                                        aVol->GetNode(5),
-                                        aVol->GetID());
-                break;
-            case 8:
-                meshds->AddVolumeWithID(aVol->GetNode(0),
-                                        aVol->GetNode(1),
-                                        aVol->GetNode(2),
-                                        aVol->GetNode(3),
-                                        aVol->GetNode(4),
-                                        aVol->GetNode(5),
-                                        aVol->GetNode(6),
-                                        aVol->GetNode(7),
-                                        aVol->GetID());
-                break;
-            case 10:
-                meshds->AddVolumeWithID(aVol->GetNode(0),
-                                        aVol->GetNode(1),
-                                        aVol->GetNode(2),
-                                        aVol->GetNode(3),
-                                        aVol->GetNode(4),
-                                        aVol->GetNode(5),
-                                        aVol->GetNode(6),
-                                        aVol->GetNode(7),
-                                        aVol->GetNode(8),
-                                        aVol->GetNode(9),
-                                        aVol->GetID());
-                break;
-            case 13:
-                meshds->AddVolumeWithID(aVol->GetNode(0),
-                                        aVol->GetNode(1),
-                                        aVol->GetNode(2),
-                                        aVol->GetNode(3),
-                                        aVol->GetNode(4),
-                                        aVol->GetNode(5),
-                                        aVol->GetNode(6),
-                                        aVol->GetNode(7),
-                                        aVol->GetNode(8),
-                                        aVol->GetNode(9),
-                                        aVol->GetNode(10),
-                                        aVol->GetNode(11),
-                                        aVol->GetNode(12),
-                                        aVol->GetID());
-                break;
-            case 15:
-                meshds->AddVolumeWithID(aVol->GetNode(0),
-                                        aVol->GetNode(1),
-                                        aVol->GetNode(2),
-                                        aVol->GetNode(3),
-                                        aVol->GetNode(4),
-                                        aVol->GetNode(5),
-                                        aVol->GetNode(6),
-                                        aVol->GetNode(7),
-                                        aVol->GetNode(8),
-                                        aVol->GetNode(9),
-                                        aVol->GetNode(10),
-                                        aVol->GetNode(11),
-                                        aVol->GetNode(12),
-                                        aVol->GetNode(13),
-                                        aVol->GetNode(14),
-                                        aVol->GetID());
-                break;
-            case 20:
-                meshds->AddVolumeWithID(aVol->GetNode(0),
-                                        aVol->GetNode(1),
-                                        aVol->GetNode(2),
-                                        aVol->GetNode(3),
-                                        aVol->GetNode(4),
-                                        aVol->GetNode(5),
-                                        aVol->GetNode(6),
-                                        aVol->GetNode(7),
-                                        aVol->GetNode(8),
-                                        aVol->GetNode(9),
-                                        aVol->GetNode(10),
-                                        aVol->GetNode(11),
-                                        aVol->GetNode(12),
-                                        aVol->GetNode(13),
-                                        aVol->GetNode(14),
-                                        aVol->GetNode(15),
-                                        aVol->GetNode(16),
-                                        aVol->GetNode(17),
-                                        aVol->GetNode(18),
-                                        aVol->GetNode(19),
-                                        aVol->GetID());
-                break;
-            default: {
-                if (aVol->IsPoly()) {
-                    const SMDS_PolyhedralVolumeOfNodes* aPolyVol =
-                        dynamic_cast<const SMDS_PolyhedralVolumeOfNodes*>(aVol);
-                    if (!aPolyVol) {
-                        break;
-                    }
-                    std::vector<const SMDS_MeshNode*> aNodes;
-                    for (int i = 0; i < aPolyVol->NbNodes(); i++) {
-                        aNodes.push_back(aPolyVol->GetNode(i));
-                    }
-                    meshds->AddPolyhedralVolumeWithID(aNodes,
-                                                      aPolyVol->GetQuanities(),
-                                                      aPolyVol->GetID());
-                }
-            } break;
-        }
-    }
-
-    // Copy groups
-    std::list<int> grpIds = mesh.myMesh->GetGroupIds();
-    for (auto it : grpIds) {
-        // group of source mesh
-        SMESH_Group* sourceGroup = mesh.myMesh->GetGroup(it);
-        SMESHDS_GroupBase* sourceGroupDS = sourceGroup->GetGroupDS();
-
-        int aId;
-        if (sourceGroupDS->GetType() == SMDSAbs_Node) {
-            SMESH_Group* targetGroup =
-                this->myMesh->AddGroup(SMDSAbs_Node, sourceGroupDS->GetStoreName(), aId);
-            if (targetGroup) {
-                SMESHDS_Group* targetGroupDS =
-                    dynamic_cast<SMESHDS_Group*>(targetGroup->GetGroupDS());
-                if (targetGroupDS) {
-                    SMDS_ElemIteratorPtr aIter = sourceGroupDS->GetElements();
-                    while (aIter->more()) {
-                        const SMDS_MeshElement* aElem = aIter->next();
-                        const SMDS_MeshNode* aNode = meshds->FindNode(aElem->GetID());
-                        if (aNode) {
-                            targetGroupDS->SMDSGroup().Add(aNode);
-                        }
-                    }
-                }
-            }
-        }
-        else {
-            SMESH_Group* targetGroup = this->myMesh->AddGroup(sourceGroupDS->GetType(),
-                                                              sourceGroupDS->GetStoreName(),
-                                                              aId);
-            if (targetGroup) {
-                SMESHDS_Group* targetGroupDS =
-                    dynamic_cast<SMESHDS_Group*>(targetGroup->GetGroupDS());
-                if (targetGroupDS) {
-                    SMDS_ElemIteratorPtr aIter = sourceGroupDS->GetElements();
-                    while (aIter->more()) {
-                        const SMDS_MeshElement* aElem = aIter->next();
-                        const SMDS_MeshElement* aElement = meshds->FindElement(aElem->GetID());
-                        if (aElement) {
-                            targetGroupDS->SMDSGroup().Add(aElement);
-                        }
-                    }
-                }
-            }
-        }
-    }
-#endif
 }
 
 const SMESH_Mesh* FemMesh::getSMesh() const
@@ -537,75 +293,41 @@ void FemMesh::addHypothesis(const TopoDS_Shape& aSubShape, SMESH_HypothesisPtr h
 
 void FemMesh::setStandardHypotheses()
 {
-    if (!hypoth.empty()) {
+    TopoDS_Shape shape = getSMesh()->GetShapeToMesh();
+    if (shape.IsNull()) {
         return;
     }
-#if SMESH_VERSION_MAJOR >= 9
+
     int hyp = 0;
-    SMESH_HypothesisPtr len(new StdMeshers_MaxLength(hyp++, getGenerator()));
+
+    auto len = createHypothesis<StdMeshers_MaxLength>(hyp++);
     static_cast<StdMeshers_MaxLength*>(len.get())->SetLength(1.0);
-    hypoth.push_back(len);
+    addHypothesis(shape, len);
 
-    SMESH_HypothesisPtr loc(new StdMeshers_LocalLength(hyp++, getGenerator()));
+    auto loc = createHypothesis<StdMeshers_LocalLength>(hyp++);
     static_cast<StdMeshers_LocalLength*>(loc.get())->SetLength(1.0);
-    hypoth.push_back(loc);
+    addHypothesis(shape, loc);
 
-    SMESH_HypothesisPtr area(new StdMeshers_MaxElementArea(hyp++, getGenerator()));
+    auto area = createHypothesis<StdMeshers_MaxElementArea>(hyp++);
     static_cast<StdMeshers_MaxElementArea*>(area.get())->SetMaxArea(1.0);
-    hypoth.push_back(area);
+    addHypothesis(shape, area);
 
-    SMESH_HypothesisPtr segm(new StdMeshers_NumberOfSegments(hyp++, getGenerator()));
+    auto segm = createHypothesis<StdMeshers_NumberOfSegments>(hyp++);
     static_cast<StdMeshers_NumberOfSegments*>(segm.get())->SetNumberOfSegments(1);
-    hypoth.push_back(segm);
+    addHypothesis(shape, segm);
 
-    SMESH_HypothesisPtr defl(new StdMeshers_Deflection1D(hyp++, getGenerator()));
+    auto defl = createHypothesis<StdMeshers_Deflection1D>(hyp++);
     static_cast<StdMeshers_Deflection1D*>(defl.get())->SetDeflection(0.01);
-    hypoth.push_back(defl);
+    addHypothesis(shape, defl);
 
-    SMESH_HypothesisPtr reg(new StdMeshers_Regular_1D(hyp++, getGenerator()));
-    hypoth.push_back(reg);
+    auto reg = createHypothesis<StdMeshers_Regular_1D>(hyp++);
+    addHypothesis(shape, reg);
 
-    SMESH_HypothesisPtr qdp(new StdMeshers_QuadranglePreference(hyp++, getGenerator()));
-    hypoth.push_back(qdp);
+    auto qdp = createHypothesis<StdMeshers_QuadranglePreference>(hyp++);
+    addHypothesis(shape, qdp);
 
-    SMESH_HypothesisPtr q2d(new StdMeshers_Quadrangle_2D(hyp++, getGenerator()));
-    hypoth.push_back(q2d);
-#else
-    int hyp = 0;
-    SMESH_HypothesisPtr len(new StdMeshers_MaxLength(hyp++, 1, getGenerator()));
-    static_cast<StdMeshers_MaxLength*>(len.get())->SetLength(1.0);
-    hypoth.push_back(len);
-
-    SMESH_HypothesisPtr loc(new StdMeshers_LocalLength(hyp++, 1, getGenerator()));
-    static_cast<StdMeshers_LocalLength*>(loc.get())->SetLength(1.0);
-    hypoth.push_back(loc);
-
-    SMESH_HypothesisPtr area(new StdMeshers_MaxElementArea(hyp++, 1, getGenerator()));
-    static_cast<StdMeshers_MaxElementArea*>(area.get())->SetMaxArea(1.0);
-    hypoth.push_back(area);
-
-    SMESH_HypothesisPtr segm(new StdMeshers_NumberOfSegments(hyp++, 1, getGenerator()));
-    static_cast<StdMeshers_NumberOfSegments*>(segm.get())->SetNumberOfSegments(1);
-    hypoth.push_back(segm);
-
-    SMESH_HypothesisPtr defl(new StdMeshers_Deflection1D(hyp++, 1, getGenerator()));
-    static_cast<StdMeshers_Deflection1D*>(defl.get())->SetDeflection(0.01);
-    hypoth.push_back(defl);
-
-    SMESH_HypothesisPtr reg(new StdMeshers_Regular_1D(hyp++, 1, getGenerator()));
-    hypoth.push_back(reg);
-
-    SMESH_HypothesisPtr qdp(new StdMeshers_QuadranglePreference(hyp++, 1, getGenerator()));
-    hypoth.push_back(qdp);
-
-    SMESH_HypothesisPtr q2d(new StdMeshers_Quadrangle_2D(hyp++, 1, getGenerator()));
-    hypoth.push_back(q2d);
-#endif
-
-    // Apply hypothesis
-    for (int i = 0; i < hyp; i++) {
-        myMesh->AddHypothesis(myMesh->GetShapeToMesh(), i);
-    }
+    auto q2d = createHypothesis<StdMeshers_Quadrangle_2D>(hyp++);
+    addHypothesis(shape, q2d);
 }
 
 void FemMesh::compute()
@@ -803,7 +525,7 @@ std::map<int, int> FemMesh::getccxVolumesByFace(const TopoDS_Face& face) const
             int missing_node = 0;
             for (int i = 0; i < 4; i++) {
                 // search for the ID of the volume which is not part of 'element_face_nodes'
-                if (std::find(element_face_nodes.begin(), element_face_nodes.end(), apair.second[i])
+                if (std::ranges::find(element_face_nodes, apair.second[i])
                     == element_face_nodes.end()) {
                     missing_node = i + 1;
                     break;
@@ -850,7 +572,7 @@ std::set<int> FemMesh::getNodesBySolid(const TopoDS_Solid& solid) const
     TopAbs_ShapeEnum shapetype = TopAbs_SHAPE;
     ShapeAnalysis_ShapeTolerance analysis;
     double limit = analysis.Tolerance(solid, 1, shapetype);
-    Base::Console().Log("The limit if a node is in or out: %.12lf in scientific: %.4e \n",
+    Base::Console().log("The limit if a node is in or out: %.12lf in scientific: %.4e \n",
                         limit,
                         limit);
 
@@ -1249,7 +971,7 @@ public:
             meshds->AddFaceWithID(n0, n1, n2, element_id);
         }
         else {
-            Base::Console().Warning("NASTRAN: Failed to add face %d from nodes: (%d, %d, %d,)\n",
+            Base::Console().warning("NASTRAN: Failed to add face %d from nodes: (%d, %d, %d,)\n",
                                     element_id,
                                     elements[0],
                                     elements[1],
@@ -1316,7 +1038,7 @@ public:
             meshds->AddVolumeWithID(n0, n1, n2, n3, n4, n5, n6, n7, n8, n9, element_id);
         }
         else {
-            Base::Console().Warning("NASTRAN: Failed to add volume %d from nodes: (%d, %d, %d, %d, "
+            Base::Console().warning("NASTRAN: Failed to add volume %d from nodes: (%d, %d, %d, %d, "
                                     "%d, %d, %d, %d, %d, %d)\n",
                                     element_id,
                                     elements[1],
@@ -1577,7 +1299,7 @@ class CHEXA2Element: public NastranElement
 void FemMesh::readNastran(const std::string& Filename)
 {
     Base::TimeElapsed Start;
-    Base::Console().Log("Start: FemMesh::readNastran() =================================\n");
+    Base::Console().log("Start: FemMesh::readNastran() =================================\n");
 
     _Mtrx = Base::Matrix4D();
 
@@ -1653,7 +1375,7 @@ void FemMesh::readNastran(const std::string& Filename)
     } while (inputfile.good());
     inputfile.close();
 
-    Base::Console().Log("    %f: File read, start building mesh\n",
+    Base::Console().log("    %f: File read, start building mesh\n",
                         Base::TimeElapsed::diffTimeF(Start, Base::TimeElapsed()));
 
     // Now fill the SMESH datastructure
@@ -1664,14 +1386,14 @@ void FemMesh::readNastran(const std::string& Filename)
         it->addToMesh(meshds);
     }
 
-    Base::Console().Log("    %f: Done \n",
+    Base::Console().log("    %f: Done \n",
                         Base::TimeElapsed::diffTimeF(Start, Base::TimeElapsed()));
 }
 
 void FemMesh::readNastran95(const std::string& Filename)
 {
     Base::TimeElapsed Start;
-    Base::Console().Log("Start: FemMesh::readNastran95() =================================\n");
+    Base::Console().log("Start: FemMesh::readNastran95() =================================\n");
 
     _Mtrx = Base::Matrix4D();
 
@@ -1706,7 +1428,7 @@ void FemMesh::readNastran95(const std::string& Filename)
         }
         else if (line1.find("GRID") != std::string::npos)  // We found a Grid line
         {
-            // Base::Console().Log("Found a GRID\n");
+            // Base::Console().log("Found a GRID\n");
             // D06.inp
             // GRID    109             .9      .7
             // Now lets extract the GRID Points = Nodes
@@ -1780,7 +1502,7 @@ void FemMesh::readNastran95(const std::string& Filename)
     } while (inputfile.good());
     inputfile.close();
 
-    Base::Console().Log("    %f: File read, start building mesh\n",
+    Base::Console().log("    %f: File read, start building mesh\n",
                         Base::TimeElapsed::diffTimeF(Start, Base::TimeElapsed()));
 
     // Now fill the SMESH datastructure
@@ -1795,14 +1517,14 @@ void FemMesh::readNastran95(const std::string& Filename)
         it->addToMesh(meshds);
     }
 
-    Base::Console().Log("    %f: Done \n",
+    Base::Console().log("    %f: Done \n",
                         Base::TimeElapsed::diffTimeF(Start, Base::TimeElapsed()));
 }
 
 void FemMesh::readAbaqus(const std::string& FileName)
 {
     Base::TimeElapsed Start;
-    Base::Console().Log("Start: FemMesh::readAbaqus() =================================\n");
+    Base::Console().log("Start: FemMesh::readAbaqus() =================================\n");
 
     /*
     Python command to read Abaqus inp mesh file from test suite:
@@ -1835,14 +1557,14 @@ void FemMesh::readAbaqus(const std::string& FileName)
     catch (Py::Exception& e) {
         e.clear();
     }
-    Base::Console().Log("    %f: Done \n",
+    Base::Console().log("    %f: Done \n",
                         Base::TimeElapsed::diffTimeF(Start, Base::TimeElapsed()));
 }
 
 void FemMesh::readZ88(const std::string& FileName)
 {
     Base::TimeElapsed Start;
-    Base::Console().Log("Start: FemMesh::readZ88() =================================\n");
+    Base::Console().log("Start: FemMesh::readZ88() =================================\n");
 
     /*
     Python command to read Z88 mesh file from test suite:
@@ -1875,7 +1597,7 @@ void FemMesh::readZ88(const std::string& FileName)
     catch (Py::Exception& e) {
         e.clear();
     }
-    Base::Console().Log("    %f: Done \n",
+    Base::Console().log("    %f: Done \n",
                         Base::TimeElapsed::diffTimeF(Start, Base::TimeElapsed()));
 }
 
@@ -1927,6 +1649,13 @@ void FemMesh::read(const char* FileName)
     else {
         throw Base::FileException("Unknown extension");
     }
+}
+
+void FemMesh::writeVTK(const std::string& fileName, bool highest) const
+{
+#ifdef FC_USE_VTK
+    FemVTKTools::writeVTKMesh(fileName.c_str(), this, highest);
+#endif
 }
 
 void FemMesh::writeABAQUS(const std::string& Filename,
@@ -2360,10 +2089,12 @@ void FemMesh::writeABAQUS(const std::string& Filename,
                     }
                     else {
                         if (first_line) {
-                            anABAQUS_Output << "," << std::endl;
+                            anABAQUS_Output << "," << std::endl << *kt;
                             first_line = false;
                         }
-                        anABAQUS_Output << *kt << ", ";
+                        else {
+                            anABAQUS_Output << ", " << *kt;
+                        }
                     }
                 }
                 anABAQUS_Output << std::endl;
@@ -2497,7 +2228,7 @@ void FemMesh::writeABAQUS(const std::string& Filename,
 void FemMesh::writeZ88(const std::string& FileName) const
 {
     Base::TimeElapsed Start;
-    Base::Console().Log("Start: FemMesh::writeZ88() =================================\n");
+    Base::Console().log("Start: FemMesh::writeZ88() =================================\n");
 
     /*
     Python command to export FemMesh from StartWB FEM 3D example:
@@ -2529,46 +2260,41 @@ void FemMesh::write(const char* FileName) const
     Base::FileInfo File(FileName);
 
     if (File.hasExtension("unv")) {
-        Base::Console().Log("FEM mesh object will be exported to unv format.\n");
+        Base::Console().log("FEM mesh object will be exported to unv format.\n");
         // write UNV file
         myMesh->ExportUNV(File.filePath().c_str());
     }
     else if (File.hasExtension("med")) {
-        Base::Console().Log("FEM mesh object will be exported to med format.\n");
+        Base::Console().log("FEM mesh object will be exported to med format.\n");
         myMesh->ExportMED(File.filePath().c_str(),
                           File.fileNamePure().c_str(),
                           false,
                           2);  // 2 means MED_V2_2 version!
     }
     else if (File.hasExtension("stl")) {
-        Base::Console().Log("FEM mesh object will be exported to stl format.\n");
+        Base::Console().log("FEM mesh object will be exported to stl format.\n");
         // export to stl file
         myMesh->ExportSTL(File.filePath().c_str(), false);
     }
     else if (File.hasExtension("dat")) {
-        Base::Console().Log("FEM mesh object will be exported to dat format.\n");
+        Base::Console().log("FEM mesh object will be exported to dat format.\n");
         // export to dat file
         myMesh->ExportDAT(File.filePath().c_str());
     }
     else if (File.hasExtension("inp")) {
-        Base::Console().Log("FEM mesh object will be exported to inp format.\n");
-        // get Abaqus inp prefs
-        ParameterGrp::handle hGrp = App::GetApplication().GetParameterGroupByPath(
-            "User parameter:BaseApp/Preferences/Mod/Fem/Abaqus");
-        int elemParam = hGrp->GetInt("AbaqusElementChoice", 1);
-        bool groupParam = hGrp->GetBool("AbaqusWriteGroups", false);
+        Base::Console().log("FEM mesh object will be exported to inp format.\n");
         // write ABAQUS Output
-        writeABAQUS(File.filePath(), elemParam, groupParam);
+        writeABAQUS(File.filePath(), 1, false);
     }
 #ifdef FC_USE_VTK
     else if (File.hasExtension({"vtk", "vtu"})) {
-        Base::Console().Log("FEM mesh object will be exported to either vtk or vtu format.\n");
+        Base::Console().log("FEM mesh object will be exported to either vtk or vtu format.\n");
         // write unstructure mesh to VTK format *.vtk and *.vtu
-        FemVTKTools::writeVTKMesh(File.filePath().c_str(), this);
+        writeVTK(File.filePath().c_str());
     }
 #endif
     else if (File.hasExtension("z88")) {
-        Base::Console().Log("FEM mesh object will be exported to z88 format.\n");
+        Base::Console().log("FEM mesh object will be exported to z88 format.\n");
         // write z88 file
         writeZ88(File.filePath());
     }
@@ -2617,32 +2343,32 @@ void FemMesh::Save(Base::Writer& writer) const
 void FemMesh::Restore(Base::XMLReader& reader)
 {
     reader.readElement("FemMesh");
-    std::string file(reader.getAttribute("file"));
+    std::string file(reader.getAttribute<const char*>("file"));
 
     if (!file.empty()) {
         // initiate a file read
         reader.addFile(file.c_str(), this);
     }
     if (reader.hasAttribute("a11")) {
-        _Mtrx[0][0] = reader.getAttributeAsFloat("a11");
-        _Mtrx[0][1] = reader.getAttributeAsFloat("a12");
-        _Mtrx[0][2] = reader.getAttributeAsFloat("a13");
-        _Mtrx[0][3] = reader.getAttributeAsFloat("a14");
+        _Mtrx[0][0] = reader.getAttribute<double>("a11");
+        _Mtrx[0][1] = reader.getAttribute<double>("a12");
+        _Mtrx[0][2] = reader.getAttribute<double>("a13");
+        _Mtrx[0][3] = reader.getAttribute<double>("a14");
 
-        _Mtrx[1][0] = reader.getAttributeAsFloat("a21");
-        _Mtrx[1][1] = reader.getAttributeAsFloat("a22");
-        _Mtrx[1][2] = reader.getAttributeAsFloat("a23");
-        _Mtrx[1][3] = reader.getAttributeAsFloat("a24");
+        _Mtrx[1][0] = reader.getAttribute<double>("a21");
+        _Mtrx[1][1] = reader.getAttribute<double>("a22");
+        _Mtrx[1][2] = reader.getAttribute<double>("a23");
+        _Mtrx[1][3] = reader.getAttribute<double>("a24");
 
-        _Mtrx[2][0] = reader.getAttributeAsFloat("a31");
-        _Mtrx[2][1] = reader.getAttributeAsFloat("a32");
-        _Mtrx[2][2] = reader.getAttributeAsFloat("a33");
-        _Mtrx[2][3] = reader.getAttributeAsFloat("a34");
+        _Mtrx[2][0] = reader.getAttribute<double>("a31");
+        _Mtrx[2][1] = reader.getAttribute<double>("a32");
+        _Mtrx[2][2] = reader.getAttribute<double>("a33");
+        _Mtrx[2][3] = reader.getAttribute<double>("a34");
 
-        _Mtrx[3][0] = reader.getAttributeAsFloat("a41");
-        _Mtrx[3][1] = reader.getAttributeAsFloat("a42");
-        _Mtrx[3][2] = reader.getAttributeAsFloat("a43");
-        _Mtrx[3][3] = reader.getAttributeAsFloat("a44");
+        _Mtrx[3][0] = reader.getAttribute<double>("a41");
+        _Mtrx[3][1] = reader.getAttribute<double>("a42");
+        _Mtrx[3][2] = reader.getAttribute<double>("a43");
+        _Mtrx[3][3] = reader.getAttribute<double>("a44");
     }
 }
 

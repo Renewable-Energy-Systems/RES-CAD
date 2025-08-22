@@ -62,7 +62,7 @@ class Stretch(gui_base_original.Modifier):
         return {'Pixmap': 'Draft_Stretch',
                 'Accel': "S, H",
                 'MenuText': QT_TRANSLATE_NOOP("Draft_Stretch", "Stretch"),
-                'ToolTip': QT_TRANSLATE_NOOP("Draft_Stretch", "Stretches the selected objects.\nSelect an object, then draw a rectangle to pick the vertices that will be stretched,\nthen draw a line to specify the distance and direction of stretching.")}
+                'ToolTip': QT_TRANSLATE_NOOP("Draft_Stretch", "Stretches the selected objects")}
 
     def Activated(self):
         """Execute when the command is called."""
@@ -158,8 +158,8 @@ class Stretch(gui_base_original.Modifier):
         """Add point to defined selection rectangle."""
         if self.step == 1:
             # first rctangle point
-            _toolmsg(translate("draft", "Pick opposite point "
-                                    "of selection rectangle"))
+            _toolmsg(translate("draft", "Pick the opposite point "
+                                    "of the selection rectangle"))
             self.ui.setRelative(-1)
             self.rectracker.setorigin(point)
             self.rectracker.on()
@@ -337,6 +337,8 @@ class Stretch(gui_base_original.Modifier):
                             optype = 3
                         elif ops[1] == [True, True, False, False]:
                             optype = 4
+                        elif ops[1] == [True, True, True, True]:
+                            optype = 5
                         else:
                             optype = 0
                         # print("length:", ops[0].Length,
@@ -344,7 +346,7 @@ class Stretch(gui_base_original.Modifier):
                         #       " - ", ops[1],
                         #       " - ", self.displacement)
                         done = False
-                        if optype > 0:
+                        if 0 < optype < 5:
                             v1 = ops[0].Placement.multVec(p2).sub(ops[0].Placement.multVec(p1))
                             a1 = round(self.displacement.getAngle(v1), 4)
                             v2 = ops[0].Placement.multVec(p4).sub(ops[0].Placement.multVec(p1))
@@ -443,9 +445,15 @@ class Stretch(gui_base_original.Modifier):
                                     commitops.append(_cmd)
                                     commitops.append(_pl)
                                     done = True
+                        elif optype == 5:
+                            _pl = _doc + ops[0].Name
+                            _pl += ".Placement.Base=FreeCAD."
+                            _pl += str(ops[0].Placement.Base.add(self.displacement))
+                            commitops.append(_pl)
+                            done = True
                         if not done:
                             # otherwise create a wire copy and stretch it instead
-                            _msg(translate("draft", "Turning one Rectangle into a Wire"))
+                            _msg(translate("draft", "Turning a rectangle into a wire"))
                             pts = []
                             vts = ops[0].Shape.Vertexes
                             for i in range(4):

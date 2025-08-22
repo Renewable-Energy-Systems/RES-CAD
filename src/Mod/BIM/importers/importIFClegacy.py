@@ -1,23 +1,26 @@
-#***************************************************************************
-#*   Copyright (c) 2011 Yorik van Havre <yorik@uncreated.net>              *
-#*                                                                         *
-#*   This program is free software; you can redistribute it and/or modify  *
-#*   it under the terms of the GNU Lesser General Public License (LGPL)    *
-#*   as published by the Free Software Foundation; either version 2 of     *
-#*   the License, or (at your option) any later version.                   *
-#*   for detail see the LICENCE text file.                                 *
-#*                                                                         *
-#*   This program is distributed in the hope that it will be useful,       *
-#*   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
-#*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
-#*   GNU Library General Public License for more details.                  *
-#*                                                                         *
-#*   You should have received a copy of the GNU Library General Public     *
-#*   License along with this program; if not, write to the Free Software   *
-#*   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  *
-#*   USA                                                                   *
-#*                                                                         *
-#***************************************************************************
+# SPDX-License-Identifier: LGPL-2.1-or-later
+
+# ***************************************************************************
+# *                                                                         *
+# *   Copyright (c) 2011 Yorik van Havre <yorik@uncreated.net>              *
+# *                                                                         *
+# *   This file is part of FreeCAD.                                         *
+# *                                                                         *
+# *   FreeCAD is free software: you can redistribute it and/or modify it    *
+# *   under the terms of the GNU Lesser General Public License as           *
+# *   published by the Free Software Foundation, either version 2.1 of the  *
+# *   License, or (at your option) any later version.                       *
+# *                                                                         *
+# *   FreeCAD is distributed in the hope that it will be useful, but        *
+# *   WITHOUT ANY WARRANTY; without even the implied warranty of            *
+# *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU      *
+# *   Lesser General Public License for more details.                       *
+# *                                                                         *
+# *   You should have received a copy of the GNU Lesser General Public      *
+# *   License along with FreeCAD. If not, see                               *
+# *   <https://www.gnu.org/licenses/>.                                      *
+# *                                                                         *
+# ***************************************************************************
 
 # WARNING ##################################################################
 #                                                                          #
@@ -25,14 +28,26 @@
 #                                                                          #
 ############################################################################
 
-
-import FreeCAD, Arch, Draft, os, sys, time, Part, DraftVecUtils, uuid, math, re
-from draftutils import params
-from draftutils.translate import translate
-
 __title__="FreeCAD IFC importer"
 __author__ = "Yorik van Havre"
 __url__ = "https://www.freecad.org"
+
+import math
+import os
+import re
+import time
+import uuid
+
+from builtins import open as pyopen
+
+import FreeCAD
+import Arch
+import Draft
+import DraftVecUtils
+import Part
+
+from draftutils import params
+from draftutils.translate import translate
 
 # config
 subtractiveTypes = ["IfcOpeningElement"] # elements that must be subtracted from their parents
@@ -40,7 +55,7 @@ SCHEMA = "http://www.steptools.com/support/stdev_docs/ifcbim/ifc4.exp" # only fo
 MAKETEMPFILES = False # if True, shapes are passed from ifcopenshell to freecad through temp files
 DEBUG = True # this is only for the python console, this value is overridden when importing through the GUI
 SKIP = ["IfcBuildingElementProxy","IfcFlowTerminal","IfcFurnishingElement"] # default. overwritten by the GUI options
-IFCLINE_RE = re.compile("#(\d+)[ ]?=[ ]?(.*?)\((.*)\);[\\r]?$")
+IFCLINE_RE = re.compile(r"#(\d+)[ ]?=[ ]?(.*?)\((.*)\);[\\r]?$")
 APPLYFIX = True # if true, the ifcopenshell bug-fixing function is applied when saving files
 # end config
 
@@ -53,9 +68,6 @@ supportedIfcTypes = ["IfcSite", "IfcBuilding", "IfcBuildingStorey", "IfcBeam", "
                      "IfcWallStandardCase", "IfcWindow", "IfcWindowStandardCase", "IfcBuildingElementProxy",
                      "IfcPile", "IfcFooting", "IfcReinforcingBar", "IfcTendon"]
 # TODO : shading device not supported?
-
-if open.__module__ in ['__builtin__','io']:
-    pyopen = open # because we'll redefine open below
 
 def open(filename,skip=None):
     "called when freecad opens a file"
@@ -109,7 +121,7 @@ def getIfcOpenShell():
         try:
             import ifc_wrapper as IfcImport
         except ImportError:
-            FreeCAD.Console.PrintMessage(translate("Arch","Couldn't locate IfcOpenShell")+"\n")
+            FreeCAD.Console.PrintMessage(translate("Arch","Could not locate IfcOpenShell")+"\n")
             return False
         else:
             IFCOPENSHELL5 = True
@@ -718,7 +730,7 @@ def getShape(obj,objid):
             except Exception:
                 if DEBUG: print("    failed to retrieve solid from object ",objid)
         else:
-            if DEBUG: print("    object ", objid, " doesn't contain any geometry")
+            if DEBUG: print("    object ", objid, " does not contain any geometry")
     if not IFCOPENSHELL5:
         m = obj.matrix
         mat = FreeCAD.Matrix(m[0], m[3], m[6], m[9],
@@ -935,11 +947,12 @@ def export(exportList,filename):
 
     if (not hasattr(ifcw,"IfcFile")) and (not hasattr(ifcw,"file")):
         FreeCAD.Console.PrintError(translate("Arch","Error: your IfcOpenShell version is too old")+"\n")
-        print("""importIFC: The version of ifcOpenShell installed on this system doesn't
+        print("""importIFC: The version of IfcOpenShell installed on this system does not
                  have IFC export capabilities. IFC export currently requires an experimental
                  version of IfcOpenShell available from https://github.com/aothms/IfcOpenShell""")
         return
-    import Arch,Draft
+    import Draft
+    import Arch
 
     # creating base IFC project
     getConfig()
@@ -958,7 +971,7 @@ def export(exportList,filename):
     # get all children and reorder list to get buildings and floors processed first
     objectslist = Draft.get_group_contents(exportList, walls=True,
                                            addgroups=True)
-    objectslist = Arch.pruneIncluded(objectslist)
+    objectslist = Arch.pruneIncluded(objectslist, strict=True)
 
     sites = []
     buildings = []
@@ -1141,7 +1154,8 @@ def export(exportList,filename):
     ifc.write()
 
     if exporttxt:
-        import time, os
+        import os
+        import time
         txtstring = "List of objects exported by FreeCAD in file\n"
         txtstring += filename + "\n"
         txtstring += "On " + time.ctime() + "\n"
@@ -1183,7 +1197,8 @@ def getTuples(data,scale=1,placement=None,normal=None,close=True):
     elif isinstance(data,Part.Shape):
         t = []
         if len(data.Wires) == 1:
-            import Part,DraftGeomUtils
+            import Part
+            import DraftGeomUtils
             data = Part.Wire(Part.__sortEdges__(data.Wires[0].Edges))
             verts = data.Vertexes
             try:
@@ -1263,7 +1278,6 @@ def getIfcExtrusionData(obj,scale=1,nosubs=False):
                     edges = Part.__sortEdges__(p.Edges)
                     for e in edges:
                         if isinstance(e.Curve,Part.Circle):
-                            import math
                             follow = True
                             if last:
                                 if not DraftVecUtils.equals(last,e.Vertexes[0].Point):
@@ -1435,9 +1449,9 @@ class IfcSchema:
             entity = {}
             raw_entity_str = m.groups()[0]
 
-            entity["name"] = re.search("(.*?)[;|\s]", raw_entity_str).groups()[0].upper()
+            entity["name"] = re.search(r"(.*?)[;|\s]", raw_entity_str).groups()[0].upper()
 
-            subtypeofmatch = re.search(".*SUBTYPE OF \((.*?)\);", raw_entity_str)
+            subtypeofmatch = re.search(r".*SUBTYPE OF \((.*?)\);", raw_entity_str)
             entity["supertype"] = subtypeofmatch.groups()[0].upper() if subtypeofmatch else None
 
             # find the shortest string matched from the end of the entity type header to the
@@ -1781,7 +1795,7 @@ class IfcDocument:
 
 def explorer(filename,schema="IFC2X3_TC1.exp"):
     "returns a PySide dialog showing the contents of an IFC file"
-    from PySide import QtCore,QtGui
+    from PySide import QtGui
     ifc = IfcDocument(filename,schema)
     schema = IfcSchema(schema)
     tree = QtGui.QTreeWidget()
@@ -1795,7 +1809,6 @@ def explorer(filename,schema="IFC2X3_TC1.exp"):
     tree.headerItem().setText(1, "")
     tree.headerItem().setText(2, "Item and Properties")
     bold = QtGui.QFont()
-    bold.setWeight(75)
     bold.setBold(True)
 
     #print(ifc.Entities)
@@ -1852,7 +1865,7 @@ def explorer(filename,schema="IFC2X3_TC1.exp"):
 
     d = QtGui.QDialog()
     d.setObjectName("IfcExplorer")
-    d.setWindowTitle("Ifc Explorer")
+    d.setWindowTitle("IFC Explorer")
     d.resize(640, 480)
     layout = QtGui.QVBoxLayout(d)
     layout.addWidget(tree)

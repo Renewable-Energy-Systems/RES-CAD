@@ -30,6 +30,7 @@
 from PySide.QtCore import QT_TRANSLATE_NOOP
 
 import FreeCAD as App
+from draftutils import gui_utils
 from draftutils import params
 from draftobjects.base import DraftObject
 
@@ -38,42 +39,48 @@ class BezCurve(DraftObject):
     """The BezCurve object"""
 
     def __init__(self, obj):
-        super(BezCurve, self).__init__(obj, "BezCurve")
+        super().__init__(obj, "BezCurve")
 
         _tip = QT_TRANSLATE_NOOP("App::Property",
                 "The points of the Bezier curve")
-        obj.addProperty("App::PropertyVectorList", "Points", "Draft", _tip)
+        obj.addProperty("App::PropertyVectorList", "Points", "Draft", _tip, locked=True)
 
         _tip = QT_TRANSLATE_NOOP("App::Property",
                 "The degree of the Bezier function")
-        obj.addProperty("App::PropertyInteger", "Degree", "Draft", _tip)
+        obj.addProperty("App::PropertyInteger", "Degree", "Draft", _tip, locked=True)
 
         _tip = QT_TRANSLATE_NOOP("App::Property",
                 "Continuity")
-        obj.addProperty("App::PropertyIntegerList", "Continuity", "Draft", _tip)
+        obj.addProperty("App::PropertyIntegerList", "Continuity", "Draft", _tip, locked=True)
 
         _tip = QT_TRANSLATE_NOOP("App::Property",
                 "If the Bezier curve should be closed or not")
-        obj.addProperty("App::PropertyBool", "Closed", "Draft", _tip)
+        obj.addProperty("App::PropertyBool", "Closed", "Draft", _tip, locked=True)
 
         _tip = QT_TRANSLATE_NOOP("App::Property",
                 "Create a face if this curve is closed")
-        obj.addProperty("App::PropertyBool", "MakeFace", "Draft", _tip)
+        obj.addProperty("App::PropertyBool", "MakeFace", "Draft", _tip, locked=True)
 
         _tip = QT_TRANSLATE_NOOP("App::Property",
                 "The length of this object")
-        obj.addProperty("App::PropertyLength", "Length", "Draft", _tip)
+        obj.addProperty("App::PropertyLength", "Length", "Draft", _tip, locked=True)
 
         _tip = QT_TRANSLATE_NOOP("App::Property",
                 "The area of this object")
-        obj.addProperty("App::PropertyArea", "Area", "Draft", _tip)
+        obj.addProperty("App::PropertyArea", "Area", "Draft", _tip, locked=True)
 
-        obj.MakeFace = params.get_param("fillmode")
+        obj.MakeFace = params.get_param("MakeFaceMode")
         obj.Closed = False
         obj.Degree = 3
         obj.Continuity = []
         #obj.setEditorMode("Degree", 2)
         obj.setEditorMode("Continuity", 1)
+
+    def onDocumentRestored(self, obj):
+        super().onDocumentRestored(obj)
+        gui_utils.restore_view_object(
+            obj, vp_module="view_bezcurve", vp_class="ViewProviderBezCurve"
+        )
 
     def execute(self, fp):
         if self.props_changed_placement_only():

@@ -49,14 +49,14 @@ class Split(gui_base_original.Modifier):
         return {"Pixmap": "Draft_Split",
                 "Accel": "S, P",
                 "MenuText": QT_TRANSLATE_NOOP("Draft_Split", "Split"),
-                "ToolTip": QT_TRANSLATE_NOOP("Draft_Split", "Splits the selected line or polyline into two independent lines\nor polylines by clicking anywhere along the original object.\nIt works best when choosing a point on a straight segment and not a corner vertex.")}
+                "ToolTip": QT_TRANSLATE_NOOP("Draft_Split", "Splits the selected line or polyline at a specified point")}
 
     def Activated(self):
         """Execute when the command is called."""
         super().Activated(name="Split")
         if not self.ui:
             return
-        _toolmsg(translate("draft", "Click anywhere on a line to split it."))
+        _toolmsg(translate("draft", "Click anywhere on a line to split it"))
         self.view.graphicsView().setFocus()  # Make sure using Esc works.
         self.call = self.view.addEventCallback("SoEvent", self.action)
 
@@ -87,22 +87,18 @@ class Split(gui_base_original.Modifier):
     def proceed(self, info):
         """Proceed with execution of the command after click on an edge."""
         self.end_callbacks(self.call)
-        wire = App.ActiveDocument.getObject(info["Object"])
-        edge_index = int(info["Component"][4:])
+        wire = info["Object"]
+        index = info["Component"][4:]
+        point = DraftVecUtils.toString(self.point)
 
         Gui.addModule("Draft")
-        _cmd = "Draft.split"
-        _cmd += "("
-        _cmd += "FreeCAD.ActiveDocument." + wire.Name + ", "
-        _cmd += DraftVecUtils.toString(self.point) + ", "
-        _cmd += str(edge_index)
-        _cmd += ")"
-        _cmd_list = ["s = " + _cmd,
-                     "FreeCAD.ActiveDocument.recompute()"]
+        cmd_list = [
+            "obj = FreeCAD.ActiveDocument." + wire,
+            "new = Draft.split(obj, " + point + ", " + index + ")",
+            "FreeCAD.ActiveDocument.recompute()"
+        ]
 
-        self.commit(translate("draft", "Split line"),
-                    _cmd_list)
-
+        self.commit(translate("draft", "Split Line"), cmd_list)
         self.finish()
 
     def finish(self, cont=False):

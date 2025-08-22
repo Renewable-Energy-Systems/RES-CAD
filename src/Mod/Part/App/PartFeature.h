@@ -27,6 +27,7 @@
 #include <App/GeoFeature.h>
 #include <Mod/Material/App/PropertyMaterial.h>
 #include <Mod/Part/PartGlobal.h>
+#include <Base/Bitmask.h>
 
 #include <TopoDS_Face.hxx>
 
@@ -43,6 +44,18 @@ struct HistoryItem;
 
 namespace Part
 {
+
+enum class ShapeOption
+{
+    NoFlag = 0,
+    NeedSubElement = 1,
+    ResolveLink = 2,
+    Transform = 4,
+    NoElementMap = 8,
+    DontSimplifyCompound = 16
+};
+using ShapeOptions = Base::Flags<ShapeOption>;
+
 
 class PartFeaturePy;
 
@@ -71,7 +84,7 @@ public:
 
     PyObject* getPyObject() override;
 
-    std::pair<std::string,std::string> getElementName(
+    App::ElementNamePair getElementName(
             const char *name, ElementNameType type=Normal) const override;
 
     static std::list<Data::HistoryItem> getElementHistory(App::DocumentObject *obj,
@@ -130,15 +143,15 @@ public:
      * @param transform: if true, apply obj's transformation. Set to false
      * if pmat already include obj's transformation matrix.
      */
-    static TopoDS_Shape getShape(const App::DocumentObject *obj,
-            const char *subname=nullptr, bool needSubElement=false, Base::Matrix4D *pmat=nullptr,
-            App::DocumentObject **owner=nullptr, bool resolveLink=true, bool transform=true);
+    static TopoDS_Shape getShape(const App::DocumentObject *obj, ShapeOptions options,
+            const char *subname=nullptr, Base::Matrix4D *pmat=nullptr,
+            App::DocumentObject **owner=nullptr);
 
-    static TopoShape getTopoShape(const App::DocumentObject *obj,
-            const char *subname=nullptr, bool needSubElement=false, Base::Matrix4D *pmat=nullptr,
-            App::DocumentObject **owner=nullptr, bool resolveLink=true, bool transform=true,
-            bool noElementMap=false);
+    static TopoShape getTopoShape(const App::DocumentObject* obj, ShapeOptions options,
+                                    const char* subname=nullptr, Base::Matrix4D* pmat=nullptr, 
+                                    App::DocumentObject**owner=nullptr);
 
+    static TopoShape simplifyCompound(TopoShape compoundShape);
     static void clearShapeCache();
 
     static App::DocumentObject *getShapeOwner(const App::DocumentObject *obj, const char *subname=nullptr);
@@ -153,14 +166,14 @@ public:
 
     static bool isElementMappingDisabled(App::PropertyContainer *container);
 
-    bool getCameraAlignmentDirection(Base::Vector3d& direction, const char* subname) const override;
-#ifdef FC_USE_TNP_FIX
+    bool getCameraAlignmentDirection(Base::Vector3d &directionZ, Base::Vector3d &directionX, const char *subname) const override;
+
+    static void guessNewLink(std::string &replacementName, DocumentObject *base, const char *oldLink);
 
     const std::vector<std::string>& searchElementCache(const std::string &element,
-                                                       Data::SearchOptions options = Data::SearchOptions::CheckGeometry,
+                                                       Data::SearchOptions options = Data::SearchOption::CheckGeometry,
                                                        double tol = 1e-7,
                                                        double atol = 1e-10) const override;
-#endif
 protected:
     /// recompute only this object
     App::DocumentObjectExecReturn *recompute() override;
@@ -168,12 +181,27 @@ protected:
     App::DocumentObjectExecReturn *execute() override;
     void onBeforeChange(const App::Property* prop) override;
     void onChanged(const App::Property* prop) override;
+    void onDocumentRestored() override;
+
+    void copyMaterial(Feature* feature);
+    void copyMaterial(App::DocumentObject* link);
 
     void registerElementCache(const std::string &prefix, PropertyPartShape *prop);
 
+    /** Helper function to obtain mapped and indexed element name from a shape
+     * @params shape: source shape
+     * @param name: the input name, can be either mapped or indexed name
+     * @return Returns both the indexed and mapped name
+     *
+     * If the 'name' referencing a non-primary shape type, i.e. not
+     * Vertex/Edge/Face, this function will auto generate a name from primary
+     * sub-shapes.
+     */
+    App::ElementNamePair getExportElementName(TopoShape shape, const char *name) const;
+
     /**
      * Build a history of changes
-     * MakeShape: The operation that created the changes, e.g. BRepAlgoAPI_Common
+     * MakeShape: The operation that created the changes, e.g. FCBRepAlgoAPI_Common
      * type: The type of object we are interested in, e.g. TopAbs_FACE
      * newS: The new shape that was created by the operation
      * oldS: The original shape prior to the operation
@@ -187,7 +215,7 @@ private:
     std::vector<std::pair<std::string, PropertyPartShape*>> _elementCachePrefixMap;
 };
 
-class FilletBase : public Part::Feature
+class PartExport FilletBase : public Part::Feature
 {
     PROPERTY_HEADER_WITH_OVERRIDE(Part::FilletBase);
 
@@ -199,7 +227,8 @@ public:
     App::PropertyLinkSub   EdgeLinks;
 
     short mustExecute() const override;
-    void onUpdateElementReference(const App::Property *prop) override;
+    App::DocumentObjectExecReturn* execute() override;
+    void onUpdateElementReference(const App::Property* prop) override;
 
 protected:
     void onDocumentRestored() override;
@@ -266,6 +295,7 @@ bool checkIntersection(const TopoDS_Shape& first, const TopoDS_Shape& second,
 
 } //namespace Part
 
+ENABLE_BITMASK_OPERATORS(Part::ShapeOption)
 
 #endif // PART_FEATURE_H
 

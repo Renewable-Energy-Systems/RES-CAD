@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # ***************************************************************************
 # *   Copyright (c) 2015 Dan Falck <ddfalck@gmail.com>                      *
+# *                 2025 Samuel Abels <knipknap@gmail.com>                  *
 # *                                                                         *
 # *   This program is free software; you can redistribute it and/or modify  *
 # *   it under the terms of the GNU Lesser General Public License (LGPL)    *
@@ -25,7 +26,7 @@
 from PySide.QtCore import QT_TRANSLATE_NOOP
 import FreeCAD
 import Path
-import Path.Tool.Bit as PathToolBit
+from Path.Tool.toolbit import ToolBit
 import Path.Base.Generator.toolchange as toolchange
 
 
@@ -72,9 +73,7 @@ class ToolController:
             "App::PropertyFloat",
             "SpindleSpeed",
             "Tool",
-            QT_TRANSLATE_NOOP(
-                "App::Property", "The speed of the cutting spindle in RPM"
-            ),
+            QT_TRANSLATE_NOOP("App::Property", "The speed of the cutting spindle in RPM"),
         )
         obj.addProperty(
             "App::PropertyEnumeration",
@@ -115,7 +114,7 @@ class ToolController:
             self.ensureToolBit(obj)
 
     @classmethod
-    def propertyEnumerations(self, dataType="data"):
+    def propertyEnumerations(cls, dataType="data"):
         """helixOpPropertyEnumerations(dataType="data")... return property enumeration lists of specified dataType.
         Args:
             dataType = 'data', 'raw', 'translated'
@@ -177,24 +176,18 @@ class ToolController:
                 if template.get(ToolControllerTemplate.HorizRapid):
                     obj.HorizRapid = template.get(ToolControllerTemplate.HorizRapid)
                 if template.get(ToolControllerTemplate.SpindleSpeed):
-                    obj.SpindleSpeed = float(
-                        template.get(ToolControllerTemplate.SpindleSpeed)
-                    )
+                    obj.SpindleSpeed = float(template.get(ToolControllerTemplate.SpindleSpeed))
                 if template.get(ToolControllerTemplate.SpindleDir):
                     obj.SpindleDir = template.get(ToolControllerTemplate.SpindleDir)
                 if template.get(ToolControllerTemplate.ToolNumber):
-                    obj.ToolNumber = int(
-                        template.get(ToolControllerTemplate.ToolNumber)
-                    )
+                    obj.ToolNumber = int(template.get(ToolControllerTemplate.ToolNumber))
                 if template.get(ToolControllerTemplate.Tool):
                     self.ensureToolBit(obj)
-                    toolVersion = template.get(ToolControllerTemplate.Tool).get(
-                        ToolControllerTemplate.Version
-                    )
+                    tool_data = template.get(ToolControllerTemplate.Tool)
+                    toolVersion = tool_data.get(ToolControllerTemplate.Version)
                     if toolVersion == 2:
-                        obj.Tool = PathToolBit.Factory.CreateFromAttrs(
-                            template.get(ToolControllerTemplate.Tool)
-                        )
+                        toolbit_instance = ToolBit.from_dict(tool_data)
+                        obj.Tool = toolbit_instance.attach_to_doc(doc=obj.Document)
                     else:
                         obj.Tool = None
                         if toolVersion == 1:
@@ -205,11 +198,7 @@ class ToolController:
                             Path.Log.error(
                                 f"{obj.Name} - unknown Tool version {toolVersion} - ignoring"
                             )
-                    if (
-                        obj.Tool
-                        and obj.Tool.ViewObject
-                        and obj.Tool.ViewObject.Visibility
-                    ):
+                    if obj.Tool and obj.Tool.ViewObject and obj.Tool.ViewObject.Visibility:
                         obj.Tool.ViewObject.Visibility = False
                 if template.get(ToolControllerTemplate.Expressions):
                     for exprDef in template.get(ToolControllerTemplate.Expressions):
@@ -225,9 +214,7 @@ class ToolController:
                     )
                 )
         else:
-            Path.Log.error(
-                "PathToolController template has no version - corrupted template file?"
-            )
+            Path.Log.error("PathToolController template has no version - corrupted template file?")
 
     def templateAttrs(self, obj):
         """templateAttrs(obj) ... answer a dictionary with all properties that should be stored for a template."""
@@ -242,7 +229,7 @@ class ToolController:
         attrs[ToolControllerTemplate.HorizRapid] = "%s" % (obj.HorizRapid)
         attrs[ToolControllerTemplate.SpindleSpeed] = obj.SpindleSpeed
         attrs[ToolControllerTemplate.SpindleDir] = obj.SpindleDir
-        attrs[ToolControllerTemplate.Tool] = obj.Tool.Proxy.templateAttrs(obj.Tool)
+        attrs[ToolControllerTemplate.Tool] = obj.Tool.Proxy.to_dict()
         expressions = []
         for expr in obj.ExpressionEngine:
             Path.Log.debug("%s: %s" % (expr[0], expr[1]))
@@ -263,25 +250,8 @@ class ToolController:
             "toolnumber": obj.ToolNumber,
             "toollabel": obj.Label,
             "spindlespeed": obj.SpindleSpeed,
-            "spindledirection": toolchange.SpindleDirection.OFF,
+            "spindledirection": obj.Tool.Proxy.get_spindle_direction(),
         }
-
-        if hasattr(obj.Tool, "SpindlePower"):
-            if not obj.Tool.SpindlePower:
-                args["spindledirection"] = toolchange.SpindleDirection.OFF
-            else:
-                if obj.SpindleDir == "Forward":
-                    args["spindledirection"] = toolchange.SpindleDirection.CW
-                else:
-                    args["spindledirection"] = toolchange.SpindleDirection.CCW
-
-        elif obj.SpindleDir == "None":
-            args["spindledirection"] = toolchange.SpindleDirection.OFF
-        else:
-            if obj.SpindleDir == "Forward":
-                args["spindledirection"] = toolchange.SpindleDirection.CW
-            else:
-                args["spindledirection"] = toolchange.SpindleDirection.CCW
 
         commands = toolchange.generate(**args)
 
@@ -326,7 +296,10 @@ def Create(
 
     if assignTool:
         if not tool:
-            tool = PathToolBit.Factory.Create()
+            # Create a default endmill tool bit and attach it to a new DocumentObject
+            toolbit = ToolBit.from_shape_id("endmill.fcstd")
+            Path.Log.info(f"Controller.Create: Created toolbit with ID: {toolbit.id}")
+            tool = toolbit.attach_to_doc(doc=FreeCAD.ActiveDocument)
             if tool.ViewObject:
                 tool.ViewObject.Visibility = False
         obj.Tool = tool

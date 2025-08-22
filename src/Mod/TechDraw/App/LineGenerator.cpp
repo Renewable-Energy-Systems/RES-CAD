@@ -57,9 +57,6 @@ using DU = DrawUtil;
 LineGenerator::LineGenerator()
 {
     reloadDescriptions();
-//    m_elementDefs = loadElements();
-//    m_lineDefs = getLineDefinitions();
-//    m_lineDescs = getLineDescriptions();
 }
 
 void LineGenerator::reloadDescriptions()
@@ -73,8 +70,6 @@ void LineGenerator::reloadDescriptions()
 //! we prefer to use the ISO Line Number if available.
 QPen LineGenerator::getBestPen(size_t isoNumber, Qt::PenStyle qtStyle, double width)
 {
-//    Base::Console().Message("DLG::getBestPen((%d, %d, %.3f)\n",
-//                            isoNumber, qtStyle, width);
     // TODO: use TechDraw::LineFormat::InvalidLine here
     if (isoNumber > 0 &&
         isoNumber < m_lineDefs.size()) {
@@ -95,7 +90,7 @@ QPen LineGenerator::getBestPen(size_t isoNumber, Qt::PenStyle qtStyle, double wi
 //! 1-15 and ANSI lines are 1-4(?)  The line width is the nominal width in mm.
 QPen LineGenerator::getLinePen(size_t lineNumber, double nominalLineWidth)
 {
-//    Base::Console().Message("LG::getLinePen(%d, %.3f)\n",
+//    Base::Console().message("LG::getLinePen(%d, %.3f)\n",
 //                             lineNumber, nominalLineWidth);
     QPen linePen;
     linePen.setWidthF(nominalLineWidth);
@@ -160,11 +155,7 @@ QPen LineGenerator::getLinePen(size_t lineNumber, double nominalLineWidth)
         dashPattern.push_back(static_cast< double >(m_elementDefs[entry]) / proportionalAdjust);
     }
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
-    QVector<double> qDashPattern = QVector<double>::fromStdVector(dashPattern);
-#else
     QVector<double> qDashPattern(dashPattern.begin(), dashPattern.end());
-#endif
 
     linePen.setDashPattern(qDashPattern);
     linePen.setWidthF(nominalLineWidth);
@@ -175,9 +166,6 @@ QPen LineGenerator::getLinePen(size_t lineNumber, double nominalLineWidth)
 //! convert Qt line style to closest ISO line number
 int LineGenerator::fromQtStyle(Qt::PenStyle style)
 {
-//    Base::Console().Message("DLG::fromQtStyle(%d)\n", style);
-
-    int result { 0 };
     // the 4 standard Qt::PenStyles and ISO128 equivalents
     int dashed = 2;
     int dotted = 7;
@@ -199,29 +187,22 @@ int LineGenerator::fromQtStyle(Qt::PenStyle style)
     switch (style) {
         case Qt::NoPen:
         case Qt::SolidLine:
-            result = 1;
-            break;
+            return 1;
         case Qt::DashLine:
-            result = dashed;
-            break;
+            return dashed;
         case Qt::DotLine:
-            result = dotted;
-            break;
+            return dotted;
         case Qt::DashDotLine:
-            result = dashDot;
-            break;
+            return dashDot;
         case Qt::DashDotDotLine:
-            result = dashDotDot;
-            break;
+            return dashDotDot;
         case Qt::CustomDashLine:
             // not sure what to do here.  we would have to match the custom pattern
             // to the patterns of the ISO lines and set the dash pattern accordingly.
-            result = 2;
-            break;
+            return 2;
         default:
-            result = 0;
+            return 0;
     }
-    return result;
 }
 
 
@@ -229,7 +210,6 @@ int LineGenerator::fromQtStyle(Qt::PenStyle style)
 //! ANSI Y14.2 standards file
 std::map<std::string, int> LineGenerator::loadElements()
 {
-//    Base::Console().Message("DLG::loadElements()\n");
     std::map<std::string, int> result;
     // open file, for each record, parse element name and length, then insert into
     // the output map.
@@ -239,7 +219,7 @@ std::map<std::string, int> LineGenerator::loadElements()
     Base::FileInfo fi(parmFile);
     Base::ifstream inFile(fi, std::ifstream::in);
     if(!inFile.is_open()) {
-        Base::Console().Message( "Cannot open line element def file: %s\n", parmFile.c_str());
+        Base::Console().message( "Cannot open line element def file: %s\n", parmFile.c_str());
         return result;
     }
     std::string line;
@@ -260,13 +240,12 @@ std::map<std::string, int> LineGenerator::loadElements()
 //! load the line definition file into memory
 std::vector< std::vector<std::string> > LineGenerator::getLineDefinitions()
 {
-//    Base::Console().Message("DLG::loadLineDefinitions()\n");
     std::vector< std::vector<std::string> > lineDefs;
     std::string record;
     Base::FileInfo fi(Preferences::currentLineDefFile());
     Base::ifstream inFile(fi, std::ifstream::in);
     if(!inFile.is_open()) {
-        Base::Console().Message( "Cannot open line def file: %s\n", fi.filePath().c_str());
+        Base::Console().message( "Cannot open line def file: %s\n", fi.filePath().c_str());
         return lineDefs;
     }
 
@@ -330,7 +309,7 @@ std::vector<std::string> LineGenerator::getLineDescriptions()
     Base::FileInfo fi(Preferences::currentLineDefFile());
     Base::ifstream inFile(fi, std::ifstream::in);
     if(!inFile.is_open()) {
-        Base::Console().Message( "Cannot open line def file: %s\n", fi.filePath().c_str());
+        Base::Console().message( "Cannot open line def file: %s\n", fi.filePath().c_str());
         return lineDescs;
     }
 

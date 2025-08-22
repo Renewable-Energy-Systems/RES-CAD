@@ -37,9 +37,10 @@ import pivy.coin as coin
 from PySide.QtCore import QT_TRANSLATE_NOOP
 
 import FreeCADGui as Gui
-import draftguitools.gui_base_original as gui_base_original
-import draftguitools.gui_tool_utils as gui_tool_utils
-
+from draftguitools import gui_base_original
+from draftguitools import gui_tool_utils
+from draftutils import utils
+from draftutils import gui_utils
 from draftutils.messages import _msg
 from draftutils.translate import translate
 
@@ -58,8 +59,8 @@ class SubelementHighlight(gui_base_original.Modifier):
 
         return {'Pixmap': 'Draft_SubelementHighlight',
                 'Accel': "H, S",
-                'MenuText': QT_TRANSLATE_NOOP("Draft_SubelementHighlight","Subelement highlight"),
-                'ToolTip': QT_TRANSLATE_NOOP("Draft_SubelementHighlight","Highlight the subelements of the selected objects, so that they can then be edited with the move, rotate, and scale tools.")}
+                'MenuText': QT_TRANSLATE_NOOP("Draft_SubelementHighlight","Highlight Subelements"),
+                'ToolTip': QT_TRANSLATE_NOOP("Draft_SubelementHighlight","Highlights the subelements of the selected objects, to be able to move, rotate, and scale them")}
 
     def Activated(self):
         """Execute when the command is called."""
@@ -115,29 +116,33 @@ class SubelementHighlight(gui_base_original.Modifier):
     def get_editable_objects_from_selection(self):
         """Get editable Draft objects for the selection."""
         for obj in Gui.Selection.getSelection():
-            if obj.isDerivedFrom("Part::Part2DObject"):
+            if (obj.isDerivedFrom("Part::Part2DObject")
+                or utils.get_type(obj) in ["BezCurve", "BSpline", "Wire"]):
                 self.editable_objects.append(obj)
             elif (hasattr(obj, "Base")
-                  and obj.Base.isDerivedFrom("Part::Part2DObject")):
+                  and (obj.Base.isDerivedFrom("Part::Part2DObject")
+                       or utils.get_type(obj.Base) in ["BezCurve", "BSpline", "Wire"])):
                 self.editable_objects.append(obj.Base)
 
     def highlight_editable_objects(self):
         """Highlight editable Draft objects from the selection."""
         for obj in self.editable_objects:
+            vobj = obj.ViewObject
             self.original_view_settings[obj.Name] = {
-                'Visibility': obj.ViewObject.Visibility,
-                'PointSize': obj.ViewObject.PointSize,
-                'PointColor': obj.ViewObject.PointColor,
-                'LineColor': obj.ViewObject.LineColor}
-            obj.ViewObject.Visibility = True
-            obj.ViewObject.PointSize = 10
-            obj.ViewObject.PointColor = (1.0, 0.0, 0.0)
-            obj.ViewObject.LineColor = (1.0, 0.0, 0.0)
+                'Visibility': vobj.Visibility,
+                'PointSize': vobj.PointSize,
+                'PointColor': vobj.PointColor,
+                'LineColor': vobj.LineColor}
+            vobj.Visibility = True
+            vobj.PointSize = 10
+            vobj.PointColor = (1.0, 0.0, 0.0)
+            vobj.LineColor = (1.0, 0.0, 0.0)
             xray = coin.SoAnnotation()
-            if obj.ViewObject.RootNode.getNumChildren() > 2:
-                xray.addChild(obj.ViewObject.RootNode.getChild(2).getChild(0))
+            switch = gui_utils.find_coin_node(vobj.RootNode, coin.SoSwitch)
+            if switch is not None:
+                xray.addChild(switch.getChild(0))
                 xray.setName("xray")
-                obj.ViewObject.RootNode.addChild(xray)
+                vobj.RootNode.addChild(xray)
 
     def restore_editable_objects_graphics(self):
         """Restore the editable objects' appearance."""

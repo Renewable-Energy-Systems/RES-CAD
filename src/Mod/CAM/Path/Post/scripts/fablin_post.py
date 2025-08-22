@@ -91,9 +91,6 @@ POST_OPERATION = """"""
 TOOL_CHANGE = """"""
 
 
-
-
-
 def processArguments(argstring):
     global OUTPUT_HEADER
     global OUTPUT_COMMENTS
@@ -130,9 +127,7 @@ def export(objectslist, filename, argstring):
     for obj in objectslist:
         if not hasattr(obj, "Path"):
             print(
-                "the object "
-                + obj.Name
-                + " is not a path. Please select only path and Compounds."
+                "the object " + obj.Name + " is not a path. Please select only path and Compounds."
             )
             return
 
@@ -165,8 +160,8 @@ def export(objectslist, filename, argstring):
     # Write the preamble
     if OUTPUT_COMMENTS:
         gcode += linenumber() + "(begin preamble)\n"
-    for line in PREAMBLE.splitlines(True):
-        gcode += linenumber() + line
+    for line in PREAMBLE.splitlines():
+        gcode += linenumber() + line + "\n"
 
     for obj in objectslist:
 
@@ -188,8 +183,8 @@ def export(objectslist, filename, argstring):
 
     if OUTPUT_COMMENTS:
         gcode += "(begin postamble)\n"
-    for line in POSTAMBLE.splitlines(True):
-        gcode += linenumber() + line
+    for line in POSTAMBLE.splitlines():
+        gcode += linenumber() + line + "\n"
 
     if SHOW_EDITOR:
         dia = PostUtils.GCodeEditorDialog()
@@ -204,9 +199,12 @@ def export(objectslist, filename, argstring):
 
     print("done postprocessing.")
 
-    gfile = pyopen(filename, "w")
-    gfile.write(final)
-    gfile.close()
+    if not filename == "-":
+        gfile = pyopen(filename, "w")
+        gfile.write(final)
+        gfile.close()
+
+    return final
 
 
 def linenumber():
@@ -245,9 +243,7 @@ def parse(pathobj):
         return out
     else:  # parsing simple path
 
-        if not hasattr(
-            pathobj, "Path"
-        ):  # groups might contain non-path things like stock.
+        if not hasattr(pathobj, "Path"):  # groups might contain non-path things like stock.
             return out
 
         if OUTPUT_COMMENTS:
@@ -258,7 +254,7 @@ def parse(pathobj):
             command = c.Name
 
             # fablin does not support parenthesis syntax, so removing that (pocket) in the agnostic gcode
-            if command[0] == "(":
+            if command.startswith("("):
                 if not OUTPUT_COMMENTS:
                     pass
             else:

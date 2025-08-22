@@ -25,16 +25,7 @@
 #define BASE_Quantity_H
 
 #include "Unit.h"
-#include <QString>
-
-// NOLINTBEGIN
-#ifndef DOUBLE_MAX
-#define DOUBLE_MAX 1.7976931348623157E+308 /* max decimal value of a "double"*/
-#endif
-#ifndef DOUBLE_MIN
-#define DOUBLE_MIN 2.2250738585072014E-308 /* min decimal value of a "double"*/
-#endif
-// NOLINTEND
+#include <string>
 
 namespace Base
 {
@@ -130,7 +121,7 @@ public:
     Quantity(const Quantity&) = default;
     Quantity(Quantity&&) = default;
     explicit Quantity(double value, const Unit& unit = Unit());
-    explicit Quantity(double value, const QString& unit);
+    explicit Quantity(double value, const std::string& unit);
     /// Destruction
     ~Quantity() = default;
 
@@ -165,18 +156,14 @@ public:
     {
         myFormat = fmt;
     }
-    /// transfer to user preferred unit/potence
-    QString getUserString(double& factor, QString& unitString) const;
-    QString getUserString() const
-    {  // to satisfy GCC
-        double dummy1 {};
-        QString dummy2 {};
-        return getUserString(dummy1, dummy2);
-    }
-    QString getUserString(UnitsSchema* schema, double& factor, QString& unitString) const;
-    QString getSafeUserString() const;
 
-    static Quantity parse(const QString& string);
+    std::string getUserString() const;
+    /// transfer to user preferred unit/potence
+    std::string getUserString(double& factor, std::string& unitString) const;
+    std::string getUserString(UnitsSchema* schema, double& factor, std::string& unitString) const;
+    std::string getSafeUserString() const;
+
+    static Quantity parse(const std::string& string);
 
     /// returns the unit of the quantity
     const Unit& getUnit() const
@@ -204,12 +191,10 @@ public:
     double getValueAs(const Quantity&) const;
 
 
-    /// true if it has a number without a unit
+    /// true if it has no unit
     bool isDimensionless() const;
     /// true if it has a specific unit or no dimension.
     bool isDimensionlessOrUnit(const Unit& unit) const;
-    /// true if it has a number and a valid unit
-    bool isQuantity() const;
     /// true if it has a number with or without a unit
     bool isValid() const;
     /// sets the quantity invalid

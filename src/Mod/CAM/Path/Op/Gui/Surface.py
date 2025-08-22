@@ -136,13 +136,8 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
         if obj.OptimizeLinearPaths != self.form.optimizeEnabled.isChecked():
             obj.OptimizeLinearPaths = self.form.optimizeEnabled.isChecked()
 
-        if (
-            obj.OptimizeStepOverTransitions
-            != self.form.optimizeStepOverTransitions.isChecked()
-        ):
-            obj.OptimizeStepOverTransitions = (
-                self.form.optimizeStepOverTransitions.isChecked()
-            )
+        if obj.OptimizeStepOverTransitions != self.form.optimizeStepOverTransitions.isChecked():
+            obj.OptimizeStepOverTransitions = self.form.optimizeStepOverTransitions.isChecked()
 
     def setFields(self, obj):
         """setFields(obj) ... transfers obj's property values to UI"""
@@ -169,26 +164,18 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
 
         self.form.avoidLastX_Faces.setValue(obj.AvoidLastX_Faces)
         self.form.boundBoxExtraOffsetX.setText(
-            FreeCAD.Units.Quantity(
-                obj.DropCutterExtraOffset.x, FreeCAD.Units.Length
-            ).UserString
+            FreeCAD.Units.Quantity(obj.DropCutterExtraOffset.x, FreeCAD.Units.Length).UserString
         )
         self.form.boundBoxExtraOffsetY.setText(
-            FreeCAD.Units.Quantity(
-                obj.DropCutterExtraOffset.y, FreeCAD.Units.Length
-            ).UserString
+            FreeCAD.Units.Quantity(obj.DropCutterExtraOffset.y, FreeCAD.Units.Length).UserString
         )
         self.selectInComboBox(obj.DropCutterDir, self.form.dropCutterDirSelect)
         self.form.depthOffset.setText(
-            FreeCAD.Units.Quantity(
-                obj.DepthOffset.Value, FreeCAD.Units.Length
-            ).UserString
+            FreeCAD.Units.Quantity(obj.DepthOffset.Value, FreeCAD.Units.Length).UserString
         )
         self.form.stepOver.setValue(obj.StepOver)
         self.form.sampleInterval.setText(
-            FreeCAD.Units.Quantity(
-                obj.SampleInterval.Value, FreeCAD.Units.Length
-            ).UserString
+            FreeCAD.Units.Quantity(obj.SampleInterval.Value, FreeCAD.Units.Length).UserString
         )
 
         if obj.UseStartPoint:
@@ -230,10 +217,16 @@ class TaskPanelOpPage(PathOpGui.TaskPanelPage):
         signals.append(self.form.depthOffset.editingFinished)
         signals.append(self.form.stepOver.editingFinished)
         signals.append(self.form.sampleInterval.editingFinished)
-        signals.append(self.form.useStartPoint.stateChanged)
-        signals.append(self.form.boundaryEnforcement.stateChanged)
-        signals.append(self.form.optimizeEnabled.stateChanged)
-        signals.append(self.form.optimizeStepOverTransitions.stateChanged)
+        if hasattr(self.form.useStartPoint, "checkStateChanged"):  # Qt version >= 6.7.0
+            signals.append(self.form.useStartPoint.checkStateChanged)
+            signals.append(self.form.boundaryEnforcement.checkStateChanged)
+            signals.append(self.form.optimizeEnabled.checkStateChanged)
+            signals.append(self.form.optimizeStepOverTransitions.checkStateChanged)
+        else:  # Qt version < 6.7.0
+            signals.append(self.form.useStartPoint.stateChanged)
+            signals.append(self.form.boundaryEnforcement.stateChanged)
+            signals.append(self.form.optimizeEnabled.stateChanged)
+            signals.append(self.form.optimizeStepOverTransitions.stateChanged)
 
         return signals
 
@@ -280,9 +273,7 @@ Command = PathOpGui.SetupOperation(
     TaskPanelOpPage,
     "CAM_3DSurface",
     QtCore.QT_TRANSLATE_NOOP("CAM_Surface", "3D Surface"),
-    QtCore.QT_TRANSLATE_NOOP(
-        "CAM_Surface", "Create a 3D Surface Operation from a model"
-    ),
+    QtCore.QT_TRANSLATE_NOOP("CAM_Surface", "Create a 3D Surface Operation from a model"),
     PathSurface.SetupProperties,
 )
 

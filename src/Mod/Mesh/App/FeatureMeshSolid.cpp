@@ -21,6 +21,9 @@
  ***************************************************************************/
 
 #include "PreCompiled.h"
+#ifndef _PreComp_
+#include <limits>
+#endif
 
 #include <App/Document.h>
 
@@ -29,8 +32,10 @@
 
 namespace Mesh
 {
-const App::PropertyIntegerConstraint::Constraints intSampling = {0, INT_MAX, 1};
-const App::PropertyLength::Constraints floatRange = {0.0, FLT_MAX, 1.0};
+const App::PropertyIntegerConstraint::Constraints intSampling = {0,
+                                                                 std::numeric_limits<int>::max(),
+                                                                 1};
+const App::PropertyLength::Constraints floatRange = {0.0, std::numeric_limits<float>::max(), 1.0};
 }  // namespace Mesh
 
 using namespace Mesh;
@@ -58,14 +63,13 @@ App::DocumentObjectExecReturn* Sphere::execute()
 {
     std::unique_ptr<MeshObject> mesh(
         MeshObject::createSphere((float)Radius.getValue(), Sampling.getValue()));
-    if (mesh.get()) {
+    if (mesh) {
         mesh->setPlacement(this->Placement.getValue());
         Mesh.setValue(mesh->getKernel());
         return App::DocumentObject::StdReturn;
     }
-    else {
-        return new App::DocumentObjectExecReturn("Cannot create sphere", this);
-    }
+
+    return new App::DocumentObjectExecReturn("Cannot create sphere", this);
 }
 
 void Sphere::handleChangedPropertyType(Base::XMLReader& reader,
@@ -109,14 +113,13 @@ App::DocumentObjectExecReturn* Ellipsoid::execute()
     std::unique_ptr<MeshObject> mesh(MeshObject::createEllipsoid((float)Radius1.getValue(),
                                                                  (float)Radius2.getValue(),
                                                                  Sampling.getValue()));
-    if (mesh.get()) {
+    if (mesh) {
         mesh->setPlacement(this->Placement.getValue());
         Mesh.setValue(mesh->getKernel());
         return App::DocumentObject::StdReturn;
     }
-    else {
-        return new App::DocumentObjectExecReturn("Cannot create ellipsoid", this);
-    }
+
+    return new App::DocumentObjectExecReturn("Cannot create ellipsoid", this);
 }
 
 void Ellipsoid::handleChangedPropertyType(Base::XMLReader& reader,
@@ -167,14 +170,13 @@ App::DocumentObjectExecReturn* Cylinder::execute()
                                                                 Closed.getValue(),
                                                                 (float)EdgeLength.getValue(),
                                                                 Sampling.getValue()));
-    if (mesh.get()) {
+    if (mesh) {
         mesh->setPlacement(this->Placement.getValue());
         Mesh.setValue(mesh->getKernel());
         return App::DocumentObject::StdReturn;
     }
-    else {
-        return new App::DocumentObjectExecReturn("Cannot create cylinder", this);
-    }
+
+    return new App::DocumentObjectExecReturn("Cannot create cylinder", this);
 }
 
 void Cylinder::handleChangedPropertyType(Base::XMLReader& reader,
@@ -228,14 +230,13 @@ App::DocumentObjectExecReturn* Cone::execute()
                                                             Closed.getValue(),
                                                             (float)EdgeLength.getValue(),
                                                             Sampling.getValue()));
-    if (mesh.get()) {
+    if (mesh) {
         mesh->setPlacement(this->Placement.getValue());
         Mesh.setValue(mesh->getKernel());
         return App::DocumentObject::StdReturn;
     }
-    else {
-        return new App::DocumentObjectExecReturn("Cannot create cone", this);
-    }
+
+    return new App::DocumentObjectExecReturn("Cannot create cone", this);
 }
 
 void Cone::handleChangedPropertyType(Base::XMLReader& reader,
@@ -280,14 +281,13 @@ App::DocumentObjectExecReturn* Torus::execute()
     std::unique_ptr<MeshObject> mesh(MeshObject::createTorus((float)Radius1.getValue(),
                                                              (float)Radius2.getValue(),
                                                              Sampling.getValue()));
-    if (mesh.get()) {
+    if (mesh) {
         mesh->setPlacement(this->Placement.getValue());
         Mesh.setValue(mesh->getKernel());
         return App::DocumentObject::StdReturn;
     }
-    else {
-        return new App::DocumentObjectExecReturn("Cannot create torus", this);
-    }
+
+    return new App::DocumentObjectExecReturn("Cannot create torus", this);
 }
 
 void Torus::handleChangedPropertyType(Base::XMLReader& reader,
@@ -311,9 +311,9 @@ PROPERTY_SOURCE(Mesh::Cube, Mesh::Feature)
 
 Cube::Cube()
 {
-    ADD_PROPERTY_TYPE(Length, (10.0f), "Cube", App::Prop_None, "The length of the cube");
-    ADD_PROPERTY_TYPE(Width, (10.0f), "Cube", App::Prop_None, "The width of the cube");
-    ADD_PROPERTY_TYPE(Height, (10.0f), "Cube", App::Prop_None, "The height of the cube");
+    ADD_PROPERTY_TYPE(Length, (10.0F), "Cube", App::Prop_None, "The length of the cube");
+    ADD_PROPERTY_TYPE(Width, (10.0F), "Cube", App::Prop_None, "The width of the cube");
+    ADD_PROPERTY_TYPE(Height, (10.0F), "Cube", App::Prop_None, "The height of the cube");
     Length.setConstraints(&floatRange);
     Width.setConstraints(&floatRange);
     Height.setConstraints(&floatRange);
@@ -332,14 +332,13 @@ App::DocumentObjectExecReturn* Cube::execute()
     std::unique_ptr<MeshObject> mesh(MeshObject::createCube((float)Length.getValue(),
                                                             (float)Width.getValue(),
                                                             (float)Height.getValue()));
-    if (mesh.get()) {
+    if (mesh) {
         mesh->setPlacement(this->Placement.getValue());
         Mesh.setValue(mesh->getKernel());
         return App::DocumentObject::StdReturn;
     }
-    else {
-        return new App::DocumentObjectExecReturn("Cannot create cube", this);
-    }
+
+    return new App::DocumentObjectExecReturn("Cannot create cube", this);
 }
 
 void Cube::handleChangedPropertyType(Base::XMLReader& reader,

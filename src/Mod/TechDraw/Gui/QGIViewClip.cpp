@@ -83,9 +83,7 @@ void QGIViewClip::draw()
     }
 
     drawClip();
-    if (getFrameState()) {
-        drawBorder();
-    }
+    drawBorder();
 }
 
 void QGIViewClip::drawClip()
@@ -136,7 +134,7 @@ void QGIViewClip::drawClip()
                 qgiv->show();
             }
         } else {
-            Base::Console().Warning("Logic error? - drawClip() - qgiv for %s not found\n", (*it).c_str());   //gview for feature !exist
+            Base::Console().warning("Logic error? - drawClip() - qgiv for %s not found\n", (*it).c_str());   //gview for feature !exist
         }
     }
 
@@ -146,8 +144,8 @@ void QGIViewClip::drawClip()
     for (; it != qgItems.end(); it++) {
         QGIView* qv = dynamic_cast<QGIView*>((*it));
         if (qv) {
-            std::string qvName = std::string(qv->getViewName());
-            if (std::find(childNames.begin(), childNames.end(), qvName) == childNames.end()) {
+            if (auto qvName = std::string(qv->getViewName());
+                std::ranges::find(childNames, qvName) == childNames.end()) {
                 m_cliparea->removeFromGroup(qv);
                 removeFromGroup(qv);
                 qv->isInnerView(false);

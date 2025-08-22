@@ -115,12 +115,17 @@
 
 #include <BRepAlgo.hxx>
 #include <BRepAlgo_NormalProjection.hxx>
-#include <BRepAlgoAPI_BooleanOperation.hxx>
-#include <BRepAlgoAPI_Common.hxx>
-#include <BRepAlgoAPI_Cut.hxx>
+//#include <BRepAlgoAPI_BooleanOperation.hxx>
+#include <Mod/Part/App/FCBRepAlgoAPI_BooleanOperation.h>
+//#include <BRepAlgoAPI_Common.hxx>
+#include <Mod/Part/App/FCBRepAlgoAPI_Common.h>
+//#include <BRepAlgoAPI_Cut.hxx>
+#include <Mod/Part/App/FCBRepAlgoAPI_Cut.h>
 # include <BRepAlgoAPI_Defeaturing.hxx>
-#include <BRepAlgoAPI_Fuse.hxx>
-#include <BRepAlgoAPI_Section.hxx>
+//#include <BRepAlgoAPI_Fuse.hxx>
+#include <Mod/Part/App/FCBRepAlgoAPI_Fuse.h>
+//#include <BRepAlgoAPI_Section.hxx>
+#include <Mod/Part/App/FCBRepAlgoAPI_Section.h>
 
 #include <BRepBndLib.hxx>
 
@@ -169,9 +174,6 @@
 #include <BRepLib_MakeWire.hxx>
 #include <BRepLProp_SurfaceTool.hxx>
 
-#if OCC_VERSION_HEX < 0x070400
-# include <BRepMesh.hxx>
-#endif
 #include <BRepMesh_Edge.hxx>
 #include <BRepMesh_IncrementalMesh.hxx>
 #include <BRepMesh_Triangle.hxx>

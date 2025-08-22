@@ -34,6 +34,8 @@
 #include <Mod/PartDesign/App/Feature.h>
 #include <Mod/PartDesign/App/Body.h>
 
+#include "ui_TaskPreviewParameters.h"
+
 #include "TaskFeatureParameters.h"
 #include "TaskSketchBasedParameters.h"
 
@@ -44,10 +46,60 @@ using namespace Gui;
  *                      Task Feature Parameters                      *
  *********************************************************************/
 
+TaskPreviewParameters::TaskPreviewParameters(ViewProvider* vp, QWidget* parent)
+    : TaskBox(BitmapFactory().pixmap("tree-pre-sel"), tr("Preview"), true, parent)
+    , vp(vp)
+    , ui(std::make_unique<Ui_TaskPreviewParameters>())
+{
+    vp->showPreviousFeature(!hGrp->GetBool("ShowFinal", false));
+    vp->showPreview(hGrp->GetBool("ShowTransparentPreview", true));
+
+    auto* proxy = new QWidget(this);
+    ui->setupUi(proxy);
+
+    ui->showFinalCheckBox->setChecked(vp->isVisible());
+    ui->showTransparentPreviewCheckBox->setChecked(vp->isPreviewEnabled());
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+    connect(ui->showTransparentPreviewCheckBox,
+            &QCheckBox::checkStateChanged,
+            this,
+            &TaskPreviewParameters::onShowPreviewChanged);
+    connect(ui->showFinalCheckBox,
+            &QCheckBox::checkStateChanged,
+            this,
+            &TaskPreviewParameters::onShowFinalChanged);
+#else
+    connect(ui->showTransparentPreviewCheckBox,
+            &QCheckBox::stateChanged,
+            this,
+            &TaskPreviewParameters::onShowPreviewChanged);
+    connect(ui->showFinalCheckBox,
+            &QCheckBox::stateChanged,
+            this,
+            &TaskPreviewParameters::onShowFinalChanged);
+#endif
+
+    groupLayout()->addWidget(proxy);
+}
+
+TaskPreviewParameters::~TaskPreviewParameters() = default;
+
+void TaskPreviewParameters::onShowFinalChanged(bool show)
+{
+    vp->showPreviousFeature(!show);
+}
+
+void TaskPreviewParameters::onShowPreviewChanged(bool show)
+{
+    vp->showPreview(show);
+}
+
 TaskFeatureParameters::TaskFeatureParameters(PartDesignGui::ViewProvider *vp, QWidget *parent,
-                                                     const std::string& pixmapname, const QString& parname)
-    : TaskBox(Gui::BitmapFactory().pixmap(pixmapname.c_str()),parname,true, parent),
-      vp(vp), blockUpdate(false)
+                                             const std::string& pixmapname, const QString& parname)
+    : TaskBox(Gui::BitmapFactory().pixmap(pixmapname.c_str()), parname, true, parent)
+    , vp(vp)
+    , blockUpdate(false)
 {
     Gui::Document* doc = vp->getDocument();
     this->attachDocument(doc);
@@ -55,8 +107,9 @@ TaskFeatureParameters::TaskFeatureParameters(PartDesignGui::ViewProvider *vp, QW
 
 void TaskFeatureParameters::slotDeletedObject(const Gui::ViewProviderDocumentObject& Obj)
 {
-    if (this->vp == &Obj)
+    if (this->vp == &Obj) {
         this->vp = nullptr;
+    }
 }
 
 void TaskFeatureParameters::onUpdateView(bool on)
@@ -68,9 +121,9 @@ void TaskFeatureParameters::onUpdateView(bool on)
 void TaskFeatureParameters::recomputeFeature()
 {
     if (!blockUpdate) {
-        App::DocumentObject* obj = vp->getObject ();
+        App::DocumentObject* obj = getObject();
         assert (obj);
-        obj->getDocument()->recomputeFeature ( obj );
+        obj->recomputeFeature();
     }
 }
 
@@ -78,16 +131,18 @@ void TaskFeatureParameters::recomputeFeature()
  *                            Task Dialog                            *
  *********************************************************************/
 TaskDlgFeatureParameters::TaskDlgFeatureParameters(PartDesignGui::ViewProvider *vp)
-    : TaskDialog(),vp(vp)
+    : preview(new TaskPreviewParameters(vp))
+    , vp(vp)
 {
     assert(vp);
 }
 
 TaskDlgFeatureParameters::~TaskDlgFeatureParameters() = default;
 
-bool TaskDlgFeatureParameters::accept() {
-    App::DocumentObject* feature = vp->getObject();
-
+bool TaskDlgFeatureParameters::accept()
+{
+    App::DocumentObject* feature = getObject();
+    bool isUpdateBlocked = false;
     try {
         // Iterate over parameter dialogs and apply all parameters from them
         for ( QWidget *wgt : Content ) {
@@ -97,6 +152,7 @@ bool TaskDlgFeatureParameters::accept() {
 
             param->saveHistory ();
             param->apply ();
+            isUpdateBlocked |= param->isUpdateBlocked();
         }
         // Make sure the feature is what we are expecting
         // Should be fine but you never know...
@@ -104,10 +160,22 @@ bool TaskDlgFeatureParameters::accept() {
             throw Base::TypeError("Bad object processed in the feature dialog.");
         }
 
-        Gui::cmdAppDocument(feature, "recompute()");
+        if(isUpdateBlocked){
+            Gui::cmdAppDocument(feature, "recompute()");
+        } else {
+            // object was already computed, nothing more to do with it...
+            Gui::cmdAppDocument(feature, "purgeTouched()");
+
+            // ...but touch parents to signal the change...
+            for (auto obj : feature->getInList()){
+                obj->touch();
+            }
+            // ...and recompute them
+            Gui::cmdAppDocument(feature->getDocument(), "recompute()");
+        }
 
         if (!feature->isValid()) {
-            throw Base::RuntimeError(vp->getObject()->getStatusString());
+            throw Base::RuntimeError(getObject()->getStatusString());
         }
 
         App::DocumentObject* previous = static_cast<PartDesign::Feature*>(feature)->getBaseObject(/* silent = */ true );
@@ -136,7 +204,7 @@ bool TaskDlgFeatureParameters::accept() {
 
 bool TaskDlgFeatureParameters::reject()
 {
-    PartDesign::Feature* feature = static_cast<PartDesign::Feature*>(vp->getObject());
+    auto feature = getObject<PartDesign::Feature>();
     App::DocumentObjectWeakPtrT weakptr(feature);
     App::Document* document = feature->getDocument();
 

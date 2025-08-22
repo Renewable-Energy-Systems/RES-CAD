@@ -1,3 +1,6 @@
+if(BUILD_TRACY_FRAME_PROFILER)
+    add_definitions(-DBUILD_TRACY_FRAME_PROFILER)
+endif()
 
 add_subdirectory(App)
 if(BUILD_GUI)
@@ -51,6 +54,7 @@ set(BOPTools_Scripts
     BOPTools/ShapeMerge.py
     BOPTools/SplitAPI.py
     BOPTools/SplitFeatures.py
+    BOPTools/ToleranceFeatures.py
     BOPTools/Utils.py
 )
 

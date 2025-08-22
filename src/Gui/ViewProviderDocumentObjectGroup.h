@@ -25,7 +25,7 @@
 
 #include "ViewProviderDocumentObject.h"
 #include "ViewProviderGroupExtension.h"
-#include "ViewProviderPythonFeature.h"
+#include "ViewProviderFeaturePython.h"
 
 
 namespace Gui {
@@ -48,6 +48,9 @@ public:
     /// deliver the icon shown in the tree view
     QIcon getIcon() const override;
 
+    // Set up the context menu with the supported edit modes
+    void setupContextMenu(QMenu* menu, QObject* receiver, const char* member) override;
+
     /* Check whether the object accept reordering of its children during drop.*/
     bool acceptReorderingObjects() const override { return true; };
 
@@ -58,7 +61,7 @@ private:
     std::vector<ViewProvider*> nodes;
 };
 
-using ViewProviderDocumentObjectGroupPython = ViewProviderPythonFeatureT<ViewProviderDocumentObjectGroup>;
+using ViewProviderDocumentObjectGroupPython = ViewProviderFeaturePythonT<ViewProviderDocumentObjectGroup>;
 
 } // namespace Gui
 

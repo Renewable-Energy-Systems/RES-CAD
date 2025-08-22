@@ -76,45 +76,45 @@ class ObjectDressup:
             "App::PropertyBool",
             "KeepToolDown",
             "Path",
-            QT_TRANSLATE_NOOP("App::Property", "Keep the Tool Down in toolpath"),
+            QT_TRANSLATE_NOOP("App::Property", "Keep the tool down in toolpath"),
         )
         obj.addProperty(
             "App::PropertyDistance",
-            "Length",
+            "LengthIn",
             "Path",
-            QT_TRANSLATE_NOOP("App::Property", "Length or Radius of the approach"),
+            QT_TRANSLATE_NOOP("App::Property", "Length or radius of the approach"),
         )
         obj.addProperty(
             "App::PropertyDistance",
             "LengthOut",
             "Path",
-            QT_TRANSLATE_NOOP("App::Property", "Length or Radius of the exit"),
+            QT_TRANSLATE_NOOP("App::Property", "Length or radius of the exit"),
         )
         obj.addProperty(
             "App::PropertyEnumeration",
-            "StyleOn",
+            "StyleIn",
             "Path",
-            QT_TRANSLATE_NOOP("App::Property", "The Style of motion into the toolpath"),
+            QT_TRANSLATE_NOOP("App::Property", "The style of motion into the toolpath"),
         )
-        obj.StyleOn = lead_styles
+        obj.StyleIn = lead_styles
         obj.addProperty(
             "App::PropertyEnumeration",
-            "StyleOff",
+            "StyleOut",
             "Path",
-            QT_TRANSLATE_NOOP("App::Property", "The Style of motion out of the toolpath"),
+            QT_TRANSLATE_NOOP("App::Property", "The style of motion out of the toolpath"),
         )
-        obj.StyleOff = lead_styles
+        obj.StyleOut = lead_styles
         obj.addProperty(
             "App::PropertyDistance",
             "ExtendLeadIn",
             "Path",
-            QT_TRANSLATE_NOOP("App::Property", "Extends LeadIn distance"),
+            QT_TRANSLATE_NOOP("App::Property", "Extends lead in distance"),
         )
         obj.addProperty(
             "App::PropertyDistance",
             "ExtendLeadOut",
             "Path",
-            QT_TRANSLATE_NOOP("App::Property", "Extends LeadOut distance"),
+            QT_TRANSLATE_NOOP("App::Property", "Extends lead out distance"),
         )
         obj.addProperty(
             "App::PropertyBool",
@@ -126,9 +126,7 @@ class ObjectDressup:
             "App::PropertyBool",
             "IncludeLayers",
             "Path",
-            QT_TRANSLATE_NOOP(
-                "App::Property", "Apply LeadInOut to layers within an operation"
-            ),
+            QT_TRANSLATE_NOOP("App::Property", "Apply Lead in/out to layers within an operation"),
         )
         obj.Proxy = self
 
@@ -142,13 +140,13 @@ class ObjectDressup:
         return None
 
     def setup(self, obj):
-        obj.Length = PathDressup.toolController(obj.Base).Tool.Diameter * 0.75
+        obj.LengthIn = PathDressup.toolController(obj.Base).Tool.Diameter * 0.75
         obj.LengthOut = PathDressup.toolController(obj.Base).Tool.Diameter * 0.75
         obj.LeadIn = True
         obj.LeadOut = True
         obj.KeepToolDown = False
-        obj.StyleOn = "Arc"
-        obj.StyleOff = "Arc"
+        obj.StyleIn = "Arc"
+        obj.StyleOut = "Arc"
         obj.ExtendLeadIn = 0
         obj.ExtendLeadOut = 0
         obj.RapidPlunge = False
@@ -162,32 +160,70 @@ class ObjectDressup:
         if not obj.Base.Path:
             return
 
-        if obj.Length <= 0:
+        if obj.LengthIn <= 0:
             Path.Log.error(
-                translate("CAM_DressupLeadInOut", "Length/Radius positive not Null")
-                + "\n"
+                translate("CAM_DressupLeadInOut", "Length/radius positive not Null") + "\n"
             )
-            obj.Length = 0.1
+            obj.LengthIn = 0.1
 
         if obj.LengthOut <= 0:
             Path.Log.error(
-                translate("CAM_DressupLeadInOut", "Length/Radius positive not Null")
-                + "\n"
+                translate("CAM_DressupLeadInOut", "Length/radius positive not Null") + "\n"
             )
             obj.LengthOut = 0.1
 
         self.wire, self.rapids = wireForPath(PathUtils.getPathWithPlacement(obj.Base))
         obj.Path = self.generateLeadInOutCurve(obj)
 
+    def onDocumentRestored(self, obj):
+        """onDocumentRestored(obj)… Called automatically when document is restored."""
+        lead_styles = [
+            QT_TRANSLATE_NOOP("CAM_DressupLeadInOut", "Arc"),
+            QT_TRANSLATE_NOOP("CAM_DressupLeadInOut", "Tangent"),
+            QT_TRANSLATE_NOOP("CAM_DressupLeadInOut", "Perpendicular"),
+        ]
+        if hasattr(obj, "StyleOn"):
+            # Replace StyleOn by StyleIn
+            obj.addProperty(
+                "App::PropertyEnumeration",
+                "StyleIn",
+                "Path",
+                QT_TRANSLATE_NOOP("App::Property", "The style of motion into the toolpath"),
+            )
+            obj.StyleIn = lead_styles
+            obj.StyleIn = obj.StyleOn
+            obj.removeProperty("StyleOn")
+        if hasattr(obj, "StyleOff"):
+            # Replace StyleOff by StyleOut
+            obj.addProperty(
+                "App::PropertyEnumeration",
+                "StyleOut",
+                "Path",
+                QT_TRANSLATE_NOOP("App::Property", "The style of motion out of the toolpath"),
+            )
+            obj.StyleOut = lead_styles
+            obj.StyleOut = obj.StyleOff
+            obj.removeProperty("StyleOff")
+        if hasattr(obj, "Length"):
+            # Replace Length by LengthIn
+            obj.addProperty(
+                "App::PropertyDistance",
+                "LengthIn",
+                "Path",
+                QT_TRANSLATE_NOOP("App::Property", "Length or radius of the approach"),
+            )
+            obj.LengthIn = obj.Length
+            obj.removeProperty("Length")
+
     def getDirectionOfPath(self, obj):
         op = PathDressup.baseOp(obj.Base)
         side = op.Side if hasattr(op, "Side") else "Inside"
-        direction = op.Direction if hasattr(op, "Direction") else "Conventional"
+        direction = op.Direction if hasattr(op, "Direction") else "CCW"
 
         if side == "Outside":
-            return "left" if direction == "Climb" else "right"
+            return "left" if direction == "CW" else "right"
         else:
-            return "right" if direction == "Climb" else "left"
+            return "right" if direction == "CW" else "left"
 
     def getArcDirection(self, obj):
         direction = self.getDirectionOfPath(obj)
@@ -203,22 +239,18 @@ class ObjectDressup:
 
         # move to clearance height
         if first:
-            travel.append(PathLanguage.MoveStraight(
-                None, "G0", {"Z": op.ClearanceHeight.Value}))
+            travel.append(PathLanguage.MoveStraight(None, "G0", {"Z": op.ClearanceHeight.Value}))
 
         # move to correct xy-position
-        travel.append(PathLanguage.MoveStraight(
-            None, "G0", {"X": pos.x, "Y": pos.y}))
+        travel.append(PathLanguage.MoveStraight(None, "G0", {"X": pos.x, "Y": pos.y}))
 
         # move to correct z-position (either rapidly or in two steps)
         if obj.RapidPlunge:
             travel.append(PathLanguage.MoveStraight(None, "G0", {"Z": pos.z}))
         else:
             if first or not obj.KeepToolDown:
-                travel.append(PathLanguage.MoveStraight(
-                    None, "G0", {"Z": op.SafeHeight.Value}))
-            travel.append(PathLanguage.MoveStraight(
-                None, "G1", {"Z": pos.z, "F": vertfeed}))
+                travel.append(PathLanguage.MoveStraight(None, "G0", {"Z": op.SafeHeight.Value}))
+            travel.append(PathLanguage.MoveStraight(None, "G1", {"Z": pos.z, "F": vertfeed}))
 
         return travel
 
@@ -228,8 +260,7 @@ class ObjectDressup:
 
         # move to clearance height
         if last or not obj.KeepToolDown:
-            travel.append(PathLanguage.MoveStraight(
-                None, "G0", {"Z": op.ClearanceHeight.Value}))
+            travel.append(PathLanguage.MoveStraight(None, "G0", {"Z": op.ClearanceHeight.Value}))
 
         return travel
 
@@ -269,19 +300,18 @@ class ObjectDressup:
         #    x          v
 
         if obj.LeadIn:
-            length = obj.Length.Value
+            length = obj.LengthIn.Value
             angle = move.anglesOfTangents()[0]
             tangent = -self.angleToVector(angle) * length
-            normal = self.angleToVector(
-                angle + self.getArcDirection(obj)) * length
+            normal = self.angleToVector(angle + self.getArcDirection(obj)) * length
 
             # prepend the selected lead-in
-            if obj.StyleOn == "Arc":
+            if obj.StyleIn == "Arc":
                 arcbegin = begin + tangent + normal
                 prepend(self.createArcMove(obj, arcbegin, begin, -tangent))
-            elif obj.StyleOn == "Tangent":
+            elif obj.StyleIn == "Tangent":
                 prepend(self.createStraightMove(obj, begin + tangent, begin))
-            else:  # obj.StyleOn == "Perpendicular"
+            else:  # obj.StyleIn == "Perpendicular"
                 prepend(self.createStraightMove(obj, begin + normal, begin))
 
             extend = obj.ExtendLeadIn.Value
@@ -316,16 +346,15 @@ class ObjectDressup:
             length = obj.LengthOut.Value
             angle = move.anglesOfTangents()[1]
             tangent = self.angleToVector(angle) * length
-            normal = self.angleToVector(
-                angle + self.getArcDirection(obj)) * length
+            normal = self.angleToVector(angle + self.getArcDirection(obj)) * length
 
             # append the selected lead-out
-            if obj.StyleOff == "Arc":
+            if obj.StyleOut == "Arc":
                 arcend = end + tangent + normal
                 append(self.createArcMove(obj, end, arcend, normal))
-            elif obj.StyleOff == "Tangent":
+            elif obj.StyleOut == "Tangent":
                 append(self.createStraightMove(obj, end, end + tangent))
-            else:  # obj.StyleOff == "Perpendicular"
+            else:  # obj.StyleOut == "Perpendicular"
                 append(self.createStraightMove(obj, end, end + normal))
 
             extend = obj.ExtendLeadOut.Value
@@ -340,9 +369,11 @@ class ObjectDressup:
         return lead
 
     def isCuttingMove(self, obj, instr):
-        return (instr.isMove()
-                and not instr.isRapid()
-                and (not obj.IncludeLayers or not instr.isPlunge()))
+        return (
+            instr.isMove()
+            and not instr.isRapid()
+            and (not obj.IncludeLayers or not instr.isPlunge())
+        )
 
     def findLastCuttingMoveIndex(self, obj, source):
         for i in range(len(source) - 1, -1, -1):
@@ -351,8 +382,7 @@ class ObjectDressup:
         return None
 
     def generateLeadInOutCurve(self, obj):
-        source = PathLanguage.Maneuver.FromPath(
-            PathUtils.getPathWithPlacement(obj.Base)).instr
+        source = PathLanguage.Maneuver.FromPath(PathUtils.getPathWithPlacement(obj.Base)).instr
         maneuver = PathLanguage.Maneuver()
 
         # Knowing weather a given instruction is the first cutting move is easy,
@@ -394,12 +424,12 @@ class TaskDressupLeadInOut(SimpleEditPanel):
     def setupUi(self):
         self.connectWidget("LeadIn", self.form.chkLeadIn)
         self.connectWidget("LeadOut", self.form.chkLeadOut)
-        self.connectWidget("Length", self.form.dspLenIn)
+        self.connectWidget("LengthIn", self.form.dspLenIn)
         self.connectWidget("LengthOut", self.form.dspLenOut)
         self.connectWidget("ExtendLeadIn", self.form.dspExtendIn)
         self.connectWidget("ExtendLeadOut", self.form.dspExtendOut)
-        self.connectWidget("StyleOn", self.form.cboStyleIn)
-        self.connectWidget("StyleOff", self.form.cboStyleOut)
+        self.connectWidget("StyleIn", self.form.cboStyleIn)
+        self.connectWidget("StyleOut", self.form.cboStyleOut)
         self.connectWidget("RapidPlunge", self.form.chkRapidPlunge)
         self.connectWidget("IncludeLayers", self.form.chkLayers)
         self.connectWidget("KeepToolDown", self.form.chkKeepToolDown)
@@ -461,10 +491,10 @@ class CommandPathDressupLeadInOut:
     def GetResources(self):
         return {
             "Pixmap": "CAM_Dressup",
-            "MenuText": QT_TRANSLATE_NOOP("CAM_DressupLeadInOut", "LeadInOut"),
+            "MenuText": QT_TRANSLATE_NOOP("CAM_DressupLeadInOut", "Lead In/Out"),
             "ToolTip": QT_TRANSLATE_NOOP(
                 "CAM_DressupLeadInOut",
-                "Creates a Cutter Radius Compensation G41/G42 Entry Dressup object from a selected path",
+                "Creates a cutter radius compensation G41/G42 entry dressup object from a selected path",
             ),
         }
 
@@ -478,22 +508,16 @@ class CommandPathDressupLeadInOut:
         # check that the selection contains exactly what we want
         selection = FreeCADGui.Selection.getSelection()
         if len(selection) != 1:
-            Path.Log.error(
-                translate("CAM_DressupLeadInOut", "Please select one toolpath object")
-                + "\n"
-            )
+            Path.Log.error(translate("CAM_DressupLeadInOut", "Select one toolpath object") + "\n")
             return
         baseObject = selection[0]
         if not baseObject.isDerivedFrom("Path::Feature"):
             Path.Log.error(
-                translate("CAM_DressupLeadInOut", "The selected object is not a toolpath")
-                + "\n"
+                translate("CAM_DressupLeadInOut", "The selected object is not a toolpath") + "\n"
             )
             return
         if baseObject.isDerivedFrom("Path::FeatureCompoundPython"):
-            Path.Log.error(
-                translate("CAM_DressupLeadInOut", "Please select a Profile object")
-            )
+            Path.Log.error(translate("CAM_DressupLeadInOut", "Select a Profile object"))
             return
 
         # everything ok!
@@ -512,9 +536,7 @@ class CommandPathDressupLeadInOut:
         FreeCADGui.doCommand(
             "obj.ViewObject.Proxy = Path.Dressup.Gui.LeadInOut.ViewProviderDressup(obj.ViewObject)"
         )
-        FreeCADGui.doCommand(
-            "Gui.ActiveDocument.getObject(base.Name).Visibility = False"
-        )
+        FreeCADGui.doCommand("Gui.ActiveDocument.getObject(base.Name).Visibility = False")
         App.ActiveDocument.commitTransaction()
         App.ActiveDocument.recompute()
 
@@ -523,4 +545,4 @@ if App.GuiUp:
     # register the FreeCAD command
     FreeCADGui.addCommand("CAM_DressupLeadInOut", CommandPathDressupLeadInOut())
 
-Path.Log.notice("Loading CAM_DressupLeadInOut... done\n")
+Path.Log.notice("Loading CAM_DressupLeadInOut… done\n")

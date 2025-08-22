@@ -30,6 +30,8 @@
 # include <TopoDS.hxx>
 #endif
 
+#include <App/Document.h>
+#include <Base/Tools.h>
 #include "FeatureRevolution.h"
 #include "FaceMaker.h"
 
@@ -90,9 +92,13 @@ bool Revolution::fetchAxisLink(const App::PropertyLinkSub &axisLink,
 
     TopoDS_Shape axEdge;
     if (!axisLink.getSubValues().empty()  &&  axisLink.getSubValues()[0].length() > 0){
-        axEdge = Feature::getTopoShape(linked, axisLink.getSubValues()[0].c_str(), true /*need element*/).getShape();
+        axEdge = Feature::getTopoShape(linked,
+                                          ShapeOption::NeedSubElement
+                                        | ShapeOption::ResolveLink
+                                        | ShapeOption::Transform,
+                                       axisLink.getSubValues()[0].c_str()).getShape();
     } else {
-        axEdge = Feature::getShape(linked);
+        axEdge = Feature::getShape(linked, ShapeOption::ResolveLink | ShapeOption::Transform);
     }
 
     if (axEdge.IsNull())
@@ -143,12 +149,12 @@ App::DocumentObjectExecReturn *Revolution::execute()
         gp_Ax1 revAx(pnt, dir);
 
         //read out revolution angle
-        double angle = Angle.getValue()/180.0f*M_PI;
+        double angle = Base::toRadians(Angle.getValue());
         if (fabs(angle) < Precision::Angular())
             angle = angle_edge;
 
         //apply "midplane" symmetry
-        TopoShape sourceShape = Feature::getShape(link);
+        TopoShape sourceShape = Feature::getTopoShape(link, ShapeOption::ResolveLink | ShapeOption::Transform);
         if (Symmetric.getValue()) {
             //rotate source shape backwards by half angle, to make resulting revolution symmetric to the profile
             gp_Trsf mov;
@@ -156,41 +162,7 @@ App::DocumentObjectExecReturn *Revolution::execute()
             TopLoc_Location loc(mov);
             sourceShape.setShape(sourceShape.getShape().Moved(loc));
         }
-#ifndef FC_USE_TNP_FIX
-        //"make solid" processing: make faces from wires.
-        Standard_Boolean makeSolid = Solid.getValue() ? Standard_True : Standard_False;
-        if (makeSolid){
-            //test if we need to make faces from wires. If there are faces - we don't.
-            TopExp_Explorer xp(sourceShape.getShape(), TopAbs_FACE);
-            if (xp.More())
-                //source shape has faces. Just revolve as-is.
-                makeSolid = Standard_False;
-        }
-        if (makeSolid && strlen(this->FaceMakerClass.getValue())>0){
-            //new facemaking behavior: use facemaker class
-            std::unique_ptr<FaceMaker> mkFace = FaceMaker::ConstructFromType(this->FaceMakerClass.getValue());
-
-            TopoDS_Shape myShape = sourceShape.getShape();
-            if(myShape.ShapeType() == TopAbs_COMPOUND)
-                mkFace->useCompound(TopoDS::Compound(myShape));
-            else
-                mkFace->addShape(myShape);
-            mkFace->Build();
-            myShape = mkFace->Shape();
-            sourceShape = TopoShape(myShape);
-
-            makeSolid = Standard_False;//don't ask TopoShape::revolve to make solid, as we've made faces...
-        }
-
-        // actual revolution!
-        TopoDS_Shape revolve = sourceShape.revolve(revAx, angle, makeSolid);
-
-        if (revolve.IsNull())
-            return new App::DocumentObjectExecReturn("Resulting shape is null");
-        this->Shape.setValue(revolve);
-        return App::DocumentObject::StdReturn;
-#else
-        TopoShape revolve(0);
+        TopoShape revolve(0, getDocument()->getStringHasher());
         revolve.makeElementRevolve(sourceShape,
                                    revAx,
                                    angle,
@@ -200,7 +172,6 @@ App::DocumentObjectExecReturn *Revolution::execute()
         }
         this->Shape.setValue(revolve);
         return Part::Feature::execute();
-#endif
     }
     catch (Standard_Failure& e) {
         return new App::DocumentObjectExecReturn(e.GetMessageString());

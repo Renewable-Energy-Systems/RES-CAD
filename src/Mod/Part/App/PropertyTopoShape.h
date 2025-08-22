@@ -99,10 +99,10 @@ public:
     /// Get valid paths for this property; used by auto completer
     void getPaths(std::vector<App::ObjectIdentifier> & paths) const override;
 
-    virtual std::string getElementMapVersion(bool restored=false) const override;
+    std::string getElementMapVersion(bool restored) const override;
     void resetElementMapVersion() {_Ver.clear();}
 
-//    virtual void afterRestore() override;
+    void afterRestore() override;
 
     friend class Feature;
 
@@ -126,12 +126,12 @@ struct PartExport ShapeHistory {
     using MapList = std::map<int, std::vector<int> >;
     using List = std::vector<int>;
 
-    TopAbs_ShapeEnum type;
+    TopAbs_ShapeEnum type {TopAbs_SHAPE};
     MapList shapeMap;
     ShapeHistory() {}
     /**
      * Build a history of changes
-     * MakeShape: The operation that created the changes, e.g. BRepAlgoAPI_Common
+     * MakeShape: The operation that created the changes, e.g. FCBRepAlgoAPI_Common
      * type: The type of object we are interested in, e.g. TopAbs_FACE
      * newS: The new shape that was created by the operation
      * oldS: The original shape prior to the operation

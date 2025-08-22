@@ -24,6 +24,8 @@
 #ifndef SKETCHERGUI_DrawSketchHandlerOffset_H
 #define SKETCHERGUI_DrawSketchHandlerOffset_H
 
+#include <limits>
+
 #include <QApplication>
 
 #include <BRep_Tool.hxx>
@@ -157,7 +159,7 @@ private:
 
     QString getCrosshairCursorSVGName() const override
     {
-        return QString::fromLatin1("Sketcher_Pointer_Create_Offset");
+        return QStringLiteral("Sketcher_Pointer_Create_Offset");
     }
 
     std::unique_ptr<QWidget> createWidget() const override
@@ -177,7 +179,7 @@ private:
 
     QString getToolWidgetText() const override
     {
-        return QString(QObject::tr("Offset parameters"));
+        return QString(tr("Offset parameters"));
     }
 
     void activated() override
@@ -187,6 +189,16 @@ private:
         firstCurveCreated = getHighestCurveIndex() + 1;
 
         generateSourceWires();
+    }
+
+public:
+    std::list<Gui::InputHint> getToolHints() const override
+    {
+        using enum Gui::InputHint::UserInput;
+
+        return {
+            {tr("%1 set offset direction and distance", "Sketcher Offset: hint"), {MouseLeft}},
+        };
     }
 
 private:
@@ -511,7 +523,7 @@ private:
                                   stream.str().c_str());
         }
         catch (const Base::Exception& e) {
-            Base::Console().Error("%s\n", e.what());
+            Base::Console().error("%s\n", e.what());
         }
     }
 
@@ -735,9 +747,8 @@ private:
                                 break;
                             }
                         }
-                        else if (isLineSegment(*geo2)
-                                 || geo2->getTypeId() == Part::GeomArcOfConic::getClassTypeId()
-                                 || isBSplineCurve(*geo2)) {
+                        else if (isLineSegment(*geo2) || isBSplineCurve(*geo2)
+                                 || geo2->is<Part::GeomArcOfConic>()) {
                             // cases where arc is created by arc join mode.
                             Base::Vector3d p2, p3;
 
@@ -933,7 +944,7 @@ private:
 
     void findOffsetLength()
     {
-        double newOffsetLength = DBL_MAX;
+        double newOffsetLength = std::numeric_limits<double>::max();
 
         BRepBuilderAPI_MakeVertex mkVertex({endpoint.x, endpoint.y, 0.0});
         TopoDS_Vertex vertex = mkVertex.Vertex();
@@ -961,7 +972,7 @@ private:
             }
         }
 
-        if (newOffsetLength != DBL_MAX) {
+        if (newOffsetLength != std::numeric_limits<double>::max()) {
             offsetLength = newOffsetLength;
         }
     }
@@ -1029,8 +1040,20 @@ private:
 
     bool areCoincident(int geoId1, int geoId2)
     {
-        CoincidencePointPos ppc = checkForCoincidence(geoId1, geoId2);
-        return ppc.firstPos1 != PointPos::none;
+        // Instead of checking for constraints like so:
+        // CoincidencePointPos ppc = checkForCoincidence(geoId1, geoId2);
+        // return ppc.firstPos1 != PointPos::none;
+        // we are going to check if the points are effectively coincident:
+
+        Base::Vector3d p11, p12, p21, p22;
+        if (!getFirstSecondPoints(geoId1, p11, p12) || !getFirstSecondPoints(geoId2, p21, p22)) {
+            return false;
+        }
+
+        return ((p11 - p21).Length() < Precision::Confusion()
+                || (p11 - p22).Length() < Precision::Confusion()
+                || (p12 - p21).Length() < Precision::Confusion()
+                || (p12 - p22).Length() < Precision::Confusion());
     }
 
     bool areTangentCoincident(int geoId1, int geoId2)
@@ -1057,11 +1080,11 @@ private:
     /*void printCCeVec()
     {
         for (size_t j = 0; j < vCC.size(); j++) {
-            Base::Console().Warning("curve %d{", j);
+            Base::Console().warning("curve %d{", j);
             for (size_t k = 0; k < vCC[j].size(); k++) {
-                Base::Console().Warning("%d, ", vCC[j][k]);
+                Base::Console().warning("%d, ", vCC[j][k]);
             }
-            Base::Console().Warning("}\n");
+            Base::Console().warning("}\n");
         }
     }*/
 };
@@ -1167,11 +1190,13 @@ void DSHOffsetController::adaptParameters(Base::Vector2d onSketchPos)
 
     switch (handler->state()) {
         case SelectMode::SeekFirst: {
-            if (!onViewParameters[OnViewParameter::First]->isSet) {
+            auto& firstParam = onViewParameters[OnViewParameter::First];
+
+            if (!firstParam->isSet) {
                 setOnViewParameterValue(OnViewParameter::First, handler->offsetLength);
             }
 
-            onViewParameters[OnViewParameter::First]->setPoints(
+            firstParam->setPoints(
                 Base::Vector3d(handler->endpoint.x, handler->endpoint.y, 0.),
                 Base::Vector3d(handler->pointOnSourceWire.x, handler->pointOnSourceWire.y, 0.));
         } break;
@@ -1185,7 +1210,9 @@ void DSHOffsetController::doChangeDrawSketchHandlerMode()
 {
     switch (handler->state()) {
         case SelectMode::SeekFirst: {
-            if (onViewParameters[OnViewParameter::First]->isSet) {
+            auto& firstParam = onViewParameters[OnViewParameter::First];
+
+            if (firstParam->hasFinishedEditing) {
                 handler->setState(SelectMode::End);
             }
         } break;

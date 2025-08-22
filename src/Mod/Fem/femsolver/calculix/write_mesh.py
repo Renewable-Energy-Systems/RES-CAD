@@ -48,7 +48,10 @@ def write_mesh(ccxwriter):
 
     # Use 2D elements if model space is not set to 3D
     if ccxwriter.solver_obj.ModelSpace == "3D":
-        face_variant = "shell"
+        if ccxwriter.solver_obj.ExcludeBendingStiffness:
+            face_variant = "membrane"
+        else:
+            face_variant = "shell"
     elif ccxwriter.solver_obj.ModelSpace == "plane stress":
         face_variant = "stress"
     elif ccxwriter.solver_obj.ModelSpace == "plane strain":
@@ -67,13 +70,13 @@ def write_mesh(ccxwriter):
             group_param,
             volVariant=vol_variant,
             faceVariant=face_variant,
-            edgeVariant=edge_variant
+            edgeVariant=edge_variant,
         )
 
         inpfile = codecs.open(ccxwriter.file_name, "w", encoding="utf-8")
         inpfile.write("{}\n".format(59 * "*"))
-        inpfile.write("** {}\n".format(write_name))
-        inpfile.write("*INCLUDE,INPUT={}\n".format(file_name_split))
+        inpfile.write(f"** {write_name}\n")
+        inpfile.write(f"*INCLUDE,INPUT={file_name_split}\n")
 
     else:
         ccxwriter.femmesh_file = ccxwriter.file_name
@@ -83,7 +86,7 @@ def write_mesh(ccxwriter):
             group_param,
             volVariant=vol_variant,
             faceVariant=face_variant,
-            edgeVariant=edge_variant
+            edgeVariant=edge_variant,
         )
 
         # reopen file with "append" to add all the rest

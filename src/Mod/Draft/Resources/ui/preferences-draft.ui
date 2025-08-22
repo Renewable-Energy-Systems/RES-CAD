@@ -146,7 +146,7 @@ Objects can then automatically be added to groups as well.</string>
    <item>
     <widget class="QGroupBox" name="groupBox_2">
      <property name="title">
-      <string>Command options</string>
+      <string>Command Options</string>
      </property>
      <layout class="QGridLayout" name="gridLayout_2">
       <item row="0" column="0" colspan="3">
@@ -169,7 +169,7 @@ Objects can then automatically be added to groups as well.</string>
        <widget class="Gui::PrefCheckBox" name="checkBox_focusOnLength">
         <property name="toolTip">
          <string>If checked, Length input, instead of the X coordinate, will have the initial focus.
-This allows to indicate a direction and then type a distance.</string>
+This allows indicating a direction and then type a distance.</string>
         </property>
         <property name="text">
          <string>Set focus on Length instead of X coordinate</string>
@@ -293,7 +293,7 @@ accidentally and modifying the entered value.</string>
       <item row="7" column="0">
        <widget class="QLabel" name="label_DraftEditMaxObjects">
         <property name="text">
-         <string>Max. number of editable objects</string>
+         <string>Maximum number of editable objects</string>
         </property>
        </widget>
       </item>
@@ -449,7 +449,6 @@ accidentally and modifying the entered value.</string>
   </layout>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
- <pixmapfunction>qPixmapFromMimeSource</pixmapfunction>
  <customwidgets>
   <customwidget>
    <class>Gui::PrefCheckBox</class>

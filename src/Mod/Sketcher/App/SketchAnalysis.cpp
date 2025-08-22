@@ -591,12 +591,12 @@ void SketchAnalysis::analyseMissingPointOnPointCoincident(double angleprecision)
                 if (fabs(tgv1 * tgv2) > fabs(cos(angleprecision))) {
                     vc.Type = Sketcher::Tangent;
                 }
-                else if (fabs(tgv1 * tgv2) < fabs(cos(M_PI / 2 - angleprecision))) {
+                else if (fabs(tgv1 * tgv2) < fabs(cos(std::numbers::pi / 2 - angleprecision))) {
                     vc.Type = Sketcher::Perpendicular;
                 }
             }
             catch (Base::Exception&) {
-                Base::Console().Warning("Point-On-Point Coincidence analysis: unable to obtain "
+                Base::Console().warning("Point-On-Point Coincidence analysis: unable to obtain "
                                         "derivative. Detection ignored.\n");
                 continue;
             }
@@ -673,7 +673,7 @@ void SketchAnalysis::makeMissingPointOnPointCoincidentOneByOne()
 {
     makeConstraintsOneByOne(vertexConstraints,
                             QT_TRANSLATE_NOOP("Exceptions",
-                                              "Autoconstrain error: Unsolvable sketch while "
+                                              "Autoconstraint error: Unsolvable sketch while "
                                               "applying coincident constraints."));
 }
 
@@ -720,13 +720,14 @@ void SketchAnalysis::makeMissingVerticalHorizontalOneByOne()
 {
     makeConstraintsOneByOne(verthorizConstraints,
                             QT_TRANSLATE_NOOP("Exceptions",
-                                              "Autoconstrain error: Unsolvable sketch while "
+                                              "Autoconstraint error: Unsolvable sketch while "
                                               "applying vertical/horizontal constraints."));
 }
 
 bool SketchAnalysis::checkVertical(Base::Vector3d dir, double angleprecision)
 {
-    return (dir.x == 0. && dir.y != 0.) || (fabs(dir.y / dir.x) > tan(M_PI / 2 - angleprecision));
+    return (dir.x == 0. && dir.y != 0.)
+        || (fabs(dir.y / dir.x) > tan(std::numbers::pi / 2 - angleprecision));
 }
 
 bool SketchAnalysis::checkHorizontal(Base::Vector3d dir, double angleprecision)
@@ -812,7 +813,7 @@ void SketchAnalysis::makeMissingEqualityOneByOne()
 
     makeConstraintsOneByOne(equalities,
                             QT_TRANSLATE_NOOP("Exceptions",
-                                              "Autoconstrain error: Unsolvable sketch while "
+                                              "Autoconstraint error: Unsolvable sketch while "
                                               "applying equality constraints."));
     lineequalityConstraints.clear();
     radiusequalityConstraints.clear();
@@ -852,7 +853,7 @@ void SketchAnalysis::autoDeleteAllConstraints()
 
     // a failure should not be possible at this moment as we start from a clean situation
     solveSketch(QT_TRANSLATE_NOOP("Exceptions",
-                                  "Autoconstrain error: Unsolvable sketch without constraints."));
+                                  "Autoconstraint error: Unsolvable sketch without constraints."));
 }
 
 void SketchAnalysis::autoHorizontalVerticalConstraints()
@@ -866,7 +867,7 @@ void SketchAnalysis::autoHorizontalVerticalConstraints()
     doc->commitTransaction();
 
     solveSketch(QT_TRANSLATE_NOOP("Exceptions",
-                                  "Autoconstrain error: Unsolvable sketch after applying "
+                                  "Autoconstraint error: Unsolvable sketch after applying "
                                   "horizontal and vertical constraints."));
 }
 
@@ -881,7 +882,7 @@ void SketchAnalysis::autoPointOnPointCoincident()
     doc->commitTransaction();
 
     solveSketch(QT_TRANSLATE_NOOP("Exceptions",
-                                  "Autoconstrain error: Unsolvable sketch after applying "
+                                  "Autoconstraint error: Unsolvable sketch after applying "
                                   "point-on-point constraints."));
 }
 
@@ -902,7 +903,7 @@ void SketchAnalysis::autoMissingEquality()
     doc->commitTransaction();
 
     solveSketch(QT_TRANSLATE_NOOP("Exceptions",
-                                  "Autoconstrain error: Unsolvable sketch after "
+                                  "Autoconstraint error: Unsolvable sketch after "
                                   "applying equality constraints."));
 }
 
@@ -929,7 +930,7 @@ int SketchAnalysis::autoconstraint(double precision,
     // STAGE 3: Equality constraint detection
     int ne = detectMissingEqualityConstraints(precision);
 
-    Base::Console().Log("Constraints: Vertical/Horizontal: %d found. "
+    Base::Console().log("Constraints: Vertical/Horizontal: %d found. "
                         "Point-on-point: %d. Equality: %d\n",
                         nhv,
                         nc,

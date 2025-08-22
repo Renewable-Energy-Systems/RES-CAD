@@ -23,7 +23,7 @@
 #ifndef DrawView_h_
 #define DrawView_h_
 
-#include <boost_signals2.hpp>
+#include <boost/signals2.hpp>
 #include <QCoreApplication>
 #include <QRectF>
 
@@ -40,7 +40,7 @@ class DrawPage;
 class DrawViewCollection;
 class DrawViewClip;
 class DrawLeaderLine;
-/*class CosmeticVertex;*/
+class DrawViewPart;
 
 /** Base class of all View Features in the drawing module
  */
@@ -52,7 +52,7 @@ class TechDrawExport DrawView : public App::DocumentObject
 public:
     /// Constructor
     DrawView();
-    ~DrawView() override;
+    ~DrawView() override = default;
 
     App::PropertyDistance X;
     App::PropertyDistance Y;
@@ -87,6 +87,7 @@ public:
     virtual DrawPage* findParentPage() const;
     virtual std::vector<DrawPage*> findAllParentPages() const;
     virtual DrawView *claimParent() const;
+    std::vector<TechDraw::DrawView*> getUniqueChildren() const;
 
     virtual int countParentPages() const;
     virtual QRectF getRect() const;                      //must be overridden by derived class
@@ -96,6 +97,7 @@ public:
     virtual bool checkFit() const;
     virtual bool checkFit(DrawPage*) const;
     virtual void setPosition(double x, double y, bool force = false);
+    virtual Base::Vector3d getPosition() const { return Base::Vector3d(X.getValue(), Y.getValue(), 0.0); }
     virtual bool keepUpdated(void);
 
     boost::signals2::signal<void (const DrawView*)> signalGuiPaint;
@@ -121,6 +123,8 @@ public:
     void translateLabel(std::string context, std::string baseName, std::string uniqueName);
 
     virtual App::PropertyLink *getOwnerProperty() { return nullptr; }
+
+    static bool isProjGroupItem(DrawViewPart* item);
 
 protected:
     void onBeforeChange(const App::Property *prop) override;

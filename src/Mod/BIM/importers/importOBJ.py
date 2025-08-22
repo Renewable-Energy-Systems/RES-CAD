@@ -1,45 +1,26 @@
-#***************************************************************************
-#*   Copyright (c) 2011 Yorik van Havre <yorik@uncreated.net>              *
-#*                                                                         *
-#*   This program is free software; you can redistribute it and/or modify  *
-#*   it under the terms of the GNU Lesser General Public License (LGPL)    *
-#*   as published by the Free Software Foundation; either version 2 of     *
-#*   the License, or (at your option) any later version.                   *
-#*   for detail see the LICENCE text file.                                 *
-#*                                                                         *
-#*   This program is distributed in the hope that it will be useful,       *
-#*   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
-#*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
-#*   GNU Library General Public License for more details.                  *
-#*                                                                         *
-#*   You should have received a copy of the GNU Library General Public     *
-#*   License along with this program; if not, write to the Free Software   *
-#*   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  *
-#*   USA                                                                   *
-#*                                                                         *
-#***************************************************************************
+# SPDX-License-Identifier: LGPL-2.1-or-later
 
-import os
-import codecs
-import ntpath
-# import numpy as np
-
-import FreeCAD
-import Arch
-import Draft
-import DraftGeomUtils
-import Mesh
-import MeshPart
-import Part
-from draftutils import params
-
-if FreeCAD.GuiUp:
-    from draftutils.translate import translate
-else:
-    # \cond
-    def translate(context,text):
-        return text
-    # \endcond
+# ***************************************************************************
+# *                                                                         *
+# *   Copyright (c) 2011 Yorik van Havre <yorik@uncreated.net>              *
+# *                                                                         *
+# *   This file is part of FreeCAD.                                         *
+# *                                                                         *
+# *   FreeCAD is free software: you can redistribute it and/or modify it    *
+# *   under the terms of the GNU Lesser General Public License as           *
+# *   published by the Free Software Foundation, either version 2.1 of the  *
+# *   License, or (at your option) any later version.                       *
+# *                                                                         *
+# *   FreeCAD is distributed in the hope that it will be useful, but        *
+# *   WITHOUT ANY WARRANTY; without even the implied warranty of            *
+# *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU      *
+# *   Lesser General Public License for more details.                       *
+# *                                                                         *
+# *   You should have received a copy of the GNU Lesser General Public      *
+# *   License along with FreeCAD. If not, see                               *
+# *   <https://www.gnu.org/licenses/>.                                      *
+# *                                                                         *
+# ***************************************************************************
 
 ## @package importOBJ
 #  \ingroup ARCH
@@ -50,8 +31,29 @@ else:
 #  and supports exporting faces with more than 3 vertices
 #  and supports object colors / materials
 
-if open.__module__ in ['__builtin__','io']:
-    pythonopen = open
+import codecs
+import ntpath
+import os
+from builtins import open as pyopen
+
+import FreeCAD
+import Arch
+import Draft
+import DraftGeomUtils
+import Mesh
+import MeshPart
+import Part
+
+from draftutils import params
+
+if FreeCAD.GuiUp:
+    from draftutils.translate import translate
+else:
+    # \cond
+    def translate(context,text):
+        return text
+    # \endcond
+
 
 def findVert(aVertex,aList):
     "finds aVertex in aList, returns index"
@@ -151,7 +153,7 @@ def export(exportList,filename,colors=None):
     offsetvn = 1
     objectslist = Draft.get_group_contents(exportList, walls=True,
                                            addgroups=True)
-    objectslist = Arch.pruneIncluded(objectslist)
+    objectslist = Arch.pruneIncluded(objectslist, strict=True)
     filenamemtl = filename[:-4] + ".mtl"
     materials = []
     outfile.write("mtllib " + os.path.basename(filenamemtl) + "\n")
@@ -242,7 +244,7 @@ def export(exportList,filename,colors=None):
                             outfile.write("usemtl color_" + mn + "\n")
                             materials.append(("color_" + mn,color,0))
                 elif FreeCAD.GuiUp:
-                    if hasattr(obj.ViewObject,"ShapeAppearnce") and hasattr(obj.ViewObject,"Transparency"):
+                    if hasattr(obj.ViewObject,"ShapeAppearance") and hasattr(obj.ViewObject,"Transparency"):
                         mn = Draft.getrgb(obj.ViewObject.ShapeColor,testbw=False)[1:]
                         outfile.write("usemtl color_" + mn + "\n")
                         materials.append(("color_" + mn,obj.ViewObject.ShapeColor,obj.ViewObject.Transparency))
@@ -260,7 +262,7 @@ def export(exportList,filename,colors=None):
     outfile.close()
     FreeCAD.Console.PrintMessage(translate("Arch","Successfully written") + " " + filename + "\n")
     if materials:
-        outfile = pythonopen(filenamemtl,"w")
+        outfile = pyopen(filenamemtl,"w")
         outfile.write("# FreeCAD v" + ver[0] + "." + ver[1] + " build" + ver[2] + " Arch module\n")
         outfile.write("# https://www.freecad.org\n")
         kinds = {"AmbientColor":"Ka ","DiffuseColor":"Kd ","SpecularColor":"Ks ","EmissiveColor":"Ke ","Transparency":"Tr ","Dissolve":"d "}
@@ -285,6 +287,13 @@ def export(exportList,filename,colors=None):
         FreeCAD.Console.PrintMessage(translate("Arch","Successfully written") + ' ' + filenamemtl + "\n")
 
 
+# return entry after given index from an array or None on array end
+def peek(index, array):
+    if index < len(array) - 1:
+        return array[index+1].strip()
+    else:
+        return None
+
 def open(filename):
     "called when freecad wants to open a file"
     docname = os.path.splitext(os.path.basename(filename))[0]
@@ -299,35 +308,41 @@ def insert(filename,docname):
         if "." in i:
             i = i.split(".")[0]
     meshName = i
+    group = None
     "called when freecad wants to import a file"
     try:
         doc = FreeCAD.getDocument(docname)
+        group = doc.addObject("App::DocumentObjectGroup", meshName)
     except NameError:
         doc = FreeCAD.newDocument(docname)
     FreeCAD.ActiveDocument = doc
 
-    with pythonopen(filename,"r") as infile:
+    with pyopen(filename,"r",encoding="utf8") as infile:
         verts = []
+        medges = []
+        edges = []
         facets = []
         activeobject = None
         material = None
         colortable = {}
         content_array = []
         for line in infile:
+            line = line.strip()
+            while line.endswith('\\'):
+                next_line = next(infile).strip()
+                line = line.rstrip()[:-1] + ' ' + next_line
             content_array.append(line)
     activeobjectExists = False
     for line in content_array:
-        line = line.strip()
         if line[:2] == "o ":
             activeobjectExists = True
     if not activeobjectExists:
         activeobject = meshName
-    for line in content_array:
-        line = line.strip()
+    for index, line in enumerate(content_array):
         if line[:7] == "mtllib ":
             matlib = os.path.join(os.path.dirname(filename),line[7:])
             if os.path.exists(matlib):
-                with pythonopen(matlib,"r") as matfile:
+                with pyopen(matlib,"r") as matfile:
                     mname = None
                     color = None
                     trans = None
@@ -347,8 +362,9 @@ def insert(filename,docname):
                         colortable[mname] = [color,trans]
         elif line[:2] == "o ":
             if activeobject:
-                makeMesh(doc,activeobject,verts,facets,material,colortable)
+                makeMesh(doc,group,activeobject,verts,medges,facets,material,colortable)
             material = None
+            medges = []
             facets = []
             activeobject = line[2:]
         elif line[:2] == "v ":
@@ -360,14 +376,26 @@ def insert(filename,docname):
                     i = i.split("/")[0]
                 fa.append(int(i))
             facets.append(fa)
+        elif line[:2] == "l ":
+            edge = []
+            for i in line[2:].split():
+                if "/" in i:
+                    i = i.split("/")[0]
+                edge.append(int(i))
+            edges.append(edge)
+            # combine lines into medges
+            l = peek(index, content_array)
+            if l == None or l[:2] != "l ":
+                medges = edges
+                edges = []
         elif line[:7] == "usemtl ":
             material = line[7:]
     if activeobject:
-        makeMesh(doc,activeobject,verts,facets,material,colortable)
+        makeMesh(doc,group,activeobject,verts,medges,facets,material,colortable)
     FreeCAD.Console.PrintMessage(translate("Arch","Successfully imported") + ' ' + filename + "\n")
     return doc
 
-def makeMesh(doc,activeobject,verts,facets,material,colortable):
+def makeMesh(doc,group,activeobject,verts,edges,facets,material,colortable):
     mfacets = []
     if facets:
         for facet in facets:
@@ -389,8 +417,53 @@ def makeMesh(doc,activeobject,verts,facets,material,colortable):
         mobj = doc.addObject("Mesh::Feature",activeobject)
         mobj.Label = activeobject
         mobj.Mesh = Mesh.Mesh(mfacets)
-        if material and FreeCAD.GuiUp:
-            if material in colortable:
-                mobj.ViewObject.ShapeColor = colortable[material][0]
+        if FreeCAD.GuiUp and material and material in colortable:
+            mobj.ViewObject.ShapeColor = colortable[material][0]
+            if colortable[material][1] is not None:
+                mobj.ViewObject.Transparency = colortable[material][1]
+        if group:
+            group.addObjects([mobj])
+
+    # make polylines from edges
+    medges = []
+    if edges:
+        polyline = []
+        for edge in edges:
+            # single line
+            if len(edge) == 2:
+                i1 = edge[0]
+                i2 = edge[1]
+                if i1 == i2:
+                    continue
+                if len(polyline) > 0:
+                    if polyline[-1] == i1:
+                        polyline.append(i2)
+                    else:
+                        medges.append(polyline)
+                        polyline = []
+                        polyline.append(i1)
+                        polyline.append(i2)
+                else:
+                    polyline.append(i1)
+                    polyline.append(i2)
+            else:
+                medges.append(edge)
+        if len(polyline) > 0:
+            medges.append(polyline)
+    if medges:
+        part = doc.addObject("App::Part", activeobject)
+        part.Label = activeobject
+        features = []
+        for strip in medges:
+            points = [FreeCAD.Vector(*verts[i-1]) for i in strip]
+            wire = Draft.make_wire(points)
+            if FreeCAD.GuiUp and material and material in colortable:
+                wire.ViewObject.ShapeColor = colortable[material][0]
                 if colortable[material][1] is not None:
-                    mobj.ViewObject.Transparency = colortable[material][1]
+                    wire.ViewObject.Transparency = colortable[material][1]
+            features.append(wire)
+        part.addObjects(features)
+        if group:
+            group.addObjects([part])
+
+    doc.recompute()

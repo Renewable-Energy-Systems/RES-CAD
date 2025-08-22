@@ -71,7 +71,7 @@ void FunctionWidget::setViewProvider(ViewProviderFemPostFunction* view)
 {
     // NOLINTBEGIN
     m_view = view;
-    m_object = static_cast<Fem::FemPostFunction*>(view->getObject());
+    m_object = view->getObject<Fem::FemPostFunction>();
     m_connection = m_object->getDocument()->signalChangedObject.connect(
         std::bind(&FunctionWidget::onObjectsChanged, this, sp::_1, sp::_2));
     // NOLINTEND
@@ -92,16 +92,6 @@ ViewProviderFemPostFunctionProvider::ViewProviderFemPostFunctionProvider() = def
 
 ViewProviderFemPostFunctionProvider::~ViewProviderFemPostFunctionProvider() = default;
 
-std::vector<App::DocumentObject*> ViewProviderFemPostFunctionProvider::claimChildren() const
-{
-    return static_cast<Fem::FemPostFunctionProvider*>(getObject())->Functions.getValues();
-}
-
-std::vector<App::DocumentObject*> ViewProviderFemPostFunctionProvider::claimChildren3D() const
-{
-    return claimChildren();
-}
-
 void ViewProviderFemPostFunctionProvider::onChanged(const App::Property* prop)
 {
     Gui::ViewProviderDocumentObject::onChanged(prop);
@@ -112,8 +102,8 @@ void ViewProviderFemPostFunctionProvider::onChanged(const App::Property* prop)
 void ViewProviderFemPostFunctionProvider::updateData(const App::Property* prop)
 {
     Gui::ViewProviderDocumentObject::updateData(prop);
-    Fem::FemPostFunctionProvider* obj = static_cast<Fem::FemPostFunctionProvider*>(getObject());
-    if (prop == &obj->Functions) {
+    Fem::FemPostFunctionProvider* obj = getObject<Fem::FemPostFunctionProvider>();
+    if (prop == &obj->Group) {
         updateSize();
     }
 }
@@ -122,7 +112,7 @@ void ViewProviderFemPostFunctionProvider::updateSize()
 {
     std::vector<App::DocumentObject*> vec = claimChildren();
     for (auto it : vec) {
-        if (!it->isDerivedFrom(Fem::FemPostFunction::getClassTypeId())) {
+        if (!it->isDerivedFrom<Fem::FemPostFunction>()) {
             continue;
         }
 
@@ -333,7 +323,7 @@ bool ViewProviderFemPostFunction::setEdit(int ModNum)
             postDlg = nullptr;  // another pad left open its task panel
         }
         if (dlg && !postDlg) {
-            QMessageBox msgBox;
+            QMessageBox msgBox(Gui::getMainWindow());
             msgBox.setText(QObject::tr("A dialog is already open in the task panel"));
             msgBox.setInformativeText(QObject::tr("Do you want to close this dialog?"));
             msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
@@ -353,7 +343,8 @@ bool ViewProviderFemPostFunction::setEdit(int ModNum)
         }
         else {
             postDlg = new TaskDlgPost(this);
-            postDlg->appendBox(new TaskPostFunction(this));
+            auto panel = new TaskPostFunction(this);
+            postDlg->addTaskBox(panel->windowIcon().pixmap(32), panel);
             Gui::Control().showDialog(postDlg);
         }
 
@@ -405,7 +396,7 @@ ViewProviderFemPostBoxFunction::~ViewProviderFemPostBoxFunction() = default;
 
 void ViewProviderFemPostBoxFunction::draggerUpdate(SoDragger* m)
 {
-    Fem::FemPostBoxFunction* func = static_cast<Fem::FemPostBoxFunction*>(getObject());
+    Fem::FemPostBoxFunction* func = getObject<Fem::FemPostBoxFunction>();
     SoHandleBoxDragger* dragger = static_cast<SoHandleBoxDragger*>(m);
 
     const SbVec3f& center = dragger->translation.getValue();
@@ -419,7 +410,7 @@ void ViewProviderFemPostBoxFunction::draggerUpdate(SoDragger* m)
 
 void ViewProviderFemPostBoxFunction::updateData(const App::Property* p)
 {
-    Fem::FemPostBoxFunction* func = static_cast<Fem::FemPostBoxFunction*>(getObject());
+    Fem::FemPostBoxFunction* func = getObject<Fem::FemPostBoxFunction>();
     if (!isDragging()
         && (p == &func->Center || p == &func->Length || p == &func->Width || p == &func->Height)) {
         const Base::Vector3d& center = func->Center.getValue();
@@ -502,7 +493,7 @@ void BoxWidget::setViewProvider(ViewProviderFemPostFunction* view)
 {
     FemGui::FunctionWidget::setViewProvider(view);
     setBlockObjectUpdates(true);
-    Fem::FemPostBoxFunction* func = static_cast<Fem::FemPostBoxFunction*>(getObject());
+    Fem::FemPostBoxFunction* func = getObject<Fem::FemPostBoxFunction>();
     Base::Unit unit = func->Center.getUnit();
     ui->centerX->setUnit(unit);
     ui->centerY->setUnit(unit);
@@ -523,7 +514,7 @@ void BoxWidget::setViewProvider(ViewProviderFemPostFunction* view)
 void BoxWidget::onChange(const App::Property& p)
 {
     setBlockObjectUpdates(true);
-    Fem::FemPostBoxFunction* func = static_cast<Fem::FemPostBoxFunction*>(getObject());
+    Fem::FemPostBoxFunction* func = getObject<Fem::FemPostBoxFunction>();
     if (&p == &func->Center) {
         const Base::Vector3d& vec = static_cast<const App::PropertyVector*>(&p)->getValue();
         ui->centerX->setValue(vec.x);
@@ -551,7 +542,7 @@ void BoxWidget::centerChanged(double)
         Base::Vector3d vec(ui->centerX->value().getValue(),
                            ui->centerY->value().getValue(),
                            ui->centerZ->value().getValue());
-        static_cast<Fem::FemPostBoxFunction*>(getObject())->Center.setValue(vec);
+        getObject<Fem::FemPostBoxFunction>()->Center.setValue(vec);
     }
 }
 
@@ -559,7 +550,7 @@ void BoxWidget::lengthChanged(double)
 {
     if (!blockObjectUpdates()) {
         double l = ui->length->value().getValue();
-        static_cast<Fem::FemPostBoxFunction*>(getObject())->Length.setValue(l);
+        getObject<Fem::FemPostBoxFunction>()->Length.setValue(l);
     }
 }
 
@@ -567,7 +558,7 @@ void BoxWidget::widthChanged(double)
 {
     if (!blockObjectUpdates()) {
         double w = ui->width->value().getValue();
-        static_cast<Fem::FemPostBoxFunction*>(getObject())->Width.setValue(w);
+        getObject<Fem::FemPostBoxFunction>()->Width.setValue(w);
     }
 }
 
@@ -575,7 +566,7 @@ void BoxWidget::heightChanged(double)
 {
     if (!blockObjectUpdates()) {
         double h = ui->height->value().getValue();
-        static_cast<Fem::FemPostBoxFunction*>(getObject())->Height.setValue(h);
+        getObject<Fem::FemPostBoxFunction>()->Height.setValue(h);
     }
 }
 
@@ -598,7 +589,7 @@ ViewProviderFemPostCylinderFunction::~ViewProviderFemPostCylinderFunction() = de
 
 void ViewProviderFemPostCylinderFunction::draggerUpdate(SoDragger* m)
 {
-    Fem::FemPostCylinderFunction* func = static_cast<Fem::FemPostCylinderFunction*>(getObject());
+    Fem::FemPostCylinderFunction* func = getObject<Fem::FemPostCylinderFunction>();
     SoJackDragger* dragger = static_cast<SoJackDragger*>(m);
     const SbVec3f& center = dragger->translation.getValue();
     SbVec3f norm(0, 0, 1);
@@ -610,7 +601,7 @@ void ViewProviderFemPostCylinderFunction::draggerUpdate(SoDragger* m)
 
 void ViewProviderFemPostCylinderFunction::updateData(const App::Property* p)
 {
-    Fem::FemPostCylinderFunction* func = static_cast<Fem::FemPostCylinderFunction*>(getObject());
+    Fem::FemPostCylinderFunction* func = getObject<Fem::FemPostCylinderFunction>();
     if (!isDragging() && (p == &func->Center || p == &func->Radius || p == &func->Axis)) {
         Base::Vector3d trans = func->Center.getValue();
         Base::Vector3d axis = func->Axis.getValue();
@@ -698,7 +689,7 @@ void CylinderWidget::setViewProvider(ViewProviderFemPostFunction* view)
 {
     FemGui::FunctionWidget::setViewProvider(view);
     setBlockObjectUpdates(true);
-    Fem::FemPostCylinderFunction* func = static_cast<Fem::FemPostCylinderFunction*>(getObject());
+    Fem::FemPostCylinderFunction* func = getObject<Fem::FemPostCylinderFunction>();
     Base::Unit unit = func->Center.getUnit();
     ui->centerX->setUnit(unit);
     ui->centerY->setUnit(unit);
@@ -714,7 +705,7 @@ void CylinderWidget::setViewProvider(ViewProviderFemPostFunction* view)
 void CylinderWidget::onChange(const App::Property& p)
 {
     setBlockObjectUpdates(true);
-    Fem::FemPostCylinderFunction* func = static_cast<Fem::FemPostCylinderFunction*>(getObject());
+    Fem::FemPostCylinderFunction* func = getObject<Fem::FemPostCylinderFunction>();
     if (&p == &func->Axis) {
         const Base::Vector3d& vec = static_cast<const App::PropertyVector*>(&p)->getValue();
         ui->axisX->setValue(vec.x);
@@ -740,7 +731,7 @@ void CylinderWidget::centerChanged(double)
         Base::Vector3d vec(ui->centerX->value().getValue(),
                            ui->centerY->value().getValue(),
                            ui->centerZ->value().getValue());
-        static_cast<Fem::FemPostCylinderFunction*>(getObject())->Center.setValue(vec);
+        getObject<Fem::FemPostCylinderFunction>()->Center.setValue(vec);
     }
 }
 
@@ -750,15 +741,14 @@ void CylinderWidget::axisChanged(double)
         Base::Vector3d vec(ui->axisX->value().getValue(),
                            ui->axisY->value().getValue(),
                            ui->axisZ->value().getValue());
-        static_cast<Fem::FemPostCylinderFunction*>(getObject())->Axis.setValue(vec);
+        getObject<Fem::FemPostCylinderFunction>()->Axis.setValue(vec);
     }
 }
 
 void CylinderWidget::radiusChanged(double)
 {
     if (!blockObjectUpdates()) {
-        static_cast<Fem::FemPostCylinderFunction*>(getObject())
-            ->Radius.setValue(ui->radius->value().getValue());
+        getObject<Fem::FemPostCylinderFunction>()->Radius.setValue(ui->radius->value().getValue());
     }
 }
 
@@ -767,7 +757,10 @@ void CylinderWidget::radiusChanged(double)
 
 PROPERTY_SOURCE(FemGui::ViewProviderFemPostPlaneFunction, FemGui::ViewProviderFemPostFunction)
 // NOTE: The technical lower limit is at 1e-4 that the Coin3D manipulator can handle
-static const App::PropertyFloatConstraint::Constraints scaleConstraint = {1e-4, DBL_MAX, 1.0};
+static const App::PropertyFloatConstraint::Constraints scaleConstraint = {
+    1e-4,
+    std::numeric_limits<double>::max(),
+    1.0};
 
 ViewProviderFemPostPlaneFunction::ViewProviderFemPostPlaneFunction()
     : m_detectscale(false)
@@ -790,7 +783,7 @@ ViewProviderFemPostPlaneFunction::~ViewProviderFemPostPlaneFunction() = default;
 
 void ViewProviderFemPostPlaneFunction::draggerUpdate(SoDragger* m)
 {
-    Fem::FemPostPlaneFunction* func = static_cast<Fem::FemPostPlaneFunction*>(getObject());
+    Fem::FemPostPlaneFunction* func = getObject<Fem::FemPostPlaneFunction>();
     SoJackDragger* dragger = static_cast<SoJackDragger*>(m);
 
     // the new axis of the plane
@@ -832,7 +825,7 @@ void ViewProviderFemPostPlaneFunction::onChanged(const App::Property* prop)
 
 void ViewProviderFemPostPlaneFunction::updateData(const App::Property* p)
 {
-    Fem::FemPostPlaneFunction* func = static_cast<Fem::FemPostPlaneFunction*>(getObject());
+    Fem::FemPostPlaneFunction* func = getObject<Fem::FemPostPlaneFunction>();
 
     if (!isDragging() && (p == &func->Origin || p == &func->Normal)) {
         if (!m_detectscale) {
@@ -925,7 +918,7 @@ void PlaneWidget::applyPythonCode()
 void PlaneWidget::setViewProvider(ViewProviderFemPostFunction* view)
 {
     FemGui::FunctionWidget::setViewProvider(view);
-    Fem::FemPostPlaneFunction* func = static_cast<Fem::FemPostPlaneFunction*>(getObject());
+    Fem::FemPostPlaneFunction* func = getObject<Fem::FemPostPlaneFunction>();
     const Base::Unit unit = func->Origin.getUnit();
     setBlockObjectUpdates(true);
     ui->originX->setUnit(unit);
@@ -941,7 +934,7 @@ void PlaneWidget::setViewProvider(ViewProviderFemPostFunction* view)
 void PlaneWidget::onChange(const App::Property& p)
 {
     setBlockObjectUpdates(true);
-    Fem::FemPostPlaneFunction* func = static_cast<Fem::FemPostPlaneFunction*>(getObject());
+    Fem::FemPostPlaneFunction* func = getObject<Fem::FemPostPlaneFunction>();
     if (&p == &func->Normal) {
         const Base::Vector3d& vec = static_cast<const App::PropertyVector*>(&p)->getValue();
         ui->normalX->setValue(vec.x);
@@ -963,7 +956,7 @@ void PlaneWidget::normalChanged(double)
         Base::Vector3d vec(ui->normalX->value().getValue(),
                            ui->normalY->value().getValue(),
                            ui->normalZ->value().getValue());
-        static_cast<Fem::FemPostPlaneFunction*>(getObject())->Normal.setValue(vec);
+        getObject<Fem::FemPostPlaneFunction>()->Normal.setValue(vec);
     }
 }
 
@@ -973,7 +966,7 @@ void PlaneWidget::originChanged(double)
         Base::Vector3d vec(ui->originX->value().getValue(),
                            ui->originY->value().getValue(),
                            ui->originZ->value().getValue());
-        static_cast<Fem::FemPostPlaneFunction*>(getObject())->Origin.setValue(vec);
+        getObject<Fem::FemPostPlaneFunction>()->Origin.setValue(vec);
     }
 }
 
@@ -1015,7 +1008,7 @@ SoTransformManip* ViewProviderFemPostSphereFunction::setupManipulator()
 
 void ViewProviderFemPostSphereFunction::draggerUpdate(SoDragger* m)
 {
-    Fem::FemPostSphereFunction* func = static_cast<Fem::FemPostSphereFunction*>(getObject());
+    Fem::FemPostSphereFunction* func = getObject<Fem::FemPostSphereFunction>();
     SoHandleBoxDragger* dragger = static_cast<SoHandleBoxDragger*>(m);
 
     // the new axis of the plane
@@ -1029,7 +1022,7 @@ void ViewProviderFemPostSphereFunction::draggerUpdate(SoDragger* m)
 
 void ViewProviderFemPostSphereFunction::updateData(const App::Property* p)
 {
-    Fem::FemPostSphereFunction* func = static_cast<Fem::FemPostSphereFunction*>(getObject());
+    Fem::FemPostSphereFunction* func = getObject<Fem::FemPostSphereFunction>();
 
     if (!isDragging() && (p == &func->Center || p == &func->Radius)) {
 
@@ -1093,7 +1086,7 @@ void SphereWidget::setViewProvider(ViewProviderFemPostFunction* view)
 {
     FemGui::FunctionWidget::setViewProvider(view);
     setBlockObjectUpdates(true);
-    Fem::FemPostSphereFunction* func = static_cast<Fem::FemPostSphereFunction*>(getObject());
+    Fem::FemPostSphereFunction* func = getObject<Fem::FemPostSphereFunction>();
     Base::Unit unit = func->Center.getUnit();
     ui->centerX->setUnit(unit);
     ui->centerY->setUnit(unit);
@@ -1108,7 +1101,7 @@ void SphereWidget::setViewProvider(ViewProviderFemPostFunction* view)
 void SphereWidget::onChange(const App::Property& p)
 {
     setBlockObjectUpdates(true);
-    Fem::FemPostSphereFunction* func = static_cast<Fem::FemPostSphereFunction*>(getObject());
+    Fem::FemPostSphereFunction* func = getObject<Fem::FemPostSphereFunction>();
     if (&p == &func->Radius) {
         double val = static_cast<const App::PropertyDistance*>(&p)->getValue();
         ui->radius->setValue(val);
@@ -1128,15 +1121,14 @@ void SphereWidget::centerChanged(double)
         Base::Vector3d vec(ui->centerX->value().getValue(),
                            ui->centerY->value().getValue(),
                            ui->centerZ->value().getValue());
-        static_cast<Fem::FemPostSphereFunction*>(getObject())->Center.setValue(vec);
+        getObject<Fem::FemPostSphereFunction>()->Center.setValue(vec);
     }
 }
 
 void SphereWidget::radiusChanged(double)
 {
     if (!blockObjectUpdates()) {
-        static_cast<Fem::FemPostSphereFunction*>(getObject())
-            ->Radius.setValue(ui->radius->value().getValue());
+        getObject<Fem::FemPostSphereFunction>()->Radius.setValue(ui->radius->value().getValue());
     }
 }
 
@@ -1190,6 +1182,8 @@ SoGroup* postBox()
 
 SoGroup* postCylinder()
 {
+    using std::numbers::pi;
+
     SoCoordinate3* points = new SoCoordinate3();
     int nCirc = 20;
     const int nSide = 8;
@@ -1201,8 +1195,8 @@ SoGroup* postCylinder()
     for (int i = 0; i < 2; ++i) {
         for (int j = 0; j < nCirc + 1; ++j) {
             points->point.set1Value(idx,
-                                    SbVec3f(std::cos(2 * M_PI / nCirc * j),
-                                            std::sin(2 * M_PI / nCirc * j),
+                                    SbVec3f(std::cos(2 * pi / nCirc * j),
+                                            std::sin(2 * pi / nCirc * j),
                                             -h / 2. + h * i));
             ++idx;
         }
@@ -1211,8 +1205,8 @@ SoGroup* postCylinder()
     for (int i = 0; i < nSide; ++i) {
         for (int j = 0; j < 2; ++j) {
             points->point.set1Value(idx,
-                                    SbVec3f(std::cos(2 * M_PI / nSide * i),
-                                            std::sin(2 * M_PI / nSide * i),
+                                    SbVec3f(std::cos(2 * pi / nSide * i),
+                                            std::sin(2 * pi / nSide * i),
                                             -h / 2. + h * j));
             ++idx;
         }
@@ -1255,24 +1249,26 @@ SoGroup* postPlane()
 
 SoGroup* postSphere()
 {
+    using std::numbers::pi;
+
     SoCoordinate3* points = new SoCoordinate3();
     points->point.setNum(2 * 84);
     int idx = 0;
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 21; j++) {
             points->point.set1Value(idx,
-                                    SbVec3f(std::sin(2 * M_PI / 20 * j) * std::cos(M_PI / 4 * i),
-                                            std::sin(2 * M_PI / 20 * j) * std::sin(M_PI / 4 * i),
-                                            std::cos(2 * M_PI / 20 * j)));
+                                    SbVec3f(std::sin(2 * pi / 20 * j) * std::cos(pi / 4 * i),
+                                            std::sin(2 * pi / 20 * j) * std::sin(pi / 4 * i),
+                                            std::cos(2 * pi / 20 * j)));
             ++idx;
         }
     }
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 21; j++) {
             points->point.set1Value(idx,
-                                    SbVec3f(std::sin(M_PI / 4 * i) * std::cos(2 * M_PI / 20 * j),
-                                            std::sin(M_PI / 4 * i) * std::sin(2 * M_PI / 20 * j),
-                                            std::cos(M_PI / 4 * i)));
+                                    SbVec3f(std::sin(pi / 4 * i) * std::cos(2 * pi / 20 * j),
+                                            std::sin(pi / 4 * i) * std::sin(2 * pi / 20 * j),
+                                            std::cos(pi / 4 * i)));
             ++idx;
         }
     }

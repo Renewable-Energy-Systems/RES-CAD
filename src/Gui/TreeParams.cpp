@@ -117,9 +117,9 @@ public:
         funcs["KeepRootOrder"] = &TreeParamsP::updateKeepRootOrder;
         TreeActiveAutoExpand = handle->GetBool("TreeActiveAutoExpand", true);
         funcs["TreeActiveAutoExpand"] = &TreeParamsP::updateTreeActiveAutoExpand;
-        TreeActiveColor = handle->GetUnsigned("TreeActiveColor", 3873898495);
+        TreeActiveColor = handle->GetUnsigned("TreeActiveColor", 1538528255);
         funcs["TreeActiveColor"] = &TreeParamsP::updateTreeActiveColor;
-        TreeEditColor = handle->GetUnsigned("TreeEditColor", 2459042047);
+        TreeEditColor = handle->GetUnsigned("TreeEditColor", 563609599);
         funcs["TreeEditColor"] = &TreeParamsP::updateTreeEditColor;
         SelectingGroupColor = handle->GetUnsigned("SelectingGroupColor", 1082163711);
         funcs["SelectingGroupColor"] = &TreeParamsP::updateSelectingGroupColor;
@@ -179,7 +179,7 @@ public:
         if(it == funcs.end())
             return;
         it->second(this);
-        
+
     }
 
 
@@ -1470,7 +1470,7 @@ void TreeParams::removeTreeToolTipIcon() {
 // Auto generated code (Tools/params_utils.py:350)
 const char *TreeParams::docVisibilityIcon() {
     return QT_TRANSLATE_NOOP("TreeParams",
-"If enabled, show an eye icon before the tree view items, showing the items visibility status. When clicked the visibility is toggled");
+"Displays an eye icon in front of the tree view items, showing the items visibility status. When clicked the visibility is toggled");
 }
 
 // Auto generated code (Tools/params_utils.py:358)

@@ -40,6 +40,7 @@ def Startup():
         Path.Log.debug("Initializing PathGui")
         from Path.Base.Gui import PropertyBag
         from Path.Base.Gui import SetupSheet
+        from Path.Dressup.Gui import Array
         from Path.Dressup.Gui import AxisMap
         from Path.Dressup.Gui import Dogbone
         from Path.Dressup.Gui import DogboneII
@@ -66,6 +67,7 @@ def Startup():
         from Path.Op.Gui import Engrave
         from Path.Op.Gui import Helix
         from Path.Op.Gui import MillFace
+        from Path.Op.Gui import PathShapeTC
         from Path.Op.Gui import Pocket
         from Path.Op.Gui import PocketShape
         from Path.Op.Gui import Probe
@@ -73,6 +75,7 @@ def Startup():
         from Path.Op.Gui import SimpleCopy
         from Path.Op.Gui import Slot
         from Path.Op.Gui import Stop
+        from Path.Op.Gui import Tapping
         from Path.Op.Gui import ThreadMilling
         from Path.Op.Gui import Vcarve
         from Path.Post import Command

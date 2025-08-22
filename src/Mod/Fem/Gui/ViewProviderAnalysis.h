@@ -24,7 +24,7 @@
 #define FEM_ViewProviderAnalysis_H
 
 #include <Gui/ViewProviderDocumentObjectGroup.h>
-#include <Gui/ViewProviderPythonFeature.h>
+#include <Gui/ViewProviderFeaturePython.h>
 #include <Mod/Fem/FemGlobal.h>
 #include <QCoreApplication>
 
@@ -75,8 +75,6 @@ public:
 
     void setupContextMenu(QMenu*, QObject*, const char*) override;
 
-    /// list of all possible display modes
-    std::vector<std::string> getDisplayModes() const override;
     /// shows solid in the tree
     bool isShow() const override
     {
@@ -115,7 +113,7 @@ private:
     ViewProviderFemHighlighter extension;
 };
 
-using ViewProviderFemAnalysisPython = Gui::ViewProviderPythonFeatureT<ViewProviderFemAnalysis>;
+using ViewProviderFemAnalysisPython = Gui::ViewProviderFeaturePythonT<ViewProviderFemAnalysis>;
 
 }  // namespace FemGui
 

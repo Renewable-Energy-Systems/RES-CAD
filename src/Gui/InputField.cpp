@@ -23,6 +23,7 @@
 
 #include "PreCompiled.h"
 #ifndef _PreComp_
+# include <limits>
 # include <QContextMenuEvent>
 # include <QMenu>
 # include <QPixmapCache>
@@ -36,7 +37,6 @@
 #include <App/PropertyUnits.h>
 #include <Base/Exception.h>
 #include <Base/Quantity.h>
-#include <Base/Tools.h>
 
 #include "InputField.h"
 #include "BitmapFactory.h"
@@ -72,8 +72,8 @@ InputField::InputField(QWidget * parent)
     ExpressionWidget(),
     validInput(true),
     actUnitValue(0),
-    Maximum(DOUBLE_MAX),
-    Minimum(-DOUBLE_MAX),
+    Maximum(std::numeric_limits<double>::max()),
+    Minimum(-std::numeric_limits<double>::max()),
     StepSize(1.0),
     HistorySize(5),
     SaveSize(5)
@@ -87,20 +87,31 @@ InputField::InputField(QWidget * parent)
     }
     iconLabel = new ExpressionLabel(this);
     iconLabel->setCursor(Qt::ArrowCursor);
-    QPixmap pixmap = getValidationIcon(":/icons/button_valid.svg", QSize(sizeHint().height(),sizeHint().height()));
+    QFontMetrics fm(font());
+    int iconSize = fm.height();
+    QPixmap pixmap = getValidationIcon(":/icons/button_invalid.svg", QSize(iconSize, iconSize));
     iconLabel->setPixmap(pixmap);
-    iconLabel->setStyleSheet(QString::fromLatin1("QLabel { border: none; padding: 0px; }"));
     iconLabel->hide();
     connect(this, &QLineEdit::textChanged, this, &InputField::updateIconLabel);
-    int frameWidth = style()->pixelMetric(QStyle::PM_DefaultFrameWidth);
-    setStyleSheet(QString::fromLatin1("QLineEdit { padding-right: %1px } ").arg(iconLabel->sizeHint().width() + frameWidth + 1));
-    QSize msz = minimumSizeHint();
-    setMinimumSize(qMax(msz.width(), iconLabel->sizeHint().height() + frameWidth * 2 + 2),
-                   qMax(msz.height(), iconLabel->sizeHint().height() + frameWidth * 2 + 2));
+
+    // Set Margins
+    // vertical margin, such that `,` won't be clipped to a `.` and similar font descents. Relevant on some OSX versions
+    // horizontal margin, such that text will not be behind `fx` icon
+    int margin = getMargin();
+    setTextMargins(margin, margin, margin + iconSize, margin);
 
     this->setContextMenuPolicy(Qt::DefaultContextMenu);
 
     connect(this, &QLineEdit::textChanged, this, &InputField::newInput);
+}
+
+int InputField::getMargin()
+{
+#if QT_VERSION >= QT_VERSION_CHECK(6, 3, 0)
+    return style()->pixelMetric(QStyle::PM_LineEditIconMargin, nullptr, this) / 2;
+#else
+    return style()->pixelMetric(QStyle::PM_FocusFrameHMargin, nullptr, this);
+#endif
 }
 
 InputField::~InputField() = default;
@@ -109,7 +120,7 @@ void InputField::bind(const App::ObjectIdentifier &_path)
 {
     ExpressionBinding::bind(_path);
 
-    auto * prop = freecad_dynamic_cast<PropertyQuantity>(getPath().getProperty());
+    auto * prop = freecad_cast<PropertyQuantity*>(getPath().getProperty());
 
     if (prop)
         actQuantity = Base::Quantity(prop->getValue());
@@ -120,7 +131,7 @@ void InputField::bind(const App::ObjectIdentifier &_path)
         std::shared_ptr<const Expression> expr(docObj->getExpression(getPath()).expression);
 
         if (expr)
-            newInput(Tools::fromStdString(expr->toString()));
+            newInput(QString::fromStdString(expr->toString()));
     }
 
     // Create document object, to initialize completer
@@ -144,7 +155,7 @@ bool InputField::apply()
 
 QPixmap InputField::getValidationIcon(const char* name, const QSize& size) const
 {
-    QString key = QString::fromLatin1("%1_%2x%3")
+    QString key = QStringLiteral("%1_%2x%3")
         .arg(QString::fromLatin1(name))
         .arg(size.width())
         .arg(size.height());
@@ -164,36 +175,34 @@ void InputField::updateText(const Base::Quantity& quant)
         std::shared_ptr<const Expression> e(getPath().getDocumentObject()->getExpression(getPath()).expression);
 
         if (e) {
-            setText(Tools::fromStdString(e->toString()));
+            setText(QString::fromStdString(e->toString()));
             return;
         }
     }
 
     double dFactor;
-    QString unitStr;
-    QString txt = quant.getUserString(dFactor, unitStr);
+    std::string unitStr;
+    std::string txt = quant.getUserString(dFactor, unitStr);
     actUnitValue = quant.getValue()/dFactor;
-    setText(txt);
+    setText(QString::fromStdString(txt));
 }
 
-void InputField::resizeEvent(QResizeEvent *)
+void InputField::resizeEvent(QResizeEvent * /*event*/)
 {
-    QSize sz = iconLabel->sizeHint();
-    int frameWidth = style()->pixelMetric(QStyle::PM_DefaultFrameWidth);
-    iconLabel->move(rect().right() - frameWidth - sz.width(),
-                    (rect().bottom() + 1 - sz.height())/2);
+    QSize iconSize = iconLabel->sizeHint();
+    iconLabel->move(width() - (iconSize.width() + 2 * getMargin()), (height() - iconSize.height()) / 2);
 }
 
 void InputField::updateIconLabel(const QString& text)
 {
-    iconLabel->setVisible(!text.isEmpty());
+    iconLabel->setVisible(text.isEmpty());
 }
 
 void InputField::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu *editMenu = createStandardContextMenu();
     editMenu->setTitle(tr("Edit"));
-    auto menu = new QMenu(QString::fromLatin1("InputFieldContextmenu"));
+    auto menu = new QMenu(QStringLiteral("InputFieldContextmenu"));
 
     menu->addMenu(editMenu);
     menu->addSeparator();
@@ -212,7 +221,7 @@ void InputField::contextMenuEvent(QContextMenuEvent *event)
 
     // add the save value portion of the menu
     menu->addSeparator();
-    QAction *SaveValueAction = menu->addAction(tr("Save value"));
+    QAction *SaveValueAction = menu->addAction(tr("Save Value"));
     std::vector<QString> savedValues = getSavedValues();
 
     for(const auto & savedValue : savedValues){
@@ -250,39 +259,41 @@ void InputField::newInput(const QString & text)
 
             std::unique_ptr<Expression> evalRes(getExpression()->eval());
 
-            auto * value = freecad_dynamic_cast<NumberExpression>(evalRes.get());
+            auto * value = freecad_cast<NumberExpression*>(evalRes.get());
             if (value) {
                 res.setValue(value->getValue());
                 res.setUnit(value->getUnit());
             }
         }
         else
-            res = Quantity::parse(input);
+            res = Quantity::parse(input.toStdString());
     }
     catch(Base::Exception &e){
         QString errorText = QString::fromLatin1(e.what());
-        QPixmap pixmap = getValidationIcon(":/icons/button_invalid.svg", QSize(sizeHint().height(),sizeHint().height()));
-        iconLabel->setPixmap(pixmap);
+        if (iconLabel->isHidden()) {
+            iconLabel->setVisible(true);
+        }
         Q_EMIT parseError(errorText);
         validInput = false;
         return;
     }
 
-    if (res.getUnit().isEmpty())
+    if (res.isDimensionless())
         res.setUnit(this->actUnit);
 
     // check if unit fits!
-    if(!actUnit.isEmpty() && !res.getUnit().isEmpty() && actUnit != res.getUnit()){
-        QPixmap pixmap = getValidationIcon(":/icons/button_invalid.svg", QSize(sizeHint().height(),sizeHint().height()));
-        iconLabel->setPixmap(pixmap);
-        Q_EMIT parseError(QString::fromLatin1("Wrong unit"));
+    if (actUnit != Unit::One && !res.isDimensionless() && actUnit != res.getUnit()){
+        if (iconLabel->isHidden()) {
+            iconLabel->setVisible(true);
+        }
+        Q_EMIT parseError(QStringLiteral("Wrong unit"));
         validInput = false;
         return;
     }
 
-
-    QPixmap pixmap = getValidationIcon(":/icons/button_valid.svg", QSize(sizeHint().height(),sizeHint().height()));
-    iconLabel->setPixmap(pixmap);
+    if (iconLabel->isVisible()) {
+        iconLabel->setVisible(false);
+    }
     validInput = true;
 
     if (res.getValue() > Maximum){
@@ -293,7 +304,7 @@ void InputField::newInput(const QString & text)
     }
 
     double dFactor;
-    QString unitStr;
+    std::string unitStr;
     res.getUserString(dFactor, unitStr);
     actUnitValue = res.getValue()/dFactor;
     // Preserve previous format
@@ -457,7 +468,7 @@ const Base::Unit& InputField::getUnit() const
 /// get stored, valid quantity as a string
 QString InputField::getQuantityString() const
 {
-    return actQuantity.getUserString();
+    return QString::fromStdString(actQuantity.getUserString());
 }
 
 /// set, validate and display quantity from a string. Must match existing units.
@@ -472,18 +483,18 @@ void InputField::setQuantityString(const QString& text)
 QString InputField::rawText() const
 {
     double  factor;
-    QString unit;
+    std::string unit;
     double value = actQuantity.getValue();
     actQuantity.getUserString(factor, unit);
-    return QString::fromLatin1("%1 %2").arg(value / factor).arg(unit);
+    return QStringLiteral("%1 %2").arg(value / factor).arg(QString::fromStdString(unit));
 }
 
 /// expects the string in C locale and internally converts it into the OS-specific locale
 void InputField::setRawText(const QString& text)
 {
-    Base::Quantity quant = Base::Quantity::parse(text);
+    Base::Quantity quant = Base::Quantity::parse(text.toStdString());
     // Input and then format the quantity
-    newInput(quant.getUserString());
+    newInput(QString::fromStdString(quant.getUserString()));
     updateText(actQuantity);
 }
 
@@ -534,7 +545,7 @@ void InputField::setMinimum(double m)
 void InputField::setUnitText(const QString& str)
 {
     try {
-        Base::Quantity quant = Base::Quantity::parse(str);
+        Base::Quantity quant = Base::Quantity::parse(str.toStdString());
         setUnit(quant.getUnit());
     }
     catch (...) {
@@ -545,9 +556,9 @@ void InputField::setUnitText(const QString& str)
 QString InputField::getUnitText()
 {
     double dFactor;
-    QString unitStr;
+    std::string unitStr;
     actQuantity.getUserString(dFactor, unitStr);
-    return unitStr;
+    return QString::fromStdString(unitStr);
 }
 
 int InputField::getPrecision() const
@@ -596,7 +607,7 @@ void InputField::setHistorySize(int i)
 
 void InputField::selectNumber()
 {
-    QString expr = QString::fromLatin1("^([%1%2]?[0-9\\%3]*)\\%4?([0-9]+(%5[%1%2]?[0-9]+)?)")
+    QString expr = QStringLiteral("^([%1%2]?[0-9\\%3]*)\\%4?([0-9]+(%5[%1%2]?[0-9]+)?)")
                    .arg(locale().negativeSign())
                    .arg(locale().positiveSign())
                    .arg(locale().groupSeparator())
@@ -633,11 +644,11 @@ void InputField::focusInEvent(QFocusEvent *event)
 void InputField::focusOutEvent(QFocusEvent *event)
 {
     try {
-        if (Quantity::parse(this->text()).getUnit().isEmpty()) {
+        if (Quantity::parse(this->text().toStdString()).isDimensionless()) {
             // if user didn't enter a unit, we virtually compensate
             // the multiplication factor induced by user unit system
             double factor;
-            QString unitStr;
+            std::string unitStr;
             actQuantity.getUserString(factor, unitStr);
             actQuantity = actQuantity * factor;
         }
@@ -645,7 +656,7 @@ void InputField::focusOutEvent(QFocusEvent *event)
     catch (const Base::ParserError&) {
         // do nothing, let apply the last known good value
     }
-    this->setText(actQuantity.getUserString());
+    this->setText(QString::fromStdString(actQuantity.getUserString()));
     QLineEdit::focusOutEvent(event);
 }
 
@@ -656,35 +667,29 @@ void InputField::keyPressEvent(QKeyEvent *event)
         return;
     }
 
+    double val = actUnitValue;
+
     switch (event->key()) {
     case Qt::Key_Up:
-        {
-            double val = actUnitValue + StepSize;
-            if (val > Maximum)
-                val = Maximum;
-            double dFactor;
-            QString unitStr;
-            actQuantity.getUserString(dFactor, unitStr);
-            this->setText(QString::fromUtf8("%L1 %2").arg(val).arg(unitStr));
-            event->accept();
-        }
+        val += StepSize;
+        if (val > Maximum)
+            val = Maximum;
         break;
     case Qt::Key_Down:
-        {
-            double val = actUnitValue - StepSize;
-            if (val < Minimum)
-                val = Minimum;
-            double dFactor;
-            QString unitStr;
-            actQuantity.getUserString(dFactor, unitStr);
-            this->setText(QString::fromUtf8("%L1 %2").arg(val).arg(unitStr));
-            event->accept();
-        }
+        val -= StepSize;
+        if (val < Minimum)
+            val = Minimum;
         break;
     default:
         QLineEdit::keyPressEvent(event);
-        break;
+        return;
     }
+
+    double dFactor;
+    std::string unitStr;
+    actQuantity.getUserString(dFactor, unitStr);
+    this->setText(QStringLiteral("%L1 %2").arg(val).arg(QString::fromStdString(unitStr)));
+    event->accept();
 }
 
 void InputField::wheelEvent (QWheelEvent * event)
@@ -706,10 +711,10 @@ void InputField::wheelEvent (QWheelEvent * event)
         val = Minimum;
 
     double dFactor;
-    QString unitStr;
+    std::string unitStr;
     actQuantity.getUserString(dFactor, unitStr);
 
-    this->setText(QString::fromUtf8("%L1 %2").arg(val).arg(unitStr));
+    this->setText(QStringLiteral("%L1 %2").arg(val).arg(QString::fromStdString(unitStr)));
     selectNumber();
     event->accept();
 }
@@ -738,13 +743,13 @@ QValidator::State InputField::validate(QString& input, int& pos) const
         Quantity res;
         QString text = input;
         fixup(text);
-        res = Quantity::parse(text);
+        res = Quantity::parse(text.toStdString());
 
         double factor;
-        QString unitStr;
+        std::string unitStr;
         res.getUserString(factor, unitStr);
         double value = res.getValue()/factor;
-        // disallow to enter numbers out of range
+        // disallow one to enter numbers out of range
         if (value > this->Maximum || value < this->Minimum)
             return QValidator::Invalid;
     }

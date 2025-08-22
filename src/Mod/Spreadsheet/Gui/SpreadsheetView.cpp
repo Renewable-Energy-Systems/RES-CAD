@@ -28,9 +28,9 @@
 #include <QPrintPreviewDialog>
 #include <QPrinter>
 #include <QTextDocument>
-#include <cmath>
 #endif
 
+#include <App/Application.h>
 #include <App/DocumentObject.h>
 #include <App/Range.h>
 #include <Base/Tools.h>
@@ -40,6 +40,7 @@
 #include <Gui/Document.h>
 #include <Gui/FileDialog.h>
 #include <Gui/MainWindow.h>
+#include <Gui/PreferencePages/DlgSettingsPDF.h>
 
 #include <Mod/Spreadsheet/App/Sheet.h>
 #include <Mod/Spreadsheet/App/SheetPy.h>
@@ -47,6 +48,7 @@
 #include "LineEdit.h"
 #include "SpreadsheetDelegate.h"
 #include "SpreadsheetView.h"
+#include "ZoomableView.h"
 #include "qtcolorpicker.h"
 #include "ui_Sheet.h"
 
@@ -74,6 +76,8 @@ SheetView::SheetView(Gui::Document* pcDocument, App::DocumentObject* docObj, QWi
     ui->setupUi(w);
     setCentralWidget(w);
 
+    new ZoomableView(ui);
+
     delegate = new SpreadsheetDelegate(sheet);
     ui->cells->setModel(model);
     ui->cells->setItemDelegate(delegate);
@@ -85,7 +89,7 @@ SheetView::SheetView(Gui::Document* pcDocument, App::DocumentObject* docObj, QWi
             this,
             &SheetView::currentChanged);
 
-    connect(dynamic_cast<SheetViewHeader*>(ui->cells->horizontalHeader()),
+    connect(qobject_cast<SheetViewHeader*>(ui->cells->horizontalHeader()),
             &SheetViewHeader::resizeFinished,
             this,
             &SheetView::columnResizeFinished);
@@ -94,7 +98,7 @@ SheetView::SheetView(Gui::Document* pcDocument, App::DocumentObject* docObj, QWi
             this,
             &SheetView::columnResized);
 
-    connect(dynamic_cast<SheetViewHeader*>(ui->cells->verticalHeader()),
+    connect(qobject_cast<SheetViewHeader*>(ui->cells->verticalHeader()),
             &SheetViewHeader::resizeFinished,
             this,
             &SheetView::rowResizeFinished);
@@ -130,13 +134,13 @@ SheetView::SheetView(Gui::Document* pcDocument, App::DocumentObject* docObj, QWi
     ui->cells->setPalette(palette);
 
     QList<QtColorPicker*> bgList = Gui::getMainWindow()->findChildren<QtColorPicker*>(
-        QString::fromLatin1("Spreadsheet_BackgroundColor"));
+        QStringLiteral("Spreadsheet_BackgroundColor"));
     if (!bgList.empty()) {
         bgList[0]->setCurrentColor(palette.color(QPalette::Base));
     }
 
     QList<QtColorPicker*> fgList = Gui::getMainWindow()->findChildren<QtColorPicker*>(
-        QString::fromLatin1("Spreadsheet_ForegroundColor"));
+        QStringLiteral("Spreadsheet_ForegroundColor"));
     if (!fgList.empty()) {
         fgList[0]->setCurrentColor(palette.color(QPalette::Text));
     }
@@ -144,6 +148,8 @@ SheetView::SheetView(Gui::Document* pcDocument, App::DocumentObject* docObj, QWi
     // Set document object to create auto completer
     ui->cellContent->setDocumentObject(sheet);
     ui->cellAlias->setDocumentObject(sheet);
+
+    ui->cellContent->setPrefix('=');
 }
 
 SheetView::~SheetView()
@@ -183,7 +189,7 @@ bool SheetView::onMsg(const char* pMsg, const char**)
     else if (strcmp("Std_Delete", pMsg) == 0) {
         std::vector<Range> ranges = selectedRanges();
         if (sheet->hasCell(ranges)) {
-            Gui::Command::openCommand(QT_TRANSLATE_NOOP("Command", "Clear cell(s)"));
+            Gui::Command::openCommand(QT_TRANSLATE_NOOP("Command", "Clear Cells"));
             std::vector<Range>::const_iterator i = ranges.begin();
             for (; i != ranges.end(); ++i) {
                 FCMD_OBJ_CMD(sheet, "clear('" << i->rangeString() << "')");
@@ -244,6 +250,9 @@ bool SheetView::onHasMsg(const char* pMsg) const
     if (strcmp(pMsg, "PrintPdf") == 0) {
         return true;
     }
+    else if (strcmp("AllowsOverlayOnHover", pMsg) == 0) {
+        return true;
+    }
 
     return false;
 }
@@ -293,15 +302,17 @@ void SheetView::printPdf()
         FileDialog::getSaveFileName(this,
                                     tr("Export PDF"),
                                     QString(),
-                                    QString::fromLatin1("%1 (*.pdf)").arg(tr("PDF file")));
+                                    QStringLiteral("%1 (*.pdf)").arg(tr("PDF file")));
     if (!filename.isEmpty()) {
         QPrinter printer(QPrinter::ScreenResolution);
-        // setPdfVersion sets the printied PDF Version to comply with PDF/A-1b, more details under:
+        // setPdfVersion sets the printed PDF Version to what is chosen in
+        // Preferences/Import-Export/PDF more details under:
         // https://www.kdab.com/creating-pdfa-documents-qt/
-        printer.setPdfVersion(QPagedPaintDevice::PdfVersion_A1b);
+        printer.setPdfVersion(Gui::Dialog::DlgSettingsPDF::evaluatePDFVersion());
         printer.setPageOrientation(QPageLayout::Landscape);
         printer.setOutputFormat(QPrinter::PdfFormat);
         printer.setOutputFileName(filename);
+        printer.setCreator(QString::fromStdString(App::Application::getNameWithVersion()));
         print(&printer);
     }
 }
@@ -429,7 +440,7 @@ void SheetView::confirmAliasChanged(const QString& text)
     bool aliasOkay = true;
 
     ui->cellAlias->setDocumentObject(sheet);
-    if (text.length() != 0 && !sheet->isValidAlias(Base::Tools::toStdString(text))) {
+    if (text.length() != 0 && !sheet->isValidAlias(text.toStdString())) {
         aliasOkay = false;
     }
 
@@ -441,8 +452,7 @@ void SheetView::confirmAliasChanged(const QString& text)
             std::string current_alias;
             (void)cell->getAlias(current_alias);
             if (text != QString::fromUtf8(current_alias.c_str())) {
-                Base::Console().Error("Unable to set alias: %s\n",
-                                      Base::Tools::toStdString(text).c_str());
+                Base::Console().error("Unable to set alias: %s\n", text.toStdString().c_str());
             }
         }
         else {
@@ -476,7 +486,7 @@ void SheetView::aliasChanged(const QString& text)
         warningColor = QLatin1String("rgb(200,0,0)");  // Dark red for light mode
     }
 
-    if (!text.isEmpty() && !sheet->isValidAlias(Base::Tools::toStdString(text))) {
+    if (!text.isEmpty() && !sheet->isValidAlias(text.toStdString())) {
         aliasOk = false;
     }
 

@@ -29,7 +29,7 @@
 #include <Base/Console.h>
 #include <Base/Exception.h>
 #include <Gui/Application.h>
-#include <Gui/Command.h>
+#include <Gui/CommandT.h>
 #include <Gui/Document.h>
 #include <Gui/MainWindow.h>
 #include <Gui/WaitCursor.h>
@@ -52,7 +52,7 @@ TaskDlgMeshShapeNetgen::TaskDlgMeshShapeNetgen(FemGui::ViewProviderFemMeshShapeN
     , param(nullptr)
     , ViewProviderFemMeshShapeNetgen(obj)
 {
-    FemMeshShapeNetgenObject = dynamic_cast<Fem::FemMeshShapeNetgenObject*>(obj->getObject());
+    FemMeshShapeNetgenObject = obj->getObject<Fem::FemMeshShapeNetgenObject>();
     if (FemMeshShapeNetgenObject) {
         param = new TaskTetParameter(FemMeshShapeNetgenObject);
         Content.push_back(param);
@@ -85,7 +85,7 @@ void TaskDlgMeshShapeNetgen::clicked(int button)
         }
     }
     catch (const Base::Exception& e) {
-        Base::Console().Warning("FemMeshShapeNetgenObject::execute(): %s\n", e.what());
+        Base::Console().warning("FemMeshShapeNetgenObject::execute(): %s\n", e.what());
     }
 }
 
@@ -112,13 +112,15 @@ bool TaskDlgMeshShapeNetgen::accept()
         }
 
         // FemSetNodesObject->Label.setValue(name->name);
-        Gui::Command::doCommand(Gui::Command::Gui, "Gui.activeDocument().resetEdit()");
+        App::Document* doc = FemMeshShapeNetgenObject->getDocument();
+        Gui::cmdAppDocument(doc, "recompute()");
+        Gui::cmdGuiDocument(doc, "resetEdit()");
         Gui::Command::commitCommand();
 
         return true;
     }
     catch (const Base::Exception& e) {
-        Base::Console().Warning("TaskDlgMeshShapeNetgen::accept(): %s\n", e.what());
+        Base::Console().warning("TaskDlgMeshShapeNetgen::accept(): %s\n", e.what());
     }
 
     return false;
@@ -132,7 +134,9 @@ bool TaskDlgMeshShapeNetgen::reject()
     //     //    doc->resetEdit();
     // param->MeshViewProvider->resetHighlightNodes();
     Gui::Command::abortCommand();
-    Gui::Command::doCommand(Gui::Command::Gui, "Gui.activeDocument().resetEdit()");
+    App::Document* doc = FemMeshShapeNetgenObject->getDocument();
+    Gui::cmdGuiDocument(doc, "resetEdit()");
+    Gui::cmdAppDocument(doc, "recompute()");
 
     return true;
 }

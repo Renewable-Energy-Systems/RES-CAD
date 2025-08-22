@@ -27,6 +27,7 @@ Test module for FreeCAD material cards and APIs
 import unittest
 import FreeCAD
 import Materials
+import sys
 
 parseQuantity = FreeCAD.Units.parseQuantity
 
@@ -37,6 +38,15 @@ class MaterialTestCases(unittest.TestCase):
 
     def setUp(self):
         """ Setup function to initialize test data """
+        # The test for ThermalExpansionCoefficient causes problems with some localizations
+        # due to the Unicode mu ('\u03bc') character in the units. This will happen with
+        # locales that don't support UTF8 such as zh_CN (It does support UTF-8)
+        try:
+            sys.stdout.reconfigure(errors='replace')
+        except:
+            # reconfigure appeared in 3.7, hope for the best...
+            pass
+
         self.ModelManager = Materials.ModelManager()
         self.MaterialManager = Materials.MaterialManager()
         self.uuids = Materials.UUIDs()
@@ -45,6 +55,12 @@ class MaterialTestCases(unittest.TestCase):
         """ Ensure the MaterialManager has been initialized correctly """
         self.assertIn("MaterialLibraries", dir(self.MaterialManager))
         self.assertIn("Materials", dir(self.MaterialManager))
+
+    def getQuantity(self, value):
+        quantity = parseQuantity(value)
+        quantity.Format = { "NumberFormat" : "g",
+                            "Precision" : 6 }
+        return quantity
 
     def testCalculiXSteel(self):
         """
@@ -139,12 +155,6 @@ class MaterialTestCases(unittest.TestCase):
         self.assertIn("SpecularColor", properties)
         self.assertIn("Transparency", properties)
 
-        #
-        # The test for ThermalExpansionCoefficient causes problems with some localizations
-        # due to the Unicode mu character in the units. This will happen with
-        # locales that don't support UTF8 such as zh_CN (It does support UTF-8)
-        #
-        # When this is a problem simply comment the lines printing ThermalExpansionCoefficient
         print("Density " + properties["Density"])
         # print("BulkModulus " + properties["BulkModulus"])
         print("PoissonRatio " + properties["PoissonRatio"])
@@ -175,27 +185,27 @@ class MaterialTestCases(unittest.TestCase):
         self.assertTrue(len(properties["SpecularColor"]) > 0)
         self.assertTrue(len(properties["Transparency"]) > 0)
 
-        self.assertEqual(parseQuantity(properties["Density"]).UserString,
-                         parseQuantity("7900.00 kg/m^3").UserString)
+        self.assertEqual(self.getQuantity(properties["Density"]).UserString,
+                         self.getQuantity("7900.00 kg/m^3").UserString)
         # self.assertEqual(properties["BulkModulus"], "")
-        self.assertAlmostEqual(parseQuantity(properties["PoissonRatio"]).Value,
-                               parseQuantity("0.3").Value)
-        self.assertEqual(parseQuantity(properties["YoungsModulus"]).UserString,
-                         parseQuantity("210.00 GPa").UserString)
+        self.assertAlmostEqual(self.getQuantity(properties["PoissonRatio"]).Value,
+                               self.getQuantity("0.3").Value)
+        self.assertEqual(self.getQuantity(properties["YoungsModulus"]).UserString,
+                         self.getQuantity("210.00 GPa").UserString)
         # self.assertEqual(properties["ShearModulus"], "")
-        self.assertEqual(parseQuantity(properties["SpecificHeat"]).UserString,
-                         parseQuantity("590.00 J/kg/K").UserString)
-        self.assertEqual(parseQuantity(properties["ThermalConductivity"]).UserString,
-                         parseQuantity("43.00 W/m/K").UserString)
-        self.assertEqual(parseQuantity(properties["ThermalExpansionCoefficient"]).UserString,
-                         parseQuantity("12.00 µm/m/K").UserString)
+        self.assertEqual(self.getQuantity(properties["SpecificHeat"]).UserString,
+                         self.getQuantity("590.00 J/kg/K").UserString)
+        self.assertEqual(self.getQuantity(properties["ThermalConductivity"]).UserString,
+                         self.getQuantity("43.00 W/m/K").UserString)
+        self.assertEqual(self.getQuantity(properties["ThermalExpansionCoefficient"]).UserString,
+                         self.getQuantity("12.00 µm/m/K").UserString)
         self.assertEqual(properties["AmbientColor"], "(0.0020, 0.0020, 0.0020, 1.0)")
         self.assertEqual(properties["DiffuseColor"], "(0.0000, 0.0000, 0.0000, 1.0)")
         self.assertEqual(properties["EmissiveColor"], "(0.0000, 0.0000, 0.0000, 1.0)")
-        self.assertAlmostEqual(parseQuantity(properties["Shininess"]).Value, parseQuantity("0.06").Value)
+        self.assertAlmostEqual(self.getQuantity(properties["Shininess"]).Value, self.getQuantity("0.06").Value)
         self.assertEqual(properties["SpecularColor"], "(0.9800, 0.9800, 0.9800, 1.0)")
-        self.assertAlmostEqual(parseQuantity(properties["Transparency"]).Value,
-                               parseQuantity("0").Value)
+        self.assertAlmostEqual(self.getQuantity(properties["Transparency"]).Value,
+                               self.getQuantity("0").Value)
 
         print("Density " + steel.getPhysicalValue("Density").UserString)
         # print("BulkModulus " + properties["BulkModulus"])
@@ -225,6 +235,12 @@ class MaterialTestCases(unittest.TestCase):
         self.assertAlmostEqual(steel.getAppearanceValue("Shininess"), 0.06)
         self.assertEqual(steel.getAppearanceValue("SpecularColor"), "(0.9800, 0.9800, 0.9800, 1.0)")
         self.assertAlmostEqual(steel.getAppearanceValue("Transparency"), 0.0)
+
+        self.assertEqual(steel.getPhysicalValue("Density").Format["NumberFormat"], "g")
+        self.assertEqual(steel.getPhysicalValue("YoungsModulus").Format["NumberFormat"], "g")
+        self.assertEqual(steel.getPhysicalValue("SpecificHeat").Format["NumberFormat"], "g")
+        self.assertEqual(steel.getPhysicalValue("ThermalConductivity").Format["NumberFormat"], "g")
+        self.assertEqual(steel.getPhysicalValue("ThermalExpansionCoefficient").Format["NumberFormat"], "g")
 
     def testMaterialsWithModel(self):
         """
@@ -325,12 +341,19 @@ class MaterialTestCases(unittest.TestCase):
         self.assertEqual(len(arrayData[1]), 2)
         self.assertEqual(len(arrayData[2]), 2)
 
-        self.assertEqual(arrayData[0][0].UserString, parseQuantity("10.00 C").UserString)
-        self.assertEqual(arrayData[0][1].UserString, parseQuantity("10.00 kg/m^3").UserString)
-        self.assertEqual(arrayData[1][0].UserString, parseQuantity("20.00 C").UserString)
-        self.assertEqual(arrayData[1][1].UserString, parseQuantity("20.00 kg/m^3").UserString)
-        self.assertEqual(arrayData[2][0].UserString, parseQuantity("30.00 C").UserString)
-        self.assertEqual(arrayData[2][1].UserString, parseQuantity("30.00 kg/m^3").UserString)
+        self.assertEqual(arrayData[0][0].Format["NumberFormat"], "g")
+        self.assertEqual(arrayData[0][1].Format["NumberFormat"], "g")
+        self.assertEqual(arrayData[1][0].Format["NumberFormat"], "g")
+        self.assertEqual(arrayData[1][1].Format["NumberFormat"], "g")
+        self.assertEqual(arrayData[2][0].Format["NumberFormat"], "g")
+        self.assertEqual(arrayData[2][1].Format["NumberFormat"], "g")
+
+        self.assertEqual(arrayData[0][0].UserString, self.getQuantity("10.00 C").UserString)
+        self.assertEqual(arrayData[0][1].UserString, self.getQuantity("10.00 kg/m^3").UserString)
+        self.assertEqual(arrayData[1][0].UserString, self.getQuantity("20.00 C").UserString)
+        self.assertEqual(arrayData[1][1].UserString, self.getQuantity("20.00 kg/m^3").UserString)
+        self.assertEqual(arrayData[2][0].UserString, self.getQuantity("30.00 C").UserString)
+        self.assertEqual(arrayData[2][1].UserString, self.getQuantity("30.00 kg/m^3").UserString)
 
         self.assertAlmostEqual(arrayData[0][0].Value, 10.0)
         self.assertAlmostEqual(arrayData[0][1].Value, 1e-8)
@@ -346,12 +369,19 @@ class MaterialTestCases(unittest.TestCase):
         with self.assertRaises(IndexError):
             self.assertAlmostEqual(arrayData[0][2].Value, 10.0)
 
-        self.assertEqual(array.getValue(0,0).UserString, parseQuantity("10.00 C").UserString)
-        self.assertEqual(array.getValue(0,1).UserString, parseQuantity("10.00 kg/m^3").UserString)
-        self.assertEqual(array.getValue(1,0).UserString, parseQuantity("20.00 C").UserString)
-        self.assertEqual(array.getValue(1,1).UserString, parseQuantity("20.00 kg/m^3").UserString)
-        self.assertEqual(array.getValue(2,0).UserString, parseQuantity("30.00 C").UserString)
-        self.assertEqual(array.getValue(2,1).UserString, parseQuantity("30.00 kg/m^3").UserString)
+        self.assertEqual(array.getValue(0,0).Format["NumberFormat"], "g")
+        self.assertEqual(array.getValue(0,1).Format["NumberFormat"], "g")
+        self.assertEqual(array.getValue(1,0).Format["NumberFormat"], "g")
+        self.assertEqual(array.getValue(1,1).Format["NumberFormat"], "g")
+        self.assertEqual(array.getValue(2,0).Format["NumberFormat"], "g")
+        self.assertEqual(array.getValue(2,1).Format["NumberFormat"], "g")
+
+        self.assertEqual(array.getValue(0,0).UserString, self.getQuantity("10.00 C").UserString)
+        self.assertEqual(array.getValue(0,1).UserString, self.getQuantity("10.00 kg/m^3").UserString)
+        self.assertEqual(array.getValue(1,0).UserString, self.getQuantity("20.00 C").UserString)
+        self.assertEqual(array.getValue(1,1).UserString, self.getQuantity("20.00 kg/m^3").UserString)
+        self.assertEqual(array.getValue(2,0).UserString, self.getQuantity("30.00 C").UserString)
+        self.assertEqual(array.getValue(2,1).UserString, self.getQuantity("30.00 kg/m^3").UserString)
 
         self.assertAlmostEqual(array.getValue(0,0).Value, 10.0)
         self.assertAlmostEqual(array.getValue(0,1).Value, 1e-8)
@@ -410,69 +440,91 @@ class MaterialTestCases(unittest.TestCase):
         self.assertEqual(len(arrayData[1]), 0)
         self.assertEqual(len(arrayData[2]), 3)
 
-        self.assertEqual(arrayData[0][0][0].UserString, parseQuantity("11.00 Pa").UserString)
-        self.assertEqual(arrayData[0][0][1].UserString, parseQuantity("12.00 Pa").UserString)
-        self.assertEqual(arrayData[0][1][0].UserString, parseQuantity("21.00 Pa").UserString)
-        self.assertEqual(arrayData[0][1][1].UserString, parseQuantity("22.00 Pa").UserString)
-        self.assertEqual(arrayData[2][0][0].UserString, parseQuantity("10.00 Pa").UserString)
-        self.assertEqual(arrayData[2][0][1].UserString, parseQuantity("11.00 Pa").UserString)
-        self.assertEqual(arrayData[2][1][0].UserString, parseQuantity("20.00 Pa").UserString)
-        self.assertEqual(arrayData[2][1][1].UserString, parseQuantity("21.00 Pa").UserString)
-        self.assertEqual(arrayData[2][2][0].UserString, parseQuantity("30.00 Pa").UserString)
-        self.assertEqual(arrayData[2][2][1].UserString, parseQuantity("31.00 Pa").UserString)
+        self.assertEqual(arrayData[0][0][0].Format["NumberFormat"], "g")
+        self.assertEqual(arrayData[0][0][1].Format["NumberFormat"], "g")
+        self.assertEqual(arrayData[0][1][0].Format["NumberFormat"], "g")
+        self.assertEqual(arrayData[0][1][1].Format["NumberFormat"], "g")
+        self.assertEqual(arrayData[2][0][0].Format["NumberFormat"], "g")
+        self.assertEqual(arrayData[2][0][1].Format["NumberFormat"], "g")
+        self.assertEqual(arrayData[2][1][0].Format["NumberFormat"], "g")
+        self.assertEqual(arrayData[2][1][1].Format["NumberFormat"], "g")
+        self.assertEqual(arrayData[2][2][0].Format["NumberFormat"], "g")
+        self.assertEqual(arrayData[2][2][1].Format["NumberFormat"], "g")
 
-        self.assertEqual(array.getDepthValue(0).UserString, parseQuantity("10.00 C").UserString)
-        self.assertEqual(array.getDepthValue(1).UserString, parseQuantity("20.00 C").UserString)
-        self.assertEqual(array.getDepthValue(2).UserString, parseQuantity("30.00 C").UserString)
+        self.assertEqual(arrayData[0][0][0].UserString, self.getQuantity("11.00 Pa").UserString)
+        self.assertEqual(arrayData[0][0][1].UserString, self.getQuantity("12.00 Pa").UserString)
+        self.assertEqual(arrayData[0][1][0].UserString, self.getQuantity("21.00 Pa").UserString)
+        self.assertEqual(arrayData[0][1][1].UserString, self.getQuantity("22.00 Pa").UserString)
+        self.assertEqual(arrayData[2][0][0].UserString, self.getQuantity("10.00 Pa").UserString)
+        self.assertEqual(arrayData[2][0][1].UserString, self.getQuantity("11.00 Pa").UserString)
+        self.assertEqual(arrayData[2][1][0].UserString, self.getQuantity("20.00 Pa").UserString)
+        self.assertEqual(arrayData[2][1][1].UserString, self.getQuantity("21.00 Pa").UserString)
+        self.assertEqual(arrayData[2][2][0].UserString, self.getQuantity("30.00 Pa").UserString)
+        self.assertEqual(arrayData[2][2][1].UserString, self.getQuantity("31.00 Pa").UserString)
 
-        self.assertEqual(arrayData[0][0][-1].UserString, parseQuantity("12.00 Pa").UserString)
+        self.assertEqual(array.getDepthValue(0).UserString, self.getQuantity("10.00 C").UserString)
+        self.assertEqual(array.getDepthValue(1).UserString, self.getQuantity("20.00 C").UserString)
+        self.assertEqual(array.getDepthValue(2).UserString, self.getQuantity("30.00 C").UserString)
+
+        self.assertEqual(arrayData[0][0][-1].UserString, self.getQuantity("12.00 Pa").UserString)
         with self.assertRaises(IndexError):
-            self.assertEqual(arrayData[0][0][2].UserString, parseQuantity("11.00 Pa").UserString)
-        self.assertEqual(arrayData[0][-1][0].UserString, parseQuantity("21.00 Pa").UserString)
+            self.assertEqual(arrayData[0][0][2].UserString, self.getQuantity("11.00 Pa").UserString)
+        self.assertEqual(arrayData[0][-1][0].UserString, self.getQuantity("21.00 Pa").UserString)
         with self.assertRaises(IndexError):
-            self.assertEqual(arrayData[0][2][0].UserString, parseQuantity("11.00 Pa").UserString)
+            self.assertEqual(arrayData[0][2][0].UserString, self.getQuantity("11.00 Pa").UserString)
         with self.assertRaises(IndexError):
-            self.assertEqual(arrayData[1][0][0].UserString, parseQuantity("11.00 Pa").UserString)
-        self.assertEqual(arrayData[-1][0][0].UserString, parseQuantity("10.00 Pa").UserString)
+            self.assertEqual(arrayData[1][0][0].UserString, self.getQuantity("11.00 Pa").UserString)
+        self.assertEqual(arrayData[-1][0][0].UserString, self.getQuantity("10.00 Pa").UserString)
         with self.assertRaises(IndexError):
-            self.assertEqual(arrayData[3][0][0].UserString, parseQuantity("11.00 Pa").UserString)
+            self.assertEqual(arrayData[3][0][0].UserString, self.getQuantity("11.00 Pa").UserString)
 
         with self.assertRaises(IndexError):
             self.assertEqual(array.getDepthValue(-1).UserString,
-                             parseQuantity("10.00 C").UserString)
+                             self.getQuantity("10.00 C").UserString)
         with self.assertRaises(IndexError):
             self.assertEqual(array.getDepthValue(3).UserString,
-                             parseQuantity("10.00 C").UserString)
+                             self.getQuantity("10.00 C").UserString)
 
-        self.assertEqual(array.getValue(0,0,0).UserString, parseQuantity("11.00 Pa").UserString)
-        self.assertEqual(array.getValue(0,0,1).UserString, parseQuantity("12.00 Pa").UserString)
-        self.assertEqual(array.getValue(0,1,0).UserString, parseQuantity("21.00 Pa").UserString)
-        self.assertEqual(array.getValue(0,1,1).UserString, parseQuantity("22.00 Pa").UserString)
-        self.assertEqual(array.getValue(2,0,0).UserString, parseQuantity("10.00 Pa").UserString)
-        self.assertEqual(array.getValue(2,0,1).UserString, parseQuantity("11.00 Pa").UserString)
-        self.assertEqual(array.getValue(2,1,0).UserString, parseQuantity("20.00 Pa").UserString)
-        self.assertEqual(array.getValue(2,1,1).UserString, parseQuantity("21.00 Pa").UserString)
-        self.assertEqual(array.getValue(2,2,0).UserString, parseQuantity("30.00 Pa").UserString)
-        self.assertEqual(array.getValue(2,2,1).UserString, parseQuantity("31.00 Pa").UserString)
+        self.assertEqual(array.getValue(0,0,0).Format["NumberFormat"], "g")
+        self.assertEqual(array.getValue(0,0,1).Format["NumberFormat"], "g")
+        self.assertEqual(array.getValue(0,1,0).Format["NumberFormat"], "g")
+        self.assertEqual(array.getValue(0,1,1).Format["NumberFormat"], "g")
+        self.assertEqual(array.getValue(2,0,0).Format["NumberFormat"], "g")
+        self.assertEqual(array.getValue(2,0,1).Format["NumberFormat"], "g")
+        self.assertEqual(array.getValue(2,1,0).Format["NumberFormat"], "g")
+        self.assertEqual(array.getValue(2,1,1).Format["NumberFormat"], "g")
+        self.assertEqual(array.getValue(2,2,0).Format["NumberFormat"], "g")
+        self.assertEqual(array.getValue(2,2,1).Format["NumberFormat"], "g")
+
+        self.assertEqual(array.getValue(0,0,0).UserString, self.getQuantity("11.00 Pa").UserString)
+        self.assertEqual(array.getValue(0,0,1).UserString, self.getQuantity("12.00 Pa").UserString)
+        self.assertEqual(array.getValue(0,1,0).UserString, self.getQuantity("21.00 Pa").UserString)
+        self.assertEqual(array.getValue(0,1,1).UserString, self.getQuantity("22.00 Pa").UserString)
+        self.assertEqual(array.getValue(2,0,0).UserString, self.getQuantity("10.00 Pa").UserString)
+        self.assertEqual(array.getValue(2,0,1).UserString, self.getQuantity("11.00 Pa").UserString)
+        self.assertEqual(array.getValue(2,1,0).UserString, self.getQuantity("20.00 Pa").UserString)
+        self.assertEqual(array.getValue(2,1,1).UserString, self.getQuantity("21.00 Pa").UserString)
+        self.assertEqual(array.getValue(2,2,0).UserString, self.getQuantity("30.00 Pa").UserString)
+        self.assertEqual(array.getValue(2,2,1).UserString, self.getQuantity("31.00 Pa").UserString)
 
         with self.assertRaises(IndexError):
             self.assertEqual(array.getValue(0,0,-1).UserString,
-                             parseQuantity("11.00 Pa").UserString)
+                             self.getQuantity("11.00 Pa").UserString)
         with self.assertRaises(IndexError):
             self.assertEqual(array.getValue(0,0,2).UserString,
-                             parseQuantity("11.00 Pa").UserString)
+                             self.getQuantity("11.00 Pa").UserString)
         with self.assertRaises(IndexError):
             self.assertEqual(array.getValue(0,-1,0).UserString,
-                             parseQuantity("11.00 Pa").UserString)
+                             self.getQuantity("11.00 Pa").UserString)
         with self.assertRaises(IndexError):
             self.assertEqual(array.getValue(0,2,0).UserString,
-                             parseQuantity("11.00 Pa").UserString)
+                             self.getQuantity("11.00 Pa").UserString)
         with self.assertRaises(IndexError):
             self.assertEqual(array.getValue(1,0,0).UserString,
-                             parseQuantity("11.00 Pa").UserString)
+                             self.getQuantity("11.00 Pa").UserString)
         with self.assertRaises(IndexError):
             self.assertEqual(array.getValue(-1,0,0).UserString,
-                             parseQuantity("11.00 Pa").UserString)
+                             self.getQuantity("11.00 Pa").UserString)
         with self.assertRaises(IndexError):
             self.assertEqual(array.getValue(3,0,0).UserString,
-                             parseQuantity("11.00 Pa").UserString)
+                             self.getQuantity("11.00 Pa").UserString)

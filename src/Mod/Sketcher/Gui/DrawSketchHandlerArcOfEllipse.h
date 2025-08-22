@@ -26,6 +26,7 @@
 #include <Gui/Notifications.h>
 #include <Gui/Command.h>
 #include <Gui/CommandT.h>
+#include <Gui/InputHint.h>
 
 #include <Mod/Sketcher/App/SketchObject.h>
 
@@ -59,29 +60,28 @@ public:
     /// mode table
     enum SelectMode
     {
-        STATUS_SEEK_First,  /**< enum value ----. */
-        STATUS_SEEK_Second, /**< enum value ----. */
-        STATUS_SEEK_Third,  /**< enum value ----. */
-        STATUS_SEEK_Fourth, /**< enum value ----. */
+        STATUS_SEEK_First,
+        STATUS_SEEK_Second,
+        STATUS_SEEK_Third,
+        STATUS_SEEK_Fourth,
         STATUS_Close
     };
 
     void mouseMove(Base::Vector2d onSketchPos) override
     {
+        using std::numbers::pi;
+
         if (Mode == STATUS_SEEK_First) {
             setPositionText(onSketchPos);
-            if (seekAutoConstraint(sugConstr1,
-                                   onSketchPos,
-                                   Base::Vector2d(0.f, 0.f))) {  // TODO: ellipse prio 1
-                renderSuggestConstraintsCursor(sugConstr1);
-                return;
-            }
+            seekAndRenderAutoConstraint(sugConstr1,
+                                        onSketchPos,
+                                        Base::Vector2d(0.f, 0.f));  // TODO: ellipse prio 1
         }
         else if (Mode == STATUS_SEEK_Second) {
             double rx0 = onSketchPos.x - EditCurve[0].x;
             double ry0 = onSketchPos.y - EditCurve[0].y;
             for (int i = 0; i < 16; i++) {
-                double angle = i * M_PI / 16.0;
+                double angle = i * pi / 16.0;
                 double rx1 = rx0 * cos(angle) + ry0 * sin(angle);
                 double ry1 = -rx0 * sin(angle) + ry0 * cos(angle);
                 EditCurve[1 + i] = Base::Vector2d(EditCurve[0].x + rx1, EditCurve[0].y + ry1);
@@ -100,13 +100,10 @@ public:
             }
 
             drawEdit(EditCurve);
-            if (seekAutoConstraint(sugConstr2,
-                                   onSketchPos,
-                                   onSketchPos - centerPoint,
-                                   AutoConstraint::CURVE)) {
-                renderSuggestConstraintsCursor(sugConstr2);
-                return;
-            }
+            seekAndRenderAutoConstraint(sugConstr2,
+                                        onSketchPos,
+                                        onSketchPos - centerPoint,
+                                        AutoConstraint::CURVE);
         }
         else if (Mode == STATUS_SEEK_Third) {
             // angle between the major axis of the ellipse and the X axis
@@ -121,7 +118,7 @@ public:
                 / (sin(angleatpoint) * cos(phi));
 
             for (int i = 1; i < 16; i++) {
-                double angle = i * M_PI / 16.0;
+                double angle = i * pi / 16.0;
                 double rx1 = a * cos(angle) * cos(phi) - b * sin(angle) * sin(phi);
                 double ry1 = a * cos(angle) * sin(phi) + b * sin(angle) * cos(phi);
                 EditCurve[1 + i] = Base::Vector2d(EditCurve[0].x + rx1, EditCurve[0].y + ry1);
@@ -140,10 +137,7 @@ public:
             }
 
             drawEdit(EditCurve);
-            if (seekAutoConstraint(sugConstr3, onSketchPos, Base::Vector2d(0.f, 0.f))) {
-                renderSuggestConstraintsCursor(sugConstr3);
-                return;
-            }
+            seekAndRenderAutoConstraint(sugConstr3, onSketchPos, Base::Vector2d(0.f, 0.f));
         }
         else if (Mode == STATUS_SEEK_Fourth) {  // here we differ from ellipse creation
             // angle between the major axis of the ellipse and the X axis
@@ -170,7 +164,7 @@ public:
                                          + (onSketchPos.y - centerPoint.y) * sin(phi)))
                 - startAngle;
 
-            double angle2 = angle1 + (angle1 < 0. ? 2 : -2) * M_PI;
+            double angle2 = angle1 + (angle1 < 0. ? 2 : -2) * pi;
             arcAngle = abs(angle1 - arcAngle) < abs(angle2 - arcAngle) ? angle1 : angle2;
 
             for (int i = 0; i < 34; i++) {
@@ -187,7 +181,7 @@ public:
                 SbString text;
                 std::string aString = lengthToDisplayFormat(a, 1);
                 std::string bString = lengthToDisplayFormat(b, 1);
-                std::string angleString = angleToDisplayFormat(arcAngle * 180.0 / M_PI, 1);
+                std::string angleString = angleToDisplayFormat(arcAngle * 180.0 / pi, 1);
                 text.sprintf(" (R%s, R%s, %s)",
                              aString.c_str(),
                              bString.c_str(),
@@ -196,14 +190,8 @@ public:
             }
 
             drawEdit(EditCurve);
-            if (seekAutoConstraint(sugConstr4, onSketchPos, Base::Vector2d(0.f, 0.f))) {
-                renderSuggestConstraintsCursor(sugConstr4);
-                return;
-            }
+            seekAndRenderAutoConstraint(sugConstr4, onSketchPos, Base::Vector2d(0.f, 0.f));
         }
-
-
-        applyCursor();
     }
 
     bool pressButton(Base::Vector2d onSketchPos) override
@@ -231,12 +219,17 @@ public:
             setAngleSnapping(false);
             Mode = STATUS_Close;
         }
+
+        updateHint();
         return true;
     }
 
     bool releaseButton(Base::Vector2d onSketchPos) override
     {
         Q_UNUSED(onSketchPos);
+
+        using std::numbers::pi;
+
         if (Mode == STATUS_Close) {
             unsetCursor();
             resetPositionText();
@@ -260,7 +253,7 @@ public:
                                          + (endPoint.y - centerPoint.y) * sin(phi)))
                 - startAngle;
 
-            double angle2 = angle1 + (angle1 < 0. ? 2 : -2) * M_PI;
+            double angle2 = angle1 + (angle1 < 0. ? 2 : -2) * pi;
             arcAngle = abs(angle1 - arcAngle) < abs(angle2 - arcAngle) ? angle1 : angle2;
 
             bool isOriginalArcCCW = true;
@@ -296,8 +289,8 @@ public:
                 perp.Scale(abs(b));
                 majAxisPoint = centerPoint + perp;
                 minAxisPoint = centerPoint + minAxisDir;
-                endAngle += M_PI / 2;
-                startAngle += M_PI / 2;
+                endAngle += pi / 2;
+                startAngle += pi / 2;
             }
 
             int currentgeoid = getHighestCurveIndex();
@@ -333,8 +326,7 @@ public:
                     QT_TRANSLATE_NOOP("Notifications", "Failed to add arc of ellipse"));
                 Gui::Command::abortCommand();
 
-                tryAutoRecomputeIfNotSolve(
-                    static_cast<Sketcher::SketchObject*>(sketchgui->getObject()));
+                tryAutoRecomputeIfNotSolve(sketchgui->getObject<Sketcher::SketchObject>());
 
                 return false;
             }
@@ -371,8 +363,7 @@ public:
                 sugConstr4.clear();
             }
 
-            tryAutoRecomputeIfNotSolve(
-                static_cast<Sketcher::SketchObject*>(sketchgui->getObject()));
+            tryAutoRecomputeIfNotSolve(sketchgui->getObject<Sketcher::SketchObject>());
 
             ParameterGrp::handle hGrp = App::GetApplication().GetParameterGroupByPath(
                 "User parameter:BaseApp/Preferences/Mod/Sketcher");
@@ -394,13 +385,16 @@ public:
                                             // ViewProvider
             }
         }
+
+        updateHint();
+
         return true;
     }
 
 private:
     QString getCrosshairCursorSVGName() const override
     {
-        return QString::fromLatin1("Sketcher_Pointer_Create_ArcOfEllipse");
+        return QStringLiteral("Sketcher_Pointer_Create_ArcOfEllipse");
     }
 
 protected:
@@ -409,6 +403,37 @@ protected:
     Base::Vector2d centerPoint, axisPoint, startingPoint, endPoint;
     double rx, ry, startAngle, endAngle, arcAngle, arcAngle_t;
     std::vector<AutoConstraint> sugConstr1, sugConstr2, sugConstr3, sugConstr4;
+
+private:
+    std::list<Gui::InputHint> getToolHints() const override
+    {
+        using enum Gui::InputHint::UserInput;
+
+        return Gui::lookupHints<SelectMode>(
+            Mode,
+            {
+                {.state = STATUS_SEEK_First,
+                 .hints =
+                     {
+                         {tr("%1 pick ellipse center"), {MouseLeft}},
+                     }},
+                {.state = STATUS_SEEK_Second,
+                 .hints =
+                     {
+                         {tr("%1 pick axis point"), {MouseLeft}},
+                     }},
+                {.state = STATUS_SEEK_Third,
+                 .hints =
+                     {
+                         {tr("%1 pick arc start point"), {MouseLeft}},
+                     }},
+                {.state = STATUS_SEEK_Fourth,
+                 .hints =
+                     {
+                         {tr("%1 pick arc end point"), {MouseLeft}},
+                     }},
+            });
+    }
 };
 
 }  // namespace SketcherGui

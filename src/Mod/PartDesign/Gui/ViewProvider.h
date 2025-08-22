@@ -24,12 +24,16 @@
 #ifndef PARTGUI_ViewProvider_H
 #define PARTGUI_ViewProvider_H
 
+#include <App/DocumentObject.h>
+#include <Gui/ViewProviderFeaturePython.h>
+#include <Gui/ViewProviderSuppressibleExtension.h>
 #include <Mod/Part/Gui/ViewProvider.h>
-#include "ViewProviderBody.h"
-#include <Gui/ViewProviderPythonFeature.h>
-#include "Gui/ViewProviderSuppressibleExtension.h"
-
 #include <Mod/Part/Gui/ViewProviderAttachExtension.h>
+#include <Mod/Part/Gui/ViewProviderPreviewExtension.h>
+#include <Mod/PartDesign/App/Feature.h>
+
+#include "ViewProviderBody.h"
+
 
 namespace PartDesignGui {
 
@@ -40,7 +44,8 @@ class TaskDlgFeatureParameters;
  */
 class PartDesignGuiExport ViewProvider : public PartGui::ViewProviderPart,
                                          Gui::ViewProviderSuppressibleExtension,
-                                         PartGui::ViewProviderAttachExtension
+                                         PartGui::ViewProviderAttachExtension,
+                                         public PartGui::ViewProviderPreviewExtension
 {
     using inherited = PartGui::ViewProviderPart;
     PROPERTY_HEADER_WITH_OVERRIDE(PartDesignGui::ViewProvider);
@@ -51,9 +56,13 @@ public:
     /// destructor
     ~ViewProvider() override;
 
+    void beforeDelete() override;
+    void attach(App::DocumentObject* pcObject) override;
+
     bool doubleClicked() override;
-    void updateData(const App::Property*) override;
     void onChanged(const App::Property* prop) override;
+
+    Gui::ViewProvider* startEditing(int ModNum) override;
 
     void setTipIcon(bool onoff);
 
@@ -71,6 +80,11 @@ public:
     //Returns the ViewProvider of the body the feature belongs to, or NULL, if not in a body
     ViewProviderBody* getBodyViewProvider();
 
+    /// Provides preview shape
+    Part::TopoShape getPreviewShape() const override;
+    /// Toggles visibility of the preview
+    void showPreviousFeature(bool);
+
     PyObject* getPyObject() override;
 
     QIcon mergeColorfulOverlayIcons (const QIcon & orig) const override;
@@ -79,6 +93,10 @@ protected:
     void setupContextMenu(QMenu* menu, QObject* receiver, const char* member) override;
     bool setEdit(int ModNum) override;
     void unsetEdit(int ModNum) override;
+    void updateData(const App::Property* prop) override;
+
+    void attachPreview() override;
+    void updatePreview() override;
 
     bool onDelete(const std::vector<std::string> &) override;
 
@@ -89,11 +107,15 @@ protected:
     virtual TaskDlgFeatureParameters *getEditDialog();
 
     std::string oldWb;
-    App::DocumentObject* oldTip{nullptr};
-    bool isSetTipIcon{false};
+    ViewProvider* previouslyShownViewProvider { nullptr };
+
+    bool isSetTipIcon { false };
+
+private:
+    Gui::CoinPtr<PartGui::SoPreviewShape> pcToolPreview;
 };
 
-using ViewProviderPython = Gui::ViewProviderPythonFeatureT<ViewProvider>;
+using ViewProviderPython = Gui::ViewProviderFeaturePythonT<ViewProvider>;
 
 } // namespace PartDesignGui
 

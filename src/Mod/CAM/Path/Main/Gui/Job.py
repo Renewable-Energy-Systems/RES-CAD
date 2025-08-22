@@ -35,10 +35,9 @@ import Path.Main.Gui.JobCmd as PathJobCmd
 import Path.Main.Gui.JobDlg as PathJobDlg
 import Path.Main.Job as PathJob
 import Path.Main.Stock as PathStock
-import Path.Tool.Gui.Bit as PathToolBitGui
 import Path.Tool.Gui.Controller as PathToolControllerGui
 import PathScripts.PathUtils as PathUtils
-import json
+from Path.Tool.toolbit.ui.selector import ToolBitSelector
 import math
 import traceback
 from PySide import QtWidgets
@@ -127,48 +126,20 @@ class ViewProvider:
 
         # Setup the axis display at the origin
         self.switch = coin.SoSwitch()
-        self.sep = coin.SoSeparator()
-        self.axs = coin.SoType.fromName("SoAxisCrossKit").createInstance()
+        self.sep = coin.SoType.fromName("So3DAnnotation").createInstance()
 
-        # Adjust the axis heads if needed, the scale here is just for the head
-        self.axs.set("xHead.transform", "scaleFactor 1.5 1.5 1")
-        self.axs.set("yHead.transform", "scaleFactor 1.5 1.5 1")
-        self.axs.set("zHead.transform", "scaleFactor 1.5 1.5 1")
+        self.axs = coin.SoType.fromName("SoFCPlacementIndicatorKit").createInstance()
+        self.axs.axisLength.setValue(1.2)
 
-        # Adjust the axis heads if needed, the scale here is just for the head
-        self.axs.set("xHead.transform", "translation 50 0 0")
-        self.axs.set("yHead.transform", "translation 0 50 0")
-        self.axs.set("zHead.transform", "translation 0 0 50")
+        # enum values for SoFCPlacementIndicatorKit
+        parts = FreeCADGui.PlacementIndicatorParts
+        self.axs.parts.setValue(
+            parts.Axes | parts.Labels | parts.ArrowHeads | parts.OriginIndicator
+        )
 
-        # Adjust the axis line width if needed
-        self.axs.set("xAxis.transform", "scaleFactor 0.5 0.5 1")
-        self.axs.set("xAxis.appearance.drawStyle", "lineWidth 9")
-        self.axs.set("yAxis.transform", "scaleFactor 0.5 0.5 1")
-        self.axs.set("yAxis.appearance.drawStyle", "lineWidth 9")
-        self.axs.set("zAxis.transform", "scaleFactor 0.5 0.5 1")
-        self.axs.set("zAxis.appearance.drawStyle", "lineWidth 9")
-
-        self.sca = coin.SoType.fromName("SoShapeScale").createInstance()
-        self.sca.setPart("shape", self.axs)
-        self.sca.scaleFactor.setValue(1)  # Keep or adjust if needed
-
-        self.mat = coin.SoMaterial()
-        # Set sphere color to bright yellow
-        self.mat.diffuseColor = coin.SbColor(1, 1, 0)
-        self.mat.transparency = 0.35  # Keep or adjust if needed
-
-        self.sph = coin.SoSphere()
-        self.scs = coin.SoType.fromName("SoShapeScale").createInstance()
-        self.scs.setPart("shape", self.sph)
-        # Increase the scaleFactor to make the sphere larger
-        self.scs.scaleFactor.setValue(10)  # Adjust this value as needed
-
-        self.sep.addChild(self.sca)
-        self.sep.addChild(self.mat)
-        self.sep.addChild(self.scs)
+        self.sep.addChild(self.axs)
         self.switch.addChild(self.sep)
 
-        self.switch.addChild(self.sep)
         vobj.RootNode.addChild(self.switch)
         self.showOriginAxis(True)
 
@@ -178,37 +149,76 @@ class ViewProvider:
     def onChanged(self, vobj, prop):
         if prop == "Visibility":
             self.showOriginAxis(vobj.Visibility)
+
+            # if we're currently restoring the document we do NOT want to call
+            # hideXXX as this would mark all currently hidden children as
+            # explicitly hidden by the user and prevent showing them when
+            # showing the job
+
+            if self.obj.Document.Restoring:
+                return
+
             if vobj.Visibility:
-                self.rememberStockVisibility()
-                self.obj.Stock.ViewObject.Visibility = True
-
-                self.KeepBaseVisibility()
-                for base in self.obj.Model.Group:
-                    base.ViewObject.Visibility = True
-            else:
+                self.restoreOperationsVisibility()
+                self.restoreModelsVisibility()
                 self.restoreStockVisibility()
-                self.RestoreBaseVisibility()
+                self.restoreToolsVisibility()
+            else:
+                self.hideOperations()
+                self.hideModels()
+                self.hideStock()
+                self.hideTools()
 
-    def rememberStockVisibility(self):
-        self.stockVisibility = self.obj.Stock.ViewObject.Visibility
+    def hideOperations(self):
+        self.operationsVisibility = {}
+        for op in self.obj.Operations.Group:
+            self.operationsVisibility[op.Name] = op.Visibility
+            op.Visibility = False
+
+    def restoreOperationsVisibility(self):
+        if hasattr(self, "operationsVisibility"):
+            for op in self.obj.Operations.Group:
+                if self.operationsVisibility.get(op.Name, True):
+                    op.Visibility = True
+        else:
+            for op in self.obj.Operations.Group:
+                op.Visibility = True
+
+    def hideModels(self):
+        self.modelsVisibility = {}
+        for model in self.obj.Model.Group:
+            self.modelsVisibility[model.Name] = model.Visibility
+            model.Visibility = False
+
+    def restoreModelsVisibility(self):
+        if hasattr(self, "modelsVisibility"):
+            for model in self.obj.Model.Group:
+                if self.modelsVisibility.get(model.Name, True):
+                    model.Visibility = True
+        else:
+            for model in self.obj.Model.Group:
+                model.Visibility = True
+
+    def hideStock(self):
+        self.stockVisibility = self.obj.Stock.Visibility
+        self.obj.Stock.Visibility = False
 
     def restoreStockVisibility(self):
-        self.obj.Stock.ViewObject.Visibility = self.stockVisibility
+        if hasattr(self, "stockVisibility"):
+            if self.stockVisibility:
+                self.obj.Stock.Visibility = True
 
-    def KeepBaseVisibility(self):
-        Path.Log.debug("KeepBaseVisibility")
-        self.visibilitystate = {}
-        for base in self.obj.Model.Group:
-            Path.Log.debug(f"{base.Name}: {base.ViewObject.Visibility}")
-            self.visibilitystate[base.Name] = base.ViewObject.Visibility
-        Path.Log.debug(self.visibilitystate)
+    def hideTools(self):
+        self.toolsVisibility = {}
+        for tc in self.obj.Tools.Group:
+            self.toolsVisibility[tc.Tool.Name] = tc.Tool.Visibility
+            tc.Tool.Visibility = False
 
-    def RestoreBaseVisibility(self):
-        Path.Log.debug("RestoreBaseVisibility")
-        if hasattr(self, "visibilitystate"):
-            for base in self.obj.Model.Group:
-                base.ViewObject.Visibility = self.visibilitystate[base.Name]
-            Path.Log.debug(self.visibilitystate)
+    def restoreToolsVisibility(self):
+        if hasattr(self, "toolsVisibility"):
+            for tc in self.obj.Tools.Group:
+                if self.toolsVisibility.get(tc.Tool.Name, True):
+                    tc.Tool.Visibility = True
 
     def showOriginAxis(self, yes):
         sw = coin.SO_SWITCH_ALL if yes else coin.SO_SWITCH_NONE
@@ -254,9 +264,7 @@ class ViewProvider:
                 return self.openTaskPanel("Model")
             if obj == self.obj.Stock:
                 return self.openTaskPanel("Stock")
-            Path.Log.info(
-                "Expected a specific object to edit - %s not recognized" % obj.Label
-            )
+            Path.Log.info("Expected a specific object to edit - %s not recognized" % obj.Label)
         return self.openTaskPanel()
 
     def uneditObject(self, obj=None):
@@ -267,13 +275,14 @@ class ViewProvider:
 
     def claimChildren(self):
         children = []
-        children.append(self.obj.Operations)
+        if hasattr(self.obj, "Operations"):
+            children.append(self.obj.Operations)
         if hasattr(self.obj, "Model"):
             # unfortunately this function is called before the object has been fully loaded
             # which means we could be dealing with an old job which doesn't have the new Model
             # yet.
             children.append(self.obj.Model)
-        if self.obj.Stock:
+        if hasattr(self.obj, "Stock"):
             children.append(self.obj.Stock)
         if hasattr(self.obj, "SetupSheet"):
             # when loading a job that didn't have a setup sheet they might not've been created yet
@@ -346,8 +355,11 @@ class ViewProvider:
         for action in menu.actions():
             menu.removeAction(action)
         action = QtGui.QAction(translate("CAM_Job", "Edit"), menu)
-        action.triggered.connect(self.setEdit)
+        action.triggered.connect(self._editInContextMenuTriggered)
         menu.addAction(action)
+
+    def _editInContextMenuTriggered(self, checked):
+        self.setEdit()
 
 
 class MaterialDialog(QtWidgets.QDialog):
@@ -356,9 +368,7 @@ class MaterialDialog(QtWidgets.QDialog):
 
         self.setWindowTitle("Assign Material")
 
-        self.materialTree = FreeCADGui.UiLoader().createWidget(
-            "MatGui::MaterialTreeWidget"
-        )
+        self.materialTree = FreeCADGui.UiLoader().createWidget("MatGui::MaterialTreeWidget")
         self.materialTreeWidget = MatGui.MaterialTreeWidget(self.materialTree)
 
         material_filter = Materials.MaterialFilter()
@@ -440,9 +450,7 @@ class StockEdit(object):
             stock.ViewObject.Proxy.onEdit(_OpenCloseResourceEditor)
 
     def setLengthField(self, widget, prop):
-        widget.setText(
-            FreeCAD.Units.Quantity(prop.Value, FreeCAD.Units.Length).UserString
-        )
+        widget.setText(FreeCAD.Units.Quantity(prop.Value, FreeCAD.Units.Length).UserString)
 
     # the following members must be overwritten by subclasses
     def editorFrame(self):
@@ -576,17 +584,11 @@ class StockCreateBoxEdit(StockEdit):
         try:
             if self.IsStock(obj):
                 if "length" in fields:
-                    obj.Stock.Length = FreeCAD.Units.Quantity(
-                        self.form.stockBoxLength.text()
-                    )
+                    obj.Stock.Length = FreeCAD.Units.Quantity(self.form.stockBoxLength.text())
                 if "width" in fields:
-                    obj.Stock.Width = FreeCAD.Units.Quantity(
-                        self.form.stockBoxWidth.text()
-                    )
+                    obj.Stock.Width = FreeCAD.Units.Quantity(self.form.stockBoxWidth.text())
                 if "height" in fields:
-                    obj.Stock.Height = FreeCAD.Units.Quantity(
-                        self.form.stockBoxHeight.text()
-                    )
+                    obj.Stock.Height = FreeCAD.Units.Quantity(self.form.stockBoxHeight.text())
             else:
                 Path.Log.error("Stock not a box!")
         except Exception:
@@ -602,15 +604,9 @@ class StockCreateBoxEdit(StockEdit):
 
     def setupUi(self, obj):
         self.setFields(obj)
-        self.form.stockBoxLength.textChanged.connect(
-            lambda: self.getFields(obj, ["length"])
-        )
-        self.form.stockBoxWidth.textChanged.connect(
-            lambda: self.getFields(obj, ["width"])
-        )
-        self.form.stockBoxHeight.textChanged.connect(
-            lambda: self.getFields(obj, ["height"])
-        )
+        self.form.stockBoxLength.textChanged.connect(lambda: self.getFields(obj, ["length"]))
+        self.form.stockBoxWidth.textChanged.connect(lambda: self.getFields(obj, ["width"]))
+        self.form.stockBoxHeight.textChanged.connect(lambda: self.getFields(obj, ["height"]))
 
 
 class StockCreateCylinderEdit(StockEdit):
@@ -626,13 +622,9 @@ class StockCreateCylinderEdit(StockEdit):
         try:
             if self.IsStock(obj):
                 if "radius" in fields:
-                    obj.Stock.Radius = FreeCAD.Units.Quantity(
-                        self.form.stockCylinderRadius.text()
-                    )
+                    obj.Stock.Radius = FreeCAD.Units.Quantity(self.form.stockCylinderRadius.text())
                 if "height" in fields:
-                    obj.Stock.Height = FreeCAD.Units.Quantity(
-                        self.form.stockCylinderHeight.text()
-                    )
+                    obj.Stock.Height = FreeCAD.Units.Quantity(self.form.stockCylinderHeight.text())
             else:
                 Path.Log.error(translate("CAM_Job", "Stock not a cylinder!"))
         except Exception:
@@ -647,12 +639,8 @@ class StockCreateCylinderEdit(StockEdit):
 
     def setupUi(self, obj):
         self.setFields(obj)
-        self.form.stockCylinderRadius.textChanged.connect(
-            lambda: self.getFields(obj, ["radius"])
-        )
-        self.form.stockCylinderHeight.textChanged.connect(
-            lambda: self.getFields(obj, ["height"])
-        )
+        self.form.stockCylinderRadius.textChanged.connect(lambda: self.getFields(obj, ["radius"]))
+        self.form.stockCylinderHeight.textChanged.connect(lambda: self.getFields(obj, ["height"]))
 
 
 class StockFromExistingEdit(StockEdit):
@@ -671,9 +659,7 @@ class StockFromExistingEdit(StockEdit):
             and obj.Stock.Objects[0] == stock
         ):
             if stock:
-                stock = PathJob.createResourceClone(
-                    obj, stock, self.StockLabelPrefix, "Stock"
-                )
+                stock = PathJob.createResourceClone(obj, stock, self.StockLabelPrefix, "Stock")
                 stock.ViewObject.Visibility = True
                 PathStock.SetupStockObject(stock, PathStock.StockType.Unknown)
                 stock.Proxy.execute(stock)
@@ -694,16 +680,22 @@ class StockFromExistingEdit(StockEdit):
         return sorted(solids, key=lambda c: c.Label)
 
     def setFields(self, obj):
-        self.form.stockExisting.clear()
-        stockName = obj.Stock.Label if obj.Stock else None
-        index = -1
-        for i, solid in enumerate(self.candidates(obj)):
-            self.form.stockExisting.addItem(solid.Label, solid)
-            label = "{}-{}".format(self.StockLabelPrefix, solid.Label)
+        # Block signal propagation during stock dropdown population. This prevents
+        # the `currentIndexChanged` signal from being emitted while populating the
+        # dropdown list. This is important because the `currentIndexChanged` signal
+        # will in the end result in the stock object being recreated in `getFields`
+        # method, discarding any changes made (like position in respect to origin).
+        with QtCore.QSignalBlocker(self.form.stockExisting):
+            self.form.stockExisting.clear()
+            stockName = obj.Stock.Label if obj.Stock else None
+            index = -1
+            for i, solid in enumerate(self.candidates(obj)):
+                self.form.stockExisting.addItem(solid.Label, solid)
+                label = "{}-{}".format(self.StockLabelPrefix, solid.Label)
 
-            if label == stockName:
-                index = i
-        self.form.stockExisting.setCurrentIndex(index if index != -1 else 0)
+                if label == stockName:
+                    index = i
+            self.form.stockExisting.setCurrentIndex(index if index != -1 else 0)
 
         if not self.IsStock(obj):
             self.getFields(obj)
@@ -724,26 +716,18 @@ class TaskPanel:
         self.obj = vobj.Object
         self.deleteOnReject = deleteOnReject
         self.form = FreeCADGui.PySideUic.loadUi(":/panels/PathEdit.ui")
-        self.template = PathJobDlg.JobTemplateExport(
-            self.obj, self.form.jobBox.widget(1)
-        )
+        self.template = PathJobDlg.JobTemplateExport(self.obj, self.form.jobBox.widget(1))
         self.name = self.obj.Name
 
         vUnit = FreeCAD.Units.Quantity(1, FreeCAD.Units.Velocity).getUserPreferred()[2]
         self.form.toolControllerList.horizontalHeaderItem(1).setText("#")
         self.form.toolControllerList.horizontalHeaderItem(2).setText(
-            translate(
-                "Path", "H", "H is horizontal feed rate. Must be as short as possible"
-            )
+            translate("Path", "H", "H is horizontal feed rate. Must be as short as possible")
         )
         self.form.toolControllerList.horizontalHeaderItem(3).setText(
-            translate(
-                "Path", "V", "V is vertical feed rate. Must be as short as possible"
-            )
+            translate("Path", "V", "V is vertical feed rate. Must be as short as possible")
         )
-        self.form.toolControllerList.horizontalHeader().setResizeMode(
-            0, QtGui.QHeaderView.Stretch
-        )
+        self.form.toolControllerList.horizontalHeader().setResizeMode(0, QtGui.QHeaderView.Stretch)
         self.form.toolControllerList.horizontalHeaderItem(1).setToolTip(
             translate("Path", "Tool number") + " "
         )
@@ -763,9 +747,7 @@ class TaskPanel:
         self.form.toolControllerList.resizeColumnsToContents()
 
         currentPostProcessor = self.obj.PostProcessor
-        postProcessors = Path.Preferences.allEnabledPostProcessors(
-            ["", currentPostProcessor]
-        )
+        postProcessors = Path.Preferences.allEnabledPostProcessors(["", currentPostProcessor])
         for post in postProcessors:
             self.form.postProcessor.addItem(post)
         # update the enumeration values, just to make sure all selections are valid
@@ -773,9 +755,7 @@ class TaskPanel:
         self.obj.PostProcessor = currentPostProcessor
 
         self.postProcessorDefaultTooltip = self.form.postProcessor.toolTip()
-        self.postProcessorArgsDefaultTooltip = (
-            self.form.postProcessorArguments.toolTip()
-        )
+        self.postProcessorArgsDefaultTooltip = self.form.postProcessorArguments.toolTip()
 
         # Populate the other comboboxes with enums from the job class
         comboToPropertyMap = [("orderBy", "OrderOutputBy")]
@@ -790,12 +770,8 @@ class TaskPanel:
         self.stockCreateCylinder = None
         self.stockEdit = None
 
-        self.setupGlobal = PathSetupSheetGui.GlobalEditor(
-            self.obj.SetupSheet, self.form
-        )
-        self.setupOps = PathSetupSheetGui.OpsDefaultEditor(
-            self.obj.SetupSheet, self.form
-        )
+        self.setupGlobal = PathSetupSheetGui.GlobalEditor(self.obj.SetupSheet, self.form)
+        self.setupOps = PathSetupSheetGui.OpsDefaultEditor(self.obj.SetupSheet, self.form)
 
     def populateCombobox(self, form, enumTups, comboBoxesPropertyMap):
         """populateCombobox(form, enumTups, comboBoxesPropertyMap) ... populate comboboxes with translated enumerations
@@ -879,25 +855,17 @@ class TaskPanel:
             if hasattr(self.obj.Proxy, "tooltipArgs") and self.obj.Proxy.tooltipArgs:
                 self.form.postProcessorArguments.setToolTip(self.obj.Proxy.tooltipArgs)
             else:
-                self.form.postProcessorArguments.setToolTip(
-                    self.postProcessorArgsDefaultTooltip
-                )
+                self.form.postProcessorArguments.setToolTip(self.postProcessorArgsDefaultTooltip)
         else:
             self.form.postProcessor.setToolTip(self.postProcessorDefaultTooltip)
-            self.form.postProcessorArguments.setToolTip(
-                self.postProcessorArgsDefaultTooltip
-            )
+            self.form.postProcessorArguments.setToolTip(self.postProcessorArgsDefaultTooltip)
 
     def getFields(self):
         """sets properties in the object to match the form"""
         if self.obj:
             self.obj.PostProcessor = str(self.form.postProcessor.currentText())
-            self.obj.PostProcessorArgs = str(
-                self.form.postProcessorArguments.displayText()
-            )
-            self.obj.PostProcessorOutputFile = str(
-                self.form.postProcessorOutputFile.text()
-            )
+            self.obj.PostProcessorArgs = str(self.form.postProcessorArguments.displayText())
+            self.obj.PostProcessorOutputFile = str(self.form.postProcessorOutputFile.text())
 
             self.obj.Label = str(self.form.jobLabel.text())
             self.obj.Description = str(self.form.jobDescription.toPlainText())
@@ -911,10 +879,7 @@ class TaskPanel:
 
                 flist = []
                 for i in range(self.form.wcslist.count()):
-                    if (
-                        self.form.wcslist.item(i).checkState()
-                        == QtCore.Qt.CheckState.Checked
-                    ):
+                    if self.form.wcslist.item(i).checkState() == QtCore.Qt.CheckState.Checked:
                         flist.append(self.form.wcslist.item(i).text())
                 self.obj.Fixtures = flist
             except Exception as e:
@@ -1078,9 +1043,7 @@ class TaskPanel:
             self.form.operationMove.setEnabled(True)
             row = self.form.operationsList.currentRow()
             self.form.operationUp.setEnabled(row > 0)
-            self.form.operationDown.setEnabled(
-                row < self.form.operationsList.count() - 1
-            )
+            self.form.operationDown.setEnabled(row < self.form.operationsList.count() - 1)
         else:
             self.form.operationModify.setEnabled(False)
             self.form.operationMove.setEnabled(False)
@@ -1128,9 +1091,7 @@ class TaskPanel:
         # can only delete what is selected
         delete = edit
         # ... but we want to make sure there's at least one TC left
-        if len(self.obj.Tools.Group) == len(
-            self.form.toolControllerList.selectedItems()
-        ):
+        if len(self.obj.Tools.Group) == len(self.form.toolControllerList.selectedItems()):
             delete = False
         # ... also don't want to delete any TCs that are already used
         if delete:
@@ -1149,31 +1110,14 @@ class TaskPanel:
         self.toolControllerSelect()
 
     def toolControllerAdd(self):
-        # adding a TC from a toolbit directly.
-        # Try to find a tool number from the currently selected lib. Otherwise
-        # use next available number
-
-        tools = PathToolBitGui.LoadTools()
-
-        curLib = Path.Preferences.lastFileToolLibrary()
-
-        library = None
-        if curLib is not None:
-            with open(curLib) as fp:
-                library = json.load(fp)
-
-        for tool in tools:
-            toolNum = self.obj.Proxy.nextToolNumber()
-            if library is not None:
-                for toolBit in library["tools"]:
-
-                    if toolBit["path"] == tool.File:
-                        toolNum = toolBit["nr"]
-
-            tc = PathToolControllerGui.Create(
-                name=tool.Label, tool=tool, toolNumber=toolNum
-            )
-            self.obj.Proxy.addToolController(tc)
+        selector = ToolBitSelector(compact=True)
+        if not selector.exec_():
+            return
+        toolbit = selector.get_selected_tool()
+        toolbit.attach_to_doc(FreeCAD.ActiveDocument)
+        toolNum = self.obj.Proxy.nextToolNumber()
+        tc = PathToolControllerGui.Create(name=toolbit.label, tool=toolbit.obj, toolNumber=toolNum)
+        self.obj.Proxy.addToolController(tc)
 
         FreeCAD.ActiveDocument.recompute()
         self.updateToolController()
@@ -1204,13 +1148,9 @@ class TaskPanel:
                 tc.SpindleSpeed = speed
             except Exception:
                 pass
-            item.setText(
-                "%s%g" % ("+" if tc.SpindleDir == "Forward" else "-", tc.SpindleSpeed)
-            )
+            item.setText("%s%g" % ("+" if tc.SpindleDir == "Forward" else "-", tc.SpindleSpeed))
         elif "HorizFeed" == prop or "VertFeed" == prop:
-            vUnit = FreeCAD.Units.Quantity(
-                1, FreeCAD.Units.Velocity
-            ).getUserPreferred()[2]
+            vUnit = FreeCAD.Units.Quantity(1, FreeCAD.Units.Velocity).getUserPreferred()[2]
             try:
                 val = FreeCAD.Units.Quantity(item.text())
                 if FreeCAD.Units.Velocity == val.Unit:
@@ -1235,9 +1175,7 @@ class TaskPanel:
         Path.Log.track(axis)
 
         def alignSel(sel, normal, flip=False):
-            Path.Log.track(
-                "Vector(%.2f, %.2f, %.2f)" % (normal.x, normal.y, normal.z), flip
-            )
+            Path.Log.track("Vector(%.2f, %.2f, %.2f)" % (normal.x, normal.y, normal.z), flip)
             v = axis
             if flip:
                 v = axis.negative()
@@ -1291,12 +1229,10 @@ class TaskPanel:
                             alignSel(sel, normal)
 
                     elif "Edge" == sub.ShapeType:
-                        normal = (
-                            sub.Vertexes[1].Point - sub.Vertexes[0].Point
-                        ).normalize()
-                        if Path.Geom.pointsCoincide(
-                            axis, normal
-                        ) or Path.Geom.pointsCoincide(axis, FreeCAD.Vector() - normal):
+                        normal = (sub.Vertexes[1].Point - sub.Vertexes[0].Point).normalize()
+                        if Path.Geom.pointsCoincide(axis, normal) or Path.Geom.pointsCoincide(
+                            axis, FreeCAD.Vector() - normal
+                        ):
                             # Don't really know the orientation of an edge, so let's just flip the object
                             # and if the user doesn't like it they can flip again
                             alignSel(sel, normal, True)
@@ -1325,9 +1261,7 @@ class TaskPanel:
                     Path.Log.track(selObject.Label, name)
                     feature = selObject.Shape.getElement(name)
                     bb = feature.BoundBox
-                    offset = FreeCAD.Vector(
-                        axis.x * bb.XMax, axis.y * bb.YMax, axis.z * bb.ZMax
-                    )
+                    offset = FreeCAD.Vector(axis.x * bb.XMax, axis.y * bb.YMax, axis.z * bb.ZMax)
                     Path.Log.track(feature.BoundBox.ZMax, offset)
                     p = selObject.Placement
                     p.move(offset)
@@ -1359,9 +1293,7 @@ class TaskPanel:
                     Draft.rotate(sel.Object, angle, bb.Center, axis)
             else:
                 for sel in selection:
-                    Draft.rotate(
-                        sel.Object, angle, sel.Object.Shape.BoundBox.Center, axis
-                    )
+                    Draft.rotate(sel.Object, angle, sel.Object.Shape.BoundBox.Center, axis)
 
     def alignSetOrigin(self):
         (obj, by) = self.alignMoveToOrigin()
@@ -1405,9 +1337,7 @@ class TaskPanel:
         def setupFromBaseEdit():
             Path.Log.track(index, force)
             if force or not self.stockFromBase:
-                self.stockFromBase = StockFromBaseBoundBoxEdit(
-                    self.obj, self.form, force
-                )
+                self.stockFromBase = StockFromBaseBoundBoxEdit(self.obj, self.form, force)
             self.stockEdit = self.stockFromBase
 
         def setupCreateBoxEdit():
@@ -1419,17 +1349,13 @@ class TaskPanel:
         def setupCreateCylinderEdit():
             Path.Log.track(index, force)
             if force or not self.stockCreateCylinder:
-                self.stockCreateCylinder = StockCreateCylinderEdit(
-                    self.obj, self.form, force
-                )
+                self.stockCreateCylinder = StockCreateCylinderEdit(self.obj, self.form, force)
             self.stockEdit = self.stockCreateCylinder
 
         def setupFromExisting():
             Path.Log.track(index, force)
             if force or not self.stockFromExisting:
-                self.stockFromExisting = StockFromExistingEdit(
-                    self.obj, self.form, force
-                )
+                self.stockFromExisting = StockFromExistingEdit(self.obj, self.form, force)
             if self.stockFromExisting.candidates(self.obj):
                 self.stockEdit = self.stockFromExisting
                 return True
@@ -1446,8 +1372,7 @@ class TaskPanel:
                 setupFromExisting()
             else:
                 Path.Log.error(
-                    translate("CAM_Job", "Unsupported stock object %s")
-                    % self.obj.Stock.Label
+                    translate("CAM_Job", "Unsupported stock object %s") % self.obj.Stock.Label
                 )
         else:
             if index == StockFromBaseBoundBoxEdit.Index:
@@ -1572,11 +1497,7 @@ class TaskPanel:
                 for model, count in obsolete.items():
                     for i in range(count):
                         # it seems natural to remove the last of all the base objects for a given model
-                        base = [
-                            b
-                            for b in obj.Model.Group
-                            if proxy.baseObject(obj, b) == model
-                        ][-1]
+                        base = [b for b in obj.Model.Group if proxy.baseObject(obj, b) == model][-1]
                         self.vproxy.forgetBaseVisibility(obj, base)
                         self.obj.Proxy.removeBase(obj, base, True)
                 # do not access any of the retired objects after this point, they don't exist anymore
@@ -1620,9 +1541,7 @@ class TaskPanel:
         self.form.postProcessor.currentIndexChanged.connect(self.getFields)
         self.form.postProcessorArguments.editingFinished.connect(self.getFields)
         self.form.postProcessorOutputFile.editingFinished.connect(self.getFields)
-        self.form.postProcessorSetOutputFile.clicked.connect(
-            self.setPostProcessorOutputFile
-        )
+        self.form.postProcessorSetOutputFile.clicked.connect(self.setPostProcessorOutputFile)
 
         # Workplan
         self.form.operationsList.itemSelectionChanged.connect(self.operationSelect)
@@ -1635,9 +1554,7 @@ class TaskPanel:
         self.form.activeToolGroup.hide()  # not supported yet
 
         # Tool controller
-        self.form.toolControllerList.itemSelectionChanged.connect(
-            self.toolControllerSelect
-        )
+        self.form.toolControllerList.itemSelectionChanged.connect(self.toolControllerSelect)
         self.form.toolControllerList.itemChanged.connect(self.toolControllerChanged)
         self.form.toolControllerEdit.clicked.connect(self.toolControllerEdit)
         self.form.toolControllerDelete.clicked.connect(self.toolControllerDelete)
@@ -1654,58 +1571,32 @@ class TaskPanel:
         self.form.stock.currentIndexChanged.connect(self.updateStockEditor)
         self.form.refreshStock.clicked.connect(self.refreshStock)
 
-        self.form.modelSetXAxis.clicked.connect(
-            lambda: self.modelSetAxis(FreeCAD.Vector(1, 0, 0))
-        )
-        self.form.modelSetYAxis.clicked.connect(
-            lambda: self.modelSetAxis(FreeCAD.Vector(0, 1, 0))
-        )
-        self.form.modelSetZAxis.clicked.connect(
-            lambda: self.modelSetAxis(FreeCAD.Vector(0, 0, 1))
-        )
-        self.form.modelSetX0.clicked.connect(
-            lambda: self.modelSet0(FreeCAD.Vector(-1, 0, 0))
-        )
-        self.form.modelSetY0.clicked.connect(
-            lambda: self.modelSet0(FreeCAD.Vector(0, -1, 0))
-        )
-        self.form.modelSetZ0.clicked.connect(
-            lambda: self.modelSet0(FreeCAD.Vector(0, 0, -1))
-        )
+        self.form.modelSetXAxis.clicked.connect(lambda: self.modelSetAxis(FreeCAD.Vector(1, 0, 0)))
+        self.form.modelSetYAxis.clicked.connect(lambda: self.modelSetAxis(FreeCAD.Vector(0, 1, 0)))
+        self.form.modelSetZAxis.clicked.connect(lambda: self.modelSetAxis(FreeCAD.Vector(0, 0, 1)))
+        self.form.modelSetX0.clicked.connect(lambda: self.modelSet0(FreeCAD.Vector(-1, 0, 0)))
+        self.form.modelSetY0.clicked.connect(lambda: self.modelSet0(FreeCAD.Vector(0, -1, 0)))
+        self.form.modelSetZ0.clicked.connect(lambda: self.modelSet0(FreeCAD.Vector(0, 0, -1)))
 
         self.form.setOrigin.clicked.connect(self.alignSetOrigin)
         self.form.moveToOrigin.clicked.connect(self.alignMoveToOrigin)
 
-        self.form.modelMoveLeftUp.clicked.connect(
-            lambda: self.modelMove(FreeCAD.Vector(-1, 1, 0))
-        )
-        self.form.modelMoveLeft.clicked.connect(
-            lambda: self.modelMove(FreeCAD.Vector(-1, 0, 0))
-        )
+        self.form.modelMoveLeftUp.clicked.connect(lambda: self.modelMove(FreeCAD.Vector(-1, 1, 0)))
+        self.form.modelMoveLeft.clicked.connect(lambda: self.modelMove(FreeCAD.Vector(-1, 0, 0)))
         self.form.modelMoveLeftDown.clicked.connect(
             lambda: self.modelMove(FreeCAD.Vector(-1, -1, 0))
         )
 
-        self.form.modelMoveUp.clicked.connect(
-            lambda: self.modelMove(FreeCAD.Vector(0, 1, 0))
-        )
-        self.form.modelMoveDown.clicked.connect(
-            lambda: self.modelMove(FreeCAD.Vector(0, -1, 0))
-        )
+        self.form.modelMoveUp.clicked.connect(lambda: self.modelMove(FreeCAD.Vector(0, 1, 0)))
+        self.form.modelMoveDown.clicked.connect(lambda: self.modelMove(FreeCAD.Vector(0, -1, 0)))
 
-        self.form.modelMoveRightUp.clicked.connect(
-            lambda: self.modelMove(FreeCAD.Vector(1, 1, 0))
-        )
-        self.form.modelMoveRight.clicked.connect(
-            lambda: self.modelMove(FreeCAD.Vector(1, 0, 0))
-        )
+        self.form.modelMoveRightUp.clicked.connect(lambda: self.modelMove(FreeCAD.Vector(1, 1, 0)))
+        self.form.modelMoveRight.clicked.connect(lambda: self.modelMove(FreeCAD.Vector(1, 0, 0)))
         self.form.modelMoveRightDown.clicked.connect(
             lambda: self.modelMove(FreeCAD.Vector(1, -1, 0))
         )
 
-        self.form.modelRotateLeft.clicked.connect(
-            lambda: self.modelRotate(FreeCAD.Vector(0, 0, 1))
-        )
+        self.form.modelRotateLeft.clicked.connect(lambda: self.modelRotate(FreeCAD.Vector(0, 0, 1)))
         self.form.modelRotateRight.clicked.connect(
             lambda: self.modelRotate(FreeCAD.Vector(0, 0, -1))
         )

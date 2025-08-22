@@ -26,7 +26,7 @@
 #include <QListWidget>
 
 #include <Base/Parameter.h>
-#include <Gui/Selection.h>
+#include <Gui/Selection/Selection.h>
 #include <Gui/TaskView/TaskView.h>
 #include <Mod/Sketcher/App/Constraint.h>
 
@@ -167,7 +167,8 @@ public:
 private:
     void slotConstraintsChanged();
     bool isConstraintFiltered(QListWidgetItem* item);
-    void change3DViewVisibilityToTrackFilter();
+    void change3DViewVisibilityToTrackFilter(bool filterEnabled);
+    bool doSetVirtualSpace(const std::vector<int>& constrIds, bool isvirtualspace);
     void changeFilteredVisibility(bool show, ActionTarget target = ActionTarget::All);
     void updateSelectionFilter();
     void updateAssociatedConstraintsFilter();

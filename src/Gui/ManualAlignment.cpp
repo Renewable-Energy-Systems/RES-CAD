@@ -30,6 +30,7 @@
 # include <QMessageBox>
 # include <QPainter>
 # include <QSplitter>
+# include <QSurfaceFormat>
 # include <QTimer>
 # include <QVBoxLayout>
 # include <Inventor/SoPickedPoint.h>
@@ -47,18 +48,17 @@
 #include <App/Document.h>
 #include <App/GeoFeature.h>
 #include <Gui/Application.h>
+#include <Gui/BitmapFactory.h>
 #include <Gui/Document.h>
+#include <Gui/Inventor/SoAxisCrossKit.h>
 #include <Gui/MainWindow.h>
-#include <Gui/Selection.h>
+#include <Gui/Selection/Selection.h>
 #include <Gui/SplitView3DInventor.h>
+#include <Gui/Tools.h>
 #include <Gui/View3DInventorViewer.h>
 #include <Gui/ViewProviderGeometryObject.h>
 #include <Gui/WaitCursor.h>
-
 #include "ManualAlignment.h"
-#include "BitmapFactory.h"
-#include "SoAxisCrossKit.h"
-#include "Tools.h"
 
 
 using namespace Gui;
@@ -137,7 +137,7 @@ void AlignmentGroup::setRandomColor()
         float r = /*(float)rand()/(float)RAND_MAX*/0.0f;
         float g = (float)rand()/(float)RAND_MAX;
         float b = (float)rand()/(float)RAND_MAX;
-        if ((*it)->isDerivedFrom(Gui::ViewProviderGeometryObject::getClassTypeId())) {
+        if ((*it)->isDerivedFrom<Gui::ViewProviderGeometryObject>()) {
             SoSearchAction searchAction;
             searchAction.setType(SoMaterial::getClassTypeId());
             searchAction.setInterest(SoSearchAction::FIRST);
@@ -240,8 +240,8 @@ Base::BoundBox3d AlignmentGroup::getBoundingBox() const
     Base::BoundBox3d box;
     std::vector<Gui::ViewProviderDocumentObject*>::const_iterator it;
     for (it = this->_views.begin(); it != this->_views.end(); ++it) {
-        if ((*it)->isDerivedFrom(Gui::ViewProviderGeometryObject::getClassTypeId())) {
-            auto geo = static_cast<App::GeoFeature*>((*it)->getObject());
+        if ((*it)->isDerivedFrom<Gui::ViewProviderGeometryObject>()) {
+            auto geo = (*it)->getObject<App::GeoFeature>();
             const App::PropertyComplexGeoData* prop = geo->getPropertyOfGeometry();
             if (prop)
                 box.Add(prop->getBoundingBox());
@@ -353,7 +353,7 @@ public:
         bool smoothing = false;
         bool glformat = false;
         int samples = View3DInventorViewer::getNumSamples();
-        QtGLFormat f;
+        QSurfaceFormat f;
 
         if (samples > 1) {
             glformat = true;
@@ -801,8 +801,8 @@ void ManualAlignment::startAlignment(Base::Type mousemodel)
     myViewer->showMaximized();
     int n = this->myPickPoints;
     QString msg = n == 1
-        ? tr("Please, select at least one point in the left and the right view")
-        : tr("Please, select at least %1 points in the left and the right view").arg(n);
+        ? tr("Select at least 1 point in the left and the right view")
+        : tr("Select at least %1 points in the left and the right view").arg(n);
     myViewer->myLabel->setText(msg);
 
     connect(myViewer, &QObject::destroyed, this, &ManualAlignment::reset);
@@ -857,7 +857,7 @@ void ManualAlignment::continueAlignment()
         grp.addToViewer(myViewer->getViewer(0));
         grp.setAlignable(true);
 
-        Gui::getMainWindow()->showMessage(tr("Please pick points in the left and right view"));
+        Gui::getMainWindow()->showMessage(tr("Select points in the left and right view"));
 
         myViewer->getViewer(0)->setEditingCursor(QCursor(Qt::PointingHandCursor));
         myViewer->getViewer(1)->setEditingCursor(QCursor(Qt::PointingHandCursor));
@@ -959,7 +959,7 @@ void ManualAlignment::align()
                             .arg(myFixedGroup.countPoints()));
     }
     else {
-        // do not allow to pick further points
+        // do not allow one to pick further points
         myAlignModel.activeGroup().removeFromViewer(myViewer->getViewer(0));
         myAlignModel.activeGroup().setAlignable(false);
         std::vector<App::DocumentObject*> pViews = myAlignModel.activeGroup().getViews();
@@ -1247,13 +1247,13 @@ void ManualAlignment::probePickedCallback(void * ud, SoEventCallback * n)
                 nPoints = self->myFixedGroup.countPoints();
             QMenu menu;
             QAction* fi = menu.addAction(tr("&Align"));
-            QAction* rem = menu.addAction(tr("&Remove last point"));
+            QAction* rem = menu.addAction(tr("&Remove Last Point"));
             //QAction* cl = menu.addAction("C&lear");
             QAction* ca = menu.addAction(tr("&Cancel"));
             fi->setEnabled(self->canAlign());
             rem->setEnabled(nPoints > 0);
             menu.addSeparator();
-            QAction* sync = menu.addAction(tr("&Synchronize views"));
+            QAction* sync = menu.addAction(tr("&Synchronize Views"));
             sync->setCheckable(true);
             if (self->d->sensorCam1->getAttachedNode())
                 sync->setChecked(true);
