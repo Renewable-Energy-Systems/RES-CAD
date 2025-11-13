@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
+
 /***************************************************************************
  *   Copyright (c) 2024 Shai Seger <shaise at gmail>                       *
  *                                                                         *
@@ -108,8 +110,8 @@ void MillSimulation::InitSimulation(float quality)
         mDestMotion = mCodeParser.Operations[i];
         EndMill* tool = GetTool(mDestMotion.tool);
         if (tool != nullptr) {
-            MillSim::MillPathSegment* segment =
-                new MillSim::MillPathSegment(tool, &mCurMotion, &mDestMotion);
+            MillSim::MillPathSegment* segment
+                = new MillSim::MillPathSegment(tool, &mCurMotion, &mDestMotion);
             segment->indexInArray = i;
             segment->segmentIndex = segId++;
             mNTotalSteps += segment->numSimSteps;

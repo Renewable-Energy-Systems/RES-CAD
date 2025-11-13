@@ -27,9 +27,10 @@
 #include "ViewProvider.h"
 
 
-namespace PartDesignGui {
+namespace PartDesignGui
+{
 
-class PartDesignGuiExport ViewProviderHelix : public ViewProvider
+class PartDesignGuiExport ViewProviderHelix: public ViewProvider
 {
     PROPERTY_HEADER_WITH_OVERRIDE(PartDesignGui::ViewProviderHelix);
 
@@ -44,17 +45,15 @@ public:
     /// grouping handling
     std::vector<App::DocumentObject*> claimChildren() const override;
 
-    bool onDelete(const std::vector<std::string> &) override;
-
 protected:
     QIcon getIcon() const override;
 
     /// Returns a newly created TaskDlgHelixParameters
-    TaskDlgFeatureParameters *getEditDialog() override;
+    TaskDlgFeatureParameters* getEditDialog() override;
 };
 
 
-} // namespace PartDesignGui
+}  // namespace PartDesignGui
 
 
-#endif // PARTGUI_ViewProviderHelix_H
+#endif  // PARTGUI_ViewProviderHelix_H

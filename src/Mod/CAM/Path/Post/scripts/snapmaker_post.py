@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: EUPL-1.2
 # A FreeCAD postprocessor targeting Snapmaker machines with CNC capabilities
 # ***************************************************************************
 # *  Copyright (c) 2025 Clair-Loup Sergent <clsergent@free.fr>              *
@@ -35,7 +36,7 @@ import Path.Base.Util as PathUtil
 import Path.Post.Processor
 import Path.Post.UtilsArguments
 import Path.Post.UtilsExport
-import Path.Post.Utils
+import Path.Post.Utils as PostUtils
 import Path.Post.UtilsParse
 import Path.Main.Job
 

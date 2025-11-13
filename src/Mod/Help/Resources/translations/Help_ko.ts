@@ -36,17 +36,17 @@ the default location ($USERAPPDATADIR/Mod/offline-documentation).</translation>
     <message>
       <location filename="../../dlgPreferencesHelp.ui" line="53"/>
       <source>Custom location</source>
-      <translation type="unfinished">Custom location</translation>
+      <translation>사용자 지정 위치</translation>
     </message>
     <message>
       <location filename="../../dlgPreferencesHelp.ui" line="123"/>
       <source>FreeCAD Wiki (online)</source>
-      <translation type="unfinished">FreeCAD Wiki (online)</translation>
+      <translation>프리캐드 위키문서 (온라인)</translation>
     </message>
     <message>
       <location filename="../../dlgPreferencesHelp.ui" line="33"/>
       <source>GitHub (online)</source>
-      <translation type="unfinished">GitHub (online)</translation>
+      <translation>깃허브 (온라인)</translation>
     </message>
     <message>
       <location filename="../../dlgPreferencesHelp.ui" line="72"/>
@@ -160,13 +160,13 @@ This only applies if Markdown is selected above.</translation>
     <name>Help</name>
     <message>
       <location filename="../../Help.py" line="75"/>
-      <source>Contents for this page could not be retrieved. Please check settings under menu Edit -&gt; Preferences -&gt; General -&gt; Help</source>
-      <translation type="unfinished">Contents for this page could not be retrieved. Please check settings under menu Edit -&gt; Preferences -&gt; General -&gt; Help</translation>
+      <source>Contents for this page could not be retrieved. Please check settings under menu Edit → Preferences → General → Help</source>
+      <translation type="unfinished">Contents for this page could not be retrieved. Please check settings under menu Edit → Preferences → General → Help</translation>
     </message>
     <message>
       <location filename="../../Help.py" line="79"/>
-      <source>Help files location could not be determined. Please check settings under menu Edit -&gt; Preferences -&gt; General -&gt; Help</source>
-      <translation type="unfinished">Help files location could not be determined. Please check settings under menu Edit -&gt; Preferences -&gt; General -&gt; Help</translation>
+      <source>Help files location could not be determined. Please check settings under menu Edit → Preferences → General → Help</source>
+      <translation type="unfinished">Help files location could not be determined. Please check settings under menu Edit → Preferences → General → Help</translation>
     </message>
     <message>
       <location filename="../../Help.py" line="83"/>

@@ -21,11 +21,10 @@
  *                                                                         *
  **************************************************************************/
 
-#include "PreCompiled.h"
-#ifndef _PreComp_
+
 #include <QCoreApplication>
 #include <QOpenGLFramebufferObjectFormat>
-#endif
+
 
 #include "Multisample.h"
 #include <App/Application.h>
@@ -109,14 +108,16 @@ AntiAliasing Multisample::toAntiAliasing(int samples)
 
 AntiAliasing Multisample::readMSAAFromSettings()
 {
-    ParameterGrp::handle hGrp = App::GetApplication().GetParameterGroupByPath
-        ("User parameter:BaseApp/Preferences/View");
+    ParameterGrp::handle hGrp = App::GetApplication().GetParameterGroupByPath(
+        "User parameter:BaseApp/Preferences/View"
+    );
     return AntiAliasing(hGrp->GetInt("AntiAliasing", int(Gui::AntiAliasing::None)));
 }
 
 void Multisample::writeMSAAToSettings(AntiAliasing msaa)
 {
-    ParameterGrp::handle hGrp = App::GetApplication().GetParameterGroupByPath
-        ("User parameter:BaseApp/Preferences/View");
+    ParameterGrp::handle hGrp = App::GetApplication().GetParameterGroupByPath(
+        "User parameter:BaseApp/Preferences/View"
+    );
     hGrp->SetInt("AntiAliasing", long(msaa));
 }

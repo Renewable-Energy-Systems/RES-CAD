@@ -20,11 +20,8 @@
  *                                                                         *
  ***************************************************************************/
 
-#include "PreCompiled.h"
-#ifndef _PreComp_
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
-#endif
 
 #include "Dialogs/DlgSettingsImageImp.h"
 #include "ui_DlgSettingsImage.h"
@@ -185,8 +182,9 @@ bool DlgSettingsImageImp::addWatermark() const
 
 void DlgSettingsImageImp::onSelectedFilter(const QString& filter)
 {
-    bool ok = (filter.startsWith(QLatin1String("JPG")) || filter.startsWith(QLatin1String("JPEG"))
-               || filter.startsWith(QLatin1String("PNG")));
+    bool ok
+        = (filter.startsWith(QLatin1String("JPG")) || filter.startsWith(QLatin1String("JPEG"))
+           || filter.startsWith(QLatin1String("PNG")));
     ui->buttonGroupComment->setEnabled(ok);
 }
 

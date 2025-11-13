@@ -2,7 +2,6 @@ from Base.Metadata import export, constmethod
 from GeometrySurface import GeometrySurface
 from typing import Final, List, Any
 
-
 @export(
     PythonName="Part.BSplineSurface",
     Twin="GeomBSplineSurface",
@@ -50,10 +49,10 @@ class BSplineSurface(GeometrySurface):
     Returns the index in the knot array associated with the u parametric direction,
     which corresponds to the first parameter of this B-Spline surface in the specified
     parametric direction.
-    
+
     The isoparametric curves corresponding to these values are the boundary curves of
     this surface.
-    
+
     Note: The index does not correspond to the first knot of the surface in the specified
     parametric direction unless the multiplicity of the first knot is equal to Degree + 1,
     where Degree is the degree of this surface in the corresponding parametric direction.
@@ -64,10 +63,10 @@ class BSplineSurface(GeometrySurface):
     Returns the index in the knot array associated with the u parametric direction,
     which corresponds to the last parameter of this B-Spline surface in the specified
     parametric direction.
-    
+
     The isoparametric curves corresponding to these values are the boundary curves of
     this surface.
-    
+
     Note: The index does not correspond to the first knot of the surface in the specified
     parametric direction unless the multiplicity of the last knot is equal to Degree + 1,
     where Degree is the degree of this surface in the corresponding parametric direction.
@@ -78,10 +77,10 @@ class BSplineSurface(GeometrySurface):
     Returns the index in the knot array associated with the v parametric direction,
     which corresponds to the first parameter of this B-Spline surface in the specified
     parametric direction.
-    
+
     The isoparametric curves corresponding to these values are the boundary curves of
     this surface.
-    
+
     Note: The index does not correspond to the first knot of the surface in the specified
     parametric direction unless the multiplicity of the first knot is equal to Degree + 1,
     where Degree is the degree of this surface in the corresponding parametric direction.
@@ -92,10 +91,10 @@ class BSplineSurface(GeometrySurface):
     Returns the index in the knot array associated with the v parametric direction,
     which corresponds to the last parameter of this B-Spline surface in the specified
     parametric direction.
-    
+
     The isoparametric curves corresponding to these values are the boundary curves of
     this surface.
-    
+
     Note: The index does not correspond to the first knot of the surface in the specified
     parametric direction unless the multiplicity of the last knot is equal to Degree + 1,
     where Degree is the degree of this surface in the corresponding parametric direction.
@@ -375,9 +374,7 @@ class BSplineSurface(GeometrySurface):
         """
         ...
 
-    def setPoleCol(
-        self, VIndex: int, values: List[Any], CPoleWeights: List[float]
-    ) -> None:
+    def setPoleCol(self, VIndex: int, values: List[Any], CPoleWeights: List[float]) -> None:
         """
         Modifies this B-Spline surface by assigning values to all or part
         of the column of poles of index VIndex, of this B-Spline surface.
@@ -387,9 +384,7 @@ class BSplineSurface(GeometrySurface):
         """
         ...
 
-    def setPoleRow(
-        self, UIndex: int, values: List[Any], CPoleWeights: List[float]
-    ) -> None:
+    def setPoleRow(self, UIndex: int, values: List[Any], CPoleWeights: List[float]) -> None:
         """
         Modifies this B-Spline surface by assigning values to all or part
         of the row of poles of index UIndex, of this B-Spline surface.

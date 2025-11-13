@@ -20,11 +20,8 @@
  *                                                                         *
  ***************************************************************************/
 
-#include "PreCompiled.h"
-#ifndef _PreComp_
 #include <QMessageBox>
 #include <QPushButton>
-#endif
 
 #include "Dialogs/DlgParameterFind.h"
 #include "ui_DlgParameterFind.h"
@@ -306,9 +303,7 @@ void DlgParameterFind::accept()
             groupTree->setCurrentItem(next);
         }
         else {
-            QMessageBox::warning(this,
-                                 tr("Not found"),
-                                 tr("Cannot find the text: %1").arg(opt.text));
+            QMessageBox::warning(this, tr("Not found"), tr("Cannot find the text: %1").arg(opt.text));
         }
     }
 }

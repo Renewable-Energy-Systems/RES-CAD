@@ -26,7 +26,7 @@ __author__ = "Mario Passaglia"
 __url__ = "https://www.freecad.org"
 
 
-from PySide.QtCore import QProcess, QThread
+from PySide.QtCore import QProcess, QThread, QProcessEnvironment
 import tempfile
 import os
 import shutil
@@ -111,11 +111,13 @@ class CalculiXTools:
     def compute(self):
         self._clear_results()
         ccx_bin = settings.get_binary("Calculix")
-        env = self.process.processEnvironment()
+        env = QProcessEnvironment.systemEnvironment()
         num_cpu = self.fem_param.GetGroup("Ccx").GetInt(
             "AnalysisNumCPUs", QThread.idealThreadCount()
         )
         env.insert("OMP_NUM_THREADS", str(num_cpu))
+        pastix_prec = "1" if self.obj.PastixMixedPrecision else "0"
+        env.insert("PASTIX_MIXED_PRECISION", pastix_prec)
         self.process.setProcessEnvironment(env)
         self.process.setWorkingDirectory(self.obj.WorkingDirectory)
 

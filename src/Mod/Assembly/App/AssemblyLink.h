@@ -66,7 +66,7 @@ public:
     // This function returns the linked object, either an AssemblyObject or an AssemblyLink
     App::DocumentObject* getLinkedObject2(bool recurse = true) const;
 
-    bool isRigid();
+    bool isRigid() const;
 
     /**
      * Update all of the components and joints from the Assembly
@@ -75,12 +75,19 @@ public:
 
     void synchronizeComponents();
     void synchronizeJoints();
-    void handleJointReference(App::DocumentObject* joint,
-                              App::DocumentObject* lJoint,
-                              const char* refName);
+    void handleJointReference(
+        App::DocumentObject* joint,
+        App::DocumentObject* lJoint,
+        const char* refName
+    );
     void ensureNoJointGroup();
     JointGroup* ensureJointGroup();
     std::vector<App::DocumentObject*> getJoints();
+
+    bool allowDuplicateLabel() const override;
+
+    bool isEmpty() const;
+    int numberOfComponents() const;
 
     App::PropertyXLink LinkedObject;
     App::PropertyBool Rigid;

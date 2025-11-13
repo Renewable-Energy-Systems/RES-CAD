@@ -143,7 +143,6 @@ class SketcherGuiExport EditModeCoinManager
         void updateCurvedEdgeCountSegmentsParameter(const std::string& parametername);
         void updateLineRenderingOrderParameters(const std::string& parametername);
         void updateConstraintPresentationParameters(const std::string& parametername);
-        void updateElementSizeParameters(const std::string& parametername);
         void updateWidth(int& width, const std::string& parametername, int def);
         void updatePattern(unsigned int& pattern, const std::string& pname, unsigned int def);
         void updateColor(SbColor& sbcolor, const std::string& parametername);
@@ -210,8 +209,7 @@ public:
 
     /** @name Temporary edit curves and markers */
     //@{
-    void drawEditMarkers(const std::vector<Base::Vector2d>& EditMarkers,
-                         unsigned int augmentationlevel);
+    void drawEditMarkers(const std::vector<Base::Vector2d>& EditMarkers, unsigned int augmentationlevel);
     void drawEdit(const std::vector<Base::Vector2d>& EditCurve, GeometryCreationMode mode);
     void drawEdit(const std::list<std::vector<Base::Vector2d>>& list, GeometryCreationMode mode);
     void setPositionText(const Base::Vector2d& Pos, const SbString& txt);
@@ -222,14 +220,16 @@ public:
 
     /** @name handle preselection and selection of points */
     //@{
-    PreselectionResult detectPreselection(SoPickedPoint* Point, const SbVec2s& cursorPos);
+    PreselectionResult detectPreselection(SoPickedPoint* Point);
     /// The client is responsible for unref-ing the SoGroup to release the memory.
     SoGroup* getSelectedConstraints();
     //@}
 
     /** @name update coin nodes*/
-    void processGeometryConstraintsInformationOverlay(const GeoListFacade& geolistfacade,
-                                                      bool rebuildinformationlayer);
+    void processGeometryConstraintsInformationOverlay(
+        const GeoListFacade& geolistfacade,
+        bool rebuildinformationlayer
+    );
 
     void updateVirtualSpace();
 
@@ -250,8 +250,7 @@ public:
     /** @name update coin colors*/
     //@{
     void updateColor();
-    void
-    updateColor(const GeoListFacade& geolistfacade);  // overload to be used with temporal geometry.
+    void updateColor(const GeoListFacade& geolistfacade);  // overload to be used with temporal geometry.
     //@}
 
     /** @name change constraints selectability*/
@@ -261,6 +260,8 @@ public:
 
     // Updates the Axes extension to span the specified area.
     void updateAxesLength(const Base::BoundBox2d& bb);
+
+    void updateElementSizeParameters();
 
 private:
     // This function populates the coin nodes with the information of the current geometry

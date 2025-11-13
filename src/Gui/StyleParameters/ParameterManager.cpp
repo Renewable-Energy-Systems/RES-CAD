@@ -21,19 +21,23 @@
  *                                                                          *
  ***************************************************************************/
 
-#include "PreCompiled.h"
-
 #include "ParameterManager.h"
 #include "Parser.h"
 
-#ifndef _PreComp_
+#include <QFile>
+#include <fstream>
+#include <yaml-cpp/yaml.h>
+
 #include <QColor>
 #include <QRegularExpression>
 #include <QString>
 #include <ranges>
 #include <utility>
 #include <variant>
-#endif
+
+#include <Base/Console.h>
+
+FC_LOG_LEVEL_INIT("Gui", true, true)
 
 namespace Gui::StyleParameters
 {
@@ -82,10 +86,10 @@ Numeric Numeric::operator*(const Numeric& rhs) const
 void Numeric::ensureEqualUnits(const Numeric& rhs) const
 {
     if (unit != rhs.unit) {
-        THROWM(Base::RuntimeError,
-               fmt::format("Units mismatch left expression is '{}', right expression is '{}'",
-                           unit,
-                           rhs.unit));
+        THROWM(
+            Base::RuntimeError,
+            fmt::format("Units mismatch left expression is '{}', right expression is '{}'", unit, rhs.unit)
+        );
     }
 }
 
@@ -108,8 +112,10 @@ ParameterSource::ParameterSource(const Metadata& metadata)
     : metadata(metadata)
 {}
 
-InMemoryParameterSource::InMemoryParameterSource(const std::list<Parameter>& parameters,
-                                                 const Metadata& metadata)
+InMemoryParameterSource::InMemoryParameterSource(
+    const std::list<Parameter>& parameters,
+    const Metadata& metadata
+)
     : ParameterSource(metadata)
 {
     for (const auto& parameter : parameters) {
@@ -215,6 +221,92 @@ void UserParameterSource::remove(const std::string& name)
     hGrp->RemoveASCII(name.c_str());
 }
 
+YamlParameterSource::YamlParameterSource(const std::string& filePath, const Metadata& metadata)
+    : ParameterSource(metadata)
+{
+    changeFilePath(filePath);
+}
+
+void YamlParameterSource::changeFilePath(const std::string& path)
+{
+    this->filePath = path;
+    reload();
+}
+
+void YamlParameterSource::reload()
+{
+    QFile file(QString::fromStdString(filePath));
+
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        FC_TRACE("StyleParameters: Unable to open file " << filePath);
+        return;
+    }
+
+    if (filePath.starts_with(":/")) {
+        this->metadata.options |= ReadOnly;
+    }
+
+    QTextStream in(&file);
+    std::string content = in.readAll().toStdString();
+
+    YAML::Node root = YAML::Load(content);
+    parameters.clear();
+    for (auto it = root.begin(); it != root.end(); ++it) {
+        auto key = it->first.as<std::string>();
+        auto value = it->second.as<std::string>();
+
+        parameters[key] = Parameter {
+            .name = key,
+            .value = value,
+        };
+    }
+}
+
+std::list<Parameter> YamlParameterSource::all() const
+{
+    std::list<Parameter> result;
+    for (const auto& param : parameters | std::views::values) {
+        result.push_back(param);
+    }
+    return result;
+}
+
+std::optional<Parameter> YamlParameterSource::get(const std::string& name) const
+{
+    if (auto it = parameters.find(name); it != parameters.end()) {
+        return it->second;
+    }
+
+    return std::nullopt;
+}
+
+void YamlParameterSource::define(const Parameter& param)
+{
+    parameters[param.name] = param;
+}
+
+void YamlParameterSource::remove(const std::string& name)
+{
+    parameters.erase(name);
+}
+
+void YamlParameterSource::flush()
+{
+    YAML::Node root;
+    for (const auto& [name, param] : parameters) {
+        root[name] = param.value;
+    }
+
+    QFile file(QString::fromStdString(filePath));
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+        FC_WARN("StyleParameters: Unable to open file " << filePath);
+        return;
+    }
+
+    QTextStream out(&file);
+    out << QString::fromStdString(YAML::Dump(root));
+}
+
 ParameterManager::ParameterManager() = default;
 
 void ParameterManager::reload()
@@ -222,8 +314,10 @@ void ParameterManager::reload()
     _resolved.clear();
 }
 
-std::string ParameterManager::replacePlaceholders(const std::string& expression,
-                                                  ResolveContext context) const
+std::string ParameterManager::replacePlaceholders(
+    const std::string& expression,
+    ResolveContext context
+) const
 {
     static const QRegularExpression regex(QStringLiteral("@(\\w+)"));
 
@@ -297,8 +391,7 @@ std::optional<std::string> ParameterManager::expression(const std::string& name)
     return {};
 }
 
-std::optional<Value> ParameterManager::resolve(const std::string& name,
-                                               ResolveContext context) const
+std::optional<Value> ParameterManager::resolve(const std::string& name, ResolveContext context) const
 {
     std::optional<Parameter> maybeParameter = this->parameter(name);
 

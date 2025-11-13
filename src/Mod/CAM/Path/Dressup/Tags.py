@@ -1,4 +1,5 @@
-# -*- coding: utf-8 -*-
+# SPDX-License-Identifier: LGPL-2.1-or-later
+
 # ***************************************************************************
 # *   Copyright (c) 2017 sliptonic <shopinthewoods@gmail.com>               *
 # *                                                                         *
@@ -642,7 +643,7 @@ class PathData:
         Path.Log.track(obj.Base.Name)
         self.obj = obj
         path = PathUtils.getPathWithPlacement(obj.Base)
-        self.wire, rapid = Path.Geom.wireForPath(path)
+        self.wire, rapid, rapid_indexes = Path.Geom.wireForPath(path)
         self.rapid = _RapidEdges(rapid)
         if self.wire:
             self.edges = self.wire.Edges
@@ -970,6 +971,10 @@ class ObjectTagDressup:
         self.toolRadius = None
         self.mappers = []
         return None
+
+    def onChanged(self, obj, prop):
+        if prop == "Path" and obj.ViewObject:
+            obj.ViewObject.signalChangeIcon()
 
     def onDocumentRestored(self, obj):
         self.obj = obj

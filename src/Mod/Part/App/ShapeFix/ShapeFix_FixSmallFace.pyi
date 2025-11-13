@@ -7,7 +7,7 @@ from typing import Final, overload
     PythonName="Part.ShapeFix.FixSmallFace",
     Include="ShapeFix_FixSmallFace.hxx",
     FatherInclude="Mod/Part/App/ShapeFix/ShapeFix_RootPy.h",
-    Constructor=True
+    Constructor=True,
 )
 class ShapeFix_FixSmallFace(ShapeFix_Root):
     """
@@ -52,7 +52,7 @@ class ShapeFix_FixSmallFace(ShapeFix_Root):
         Fixing case of strip face, if tol = -1 used local tolerance
         """
         ...
-        
+
     def removeFacesInCaseOfStrip(self) -> None:
         """
         Remove strip face from compound

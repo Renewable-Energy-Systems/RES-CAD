@@ -3,7 +3,6 @@ from Base.Vector import Vector
 from TopoShape import TopoShape
 from typing import Final, Tuple, Dict, Optional, List
 
-
 @export(
     Twin="TopoShape",
     TwinPointer="TopoShape",
@@ -53,12 +52,12 @@ class TopoShapeFace(TopoShape):
     Returns the matrix of inertia. It is a symmetrical matrix.
     The coefficients of the matrix are the quadratic moments of
     inertia.
-    
+
      | Ixx Ixy Ixz 0 |
      | Ixy Iyy Iyz 0 |
      | Ixz Iyz Izz 0 |
      | 0   0   0   1 |
-    
+
     The moments of inertia are denoted by Ixx, Iyy, Izz.
     The products of inertia are denoted by Ixy, Ixz, Iyz.
     The matrix of inertia is returned in the central coordinate
@@ -106,8 +105,16 @@ class TopoShapeFace(TopoShape):
         ...
 
     @constmethod
-    def makeEvolved(self, *, Profile: TopoShape, Join: int, AxeProf: bool, Solid: bool,
-                    ProfOnSpine: bool, Tolerance: float) -> TopoShape:
+    def makeEvolved(
+        self,
+        *,
+        Profile: TopoShape,
+        Join: int,
+        AxeProf: bool,
+        Solid: bool,
+        ProfOnSpine: bool,
+        Tolerance: float
+    ) -> TopoShape:
         """
         Profile along the spine
         """

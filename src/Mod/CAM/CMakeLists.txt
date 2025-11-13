@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+
 add_subdirectory(App)
 add_subdirectory(libarea)
 add_subdirectory(PathSimulator)
@@ -128,6 +130,11 @@ SET(PathPythonToolsAssets_SRCS
     Path/Tool/assets/uri.py
 )
 
+SET(PathPythonToolsMigration_SRCS
+    Path/Tool/migration/__init__.py
+    Path/Tool/migration/migration.py
+)
+
 SET(PathPythonToolsAssetsStore_SRCS
     Path/Tool/assets/store/__init__.py
     Path/Tool/assets/store/base.py
@@ -183,7 +190,7 @@ SET(PathPythonToolsToolBitModels_SRCS
     Path/Tool/toolbit/models/dovetail.py
     Path/Tool/toolbit/models/drill.py
     Path/Tool/toolbit/models/endmill.py
-    Path/Tool/toolbit/models/fillet.py
+    Path/Tool/toolbit/models/radius.py
     Path/Tool/toolbit/models/probe.py
     Path/Tool/toolbit/models/reamer.py
     Path/Tool/toolbit/models/slittingsaw.py
@@ -196,6 +203,7 @@ SET(PathPythonToolsToolBitSerializers_SRCS
     Path/Tool/toolbit/serializers/__init__.py
     Path/Tool/toolbit/serializers/camotics.py
     Path/Tool/toolbit/serializers/fctb.py
+    Path/Tool/toolbit/serializers/yaml.py
 )
 
 SET(PathPythonToolsToolBitUi_SRCS
@@ -208,6 +216,7 @@ SET(PathPythonToolsToolBitUi_SRCS
     Path/Tool/toolbit/ui/selector.py
     Path/Tool/toolbit/ui/tablecell.py
     Path/Tool/toolbit/ui/toollist.py
+    Path/Tool/toolbit/ui/util.py
     Path/Tool/toolbit/ui/view.py
 )
 
@@ -230,10 +239,11 @@ SET(PathPythonToolsLibrarySerializers_SRCS
 
 SET(PathPythonToolsLibraryUi_SRCS
     Path/Tool/library/ui/__init__.py
+    Path/Tool/library/ui/browser.py
     Path/Tool/library/ui/cmd.py
     Path/Tool/library/ui/dock.py
     Path/Tool/library/ui/editor.py
-    Path/Tool/library/ui/browser.py
+    Path/Tool/library/ui/properties.py
 )
 
 SET(PathPythonToolsMachine_SRCS
@@ -261,7 +271,7 @@ SET(PathPythonToolsShapeModels_SRCS
     Path/Tool/shape/models/dovetail.py
     Path/Tool/shape/models/drill.py
     Path/Tool/shape/models/endmill.py
-    Path/Tool/shape/models/fillet.py
+    Path/Tool/shape/models/radius.py
     Path/Tool/shape/models/icon.py
     Path/Tool/shape/models/probe.py
     Path/Tool/shape/models/reamer.py
@@ -452,8 +462,8 @@ SET(Tools_Shape_SRCS
     Tools/Shape/drill.svg
     Tools/Shape/endmill.fcstd
     Tools/Shape/endmill.svg
-    Tools/Shape/fillet.fcstd
-    Tools/Shape/fillet.svg
+    Tools/Shape/radius.fcstd
+    Tools/Shape/radius.svg
     Tools/Shape/probe.fcstd
     Tools/Shape/probe.svg
     Tools/Shape/reamer.fcstd
@@ -597,6 +607,7 @@ SET(all_files
     ${PathPythonPostScripts_SRCS}
     ${PathPythonTools_SRCS}
     ${PathPythonToolsAssets_SRCS}
+    ${PathPythonToolsMigration_SRCS}
     ${PathPythonToolsAssetsStore_SRCS}
     ${PathPythonToolsAssetsUi_SRCS}
     ${PathPythonToolsDocObject_SRCS}
@@ -750,6 +761,13 @@ INSTALL(
         ${PathPythonToolsAssets_SRCS}
     DESTINATION
         Mod/CAM/Path/Tool/assets
+)
+
+INSTALL(
+    FILES
+        ${PathPythonToolsMigration_SRCS}
+    DESTINATION
+        Mod/CAM/Path/Tool/migration
 )
 
 INSTALL(

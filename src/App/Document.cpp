@@ -20,9 +20,6 @@
  *                                                                         *
  ***************************************************************************/
 
-#include "PreCompiled.h"
-
-#ifndef _PreComp_
 #include <bitset>
 #include <stack>
 #include <deque>
@@ -36,7 +33,6 @@
 #include <list>
 #include <algorithm>
 #include <filesystem>
-#endif
 
 #include <boost/algorithm/string.hpp>
 #include <boost/bimap.hpp>
@@ -49,6 +45,8 @@
 
 #include <QCryptographicHash>
 #include <QCoreApplication>
+
+#include <FCConfig.h>
 
 #include <App/DocumentPy.h>
 #include <Base/Interpreter.h>
@@ -3065,7 +3063,7 @@ DocumentObject* Document::addObject(const char* sType,
         Base::Type::getTypeIfDerivedFrom(sType, DocumentObject::getClassTypeId(), true);
     if (type.isBad()) {
         std::stringstream str;
-        str << "'" << sType << "' is not a document object type";
+        str << "Document::addObject: '" << sType << "' is not a document object type";
         throw Base::TypeError(str.str());
     }
 
@@ -3223,6 +3221,10 @@ bool Document::containsObject(const DocumentObject* pcObject) const
 void Document::removeObject(const char* sName)
 {
     auto pos = d->objectMap.find(sName);
+    if (pos == d->objectMap.end()){
+        FC_MSG("Object " << sName << " already deleted in document " << getName());
+        return;
+    }
 
     if (pos->second->testStatus(ObjectStatus::PendingRecompute)) {
         // TODO: shall we allow removal if there is active undo transaction?

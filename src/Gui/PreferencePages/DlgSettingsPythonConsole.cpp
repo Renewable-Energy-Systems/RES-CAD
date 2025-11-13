@@ -20,7 +20,6 @@
  *                                                                         *
  ***************************************************************************/
 
-#include "PreCompiled.h"
 
 #include "DlgSettingsPythonConsole.h"
 #include "ui_DlgSettingsPythonConsole.h"
@@ -31,8 +30,8 @@ using namespace Gui::Dialog;
 /* TRANSLATOR Gui::Dialog::DlgSettingsPythonConsole */
 
 DlgSettingsPythonConsole::DlgSettingsPythonConsole(QWidget* parent)
-  : PreferencePage(parent)
-  , ui(new Ui_DlgSettingsPythonConsole)
+    : PreferencePage(parent)
+    , ui(new Ui_DlgSettingsPythonConsole)
 {
     ui->setupUi(this);
 }

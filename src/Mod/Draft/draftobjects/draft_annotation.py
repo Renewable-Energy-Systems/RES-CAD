@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+
 # ***************************************************************************
 # *   Copyright (c) 2020 Carlo Pavan <carlopav@gmail.com>                   *
 # *   Copyright (c) 2020 Eliud Cabrera Castillo <e.cabrera-castillo@tum.de> *
@@ -37,8 +39,7 @@ through Coin (pivy).
 
 ## \addtogroup draftobjects
 # @{
-from draftutils.messages import _wrn
-from draftutils.translate import translate
+from draftutils.messages import _log
 
 
 class DraftAnnotation(object):
@@ -78,11 +79,9 @@ class DraftAnnotation(object):
         multiplier = None
         if not hasattr(vobj, "ScaleMultiplier"):
             multiplier = 1.00
-            _wrn("v0.19, " + obj.Label + ", "
-                 + translate("draft", "added view property 'ScaleMultiplier'"))
+            _log("v0.19, " + obj.Name + ", added view property 'ScaleMultiplier'")
         if not hasattr(vobj, "AnnotationStyle"):
-            _wrn("v0.19, " + obj.Label + ", "
-                 + translate("draft", "added view property 'AnnotationStyle'"))
+            _log("v0.19, " + obj.Name + ", added view property 'AnnotationStyle'")
         vobj.Proxy.set_annotation_properties(vobj, vobj.PropertiesList)
         if multiplier is not None:
             vobj.ScaleMultiplier = multiplier
@@ -95,9 +94,7 @@ class DraftAnnotation(object):
             typ = obj.Proxy.Type
             if typ == "Label":
                 vobj.ArrowTypeStart = vobj.ArrowType
-            elif typ == "AngularDimension" \
-                    or obj.Diameter \
-                    or not vobj.Proxy.is_linked_to_circle():
+            elif typ == "AngularDimension" or obj.Diameter or not vobj.Proxy.is_linked_to_circle():
                 vobj.ArrowTypeStart = vobj.ArrowType
                 vobj.ArrowTypeEnd = vobj.ArrowType
             else:  # Radial dimension
@@ -112,18 +109,13 @@ class DraftAnnotation(object):
                 vobj.ArrowSizeEnd = vobj.ArrowSize
             vobj.setPropertyStatus("ArrowSize", "-LockDynamic")
             vobj.removeProperty("ArrowSize")
-        _wrn(
-            "v1.1, "
-            + obj.Label
-            + ", "
-            + translate("draft", "migrated view properties")
-        )
+        _log("v1.1, " + obj.Name + ", migrated view properties")
 
     def dumps(self):
 
         return
 
-    def loads(self,state):
+    def loads(self, state):
 
         return
 

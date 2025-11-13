@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+
 # ***************************************************************************
 # *   Copyright (c) 2013 Yorik van Havre <yorik@uncreated.net>              *
 # *   Copyright (c) 2019 Bernd Hahnebach <bernd@bimstatik.org>              *
@@ -300,7 +302,23 @@ class MaterialEditor:
         card_name_list.insert(0, [None, "", ""])
         self.widget.ComboMaterial.clear()
         for mat in card_name_list:
-            self.widget.ComboMaterial.addItem(QtGui.QIcon(mat[2]), mat[0], mat[1])
+            icon_data = mat[2]
+
+            if icon_data and isinstance(icon_data, bytes):
+                byte_array = QtCore.QByteArray(icon_data)
+                pixmap = QtGui.QPixmap()
+                if pixmap.loadFromData(byte_array):
+                    icon = QtGui.QIcon(pixmap)
+                else:
+                    icon = QtGui.QIcon()
+            elif isinstance(icon_data, str) and icon_data:
+                # if this is string type, then try to load directly
+                icon = QtGui.QIcon(icon_data)
+            else:
+                # fallback to not crash, empty icon
+                icon = QtGui.QIcon()
+
+            self.widget.ComboMaterial.addItem(icon, mat[0], mat[1])
 
     def openProductURL(self):
 
