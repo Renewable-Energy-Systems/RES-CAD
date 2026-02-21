@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
+
 /***************************************************************************
  *   Copyright (c) 2002 Jürgen Riegel <juergen.riegel@web.de>              *
  *                                                                         *
@@ -337,6 +339,9 @@ public:
     }
     void setPyObject(PyObject* py) override;
 
+    void Save(Base::Writer& writer) const override;
+    void Restore(Base::XMLReader& reader) override;
+
 protected:
     const Constraints* _ConstStruct {nullptr};
 };
@@ -670,6 +675,9 @@ public:
     }
 
     void setPyObject(PyObject* py) override;
+
+    void Save(Base::Writer& writer) const override;
+    void Restore(Base::XMLReader& reader) override;
 
 protected:
     const Constraints* _ConstStruct {nullptr};
@@ -1091,6 +1099,9 @@ public:
 
 protected:
     Base::Color getPyValue(PyObject* py) const override;
+
+private:
+    bool requiresAlphaConversion {false}; // In 1.1 the handling of alpha was inverted
 };
 
 
@@ -1294,8 +1305,10 @@ private:
     void verifyIndex(int index) const;
     void setMinimumSizeOne();
     int resizeByOneIfNeeded(int index);
+    void convertAlpha(std::vector<App::Material>& materials) const;
 
     Format formatVersion {Version_0};
+    bool requiresAlphaConversion {false};  // In 1.1 the handling of alpha was inverted
 };
 
 

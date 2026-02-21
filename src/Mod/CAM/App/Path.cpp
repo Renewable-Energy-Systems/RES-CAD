@@ -138,8 +138,8 @@ double Toolpath::getLength()
         else if ((name == "G2") || (name == "G02") || (name == "G3") || (name == "G03")) {
             // arc
             Vector3d center = (*it)->getCenter();
-            double radius = (last - center).Length();
-            double angle = (next - center).GetAngle(last - center);
+            double radius = center.Length();
+            double angle = (next - last - center).GetAngle(-center);
             l += angle * radius;
             last = next;
         }
@@ -206,8 +206,8 @@ double Toolpath::getCycleTime(double hFeed, double vFeed, double hRapid, double 
         else if ((name == "G2") || (name == "G02") || (name == "G3") || (name == "G03")) {
             // Arc Move
             Vector3d center = (*it)->getCenter();
-            double radius = (last - center).Length();
-            double angle = (next - center).GetAngle(last - center);
+            double radius = center.Length();
+            double angle = (next - last - center).GetAngle(-center);
             l += angle * radius;
         }
 
@@ -523,13 +523,36 @@ void Toolpath::Restore(XMLReader& reader)
     }
 }
 
+// The previous implementation read the file word-by-word, merging all content into a single string.
+// This caused GCode commands and annotations to be split and parsed incorrectly.
+// The new implementation reads the file line-by-line, ensuring each command and its annotations are
+// handled correctly. void Toolpath::RestoreDocFile(Base::Reader& reader)
+// {
+//     std::string gcode;
+//     std::string line;
+//     while (reader >> line) {
+//         gcode += line;
+//         gcode += " ";
+//     }
+//     setFromGCode(gcode);
+// }
+
+void Toolpath::addCommandNoRecalc(const Command& Cmd)
+{
+    Command* tmp = new Command(Cmd);
+    vpcCommands.push_back(tmp);
+    // No recalculate here
+}
+
 void Toolpath::RestoreDocFile(Base::Reader& reader)
 {
-    std::string gcode;
     std::string line;
-    while (reader >> line) {
-        gcode += line;
-        gcode += " ";
+    while (std::getline(reader.getStream(), line)) {
+        if (!line.empty()) {
+            Command cmd;
+            cmd.setFromGCode(line);
+            addCommandNoRecalc(cmd);
+        }
     }
-    setFromGCode(gcode);
+    recalculate();  // Only once, after all commands are loaded
 }

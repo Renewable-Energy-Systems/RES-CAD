@@ -48,14 +48,8 @@
 #include <zipios++/zipinputstream.h>
 #include <boost/iostreams/filtering_stream.hpp>
 
-#ifndef XERCES_CPP_NAMESPACE_BEGIN
-# define XERCES_CPP_NAMESPACE_QUALIFIER
-using namespace XERCES_CPP_NAMESPACE;
-#else
-XERCES_CPP_NAMESPACE_USE
-#endif
-
 using namespace std;
+using namespace XERCES_CPP_NAMESPACE;
 
 
 // ---------------------------------------------------------------------------
@@ -65,11 +59,7 @@ using namespace std;
 Base::XMLReader::XMLReader(const char* FileName, std::istream& str)
     : _File(FileName)
 {
-#ifdef _MSC_VER
-    str.imbue(std::locale::empty());
-#else
     str.imbue(std::locale::classic());
-#endif
 
     // create the parser
     parser = XMLReaderFactory::createXMLReader();  // NOLINT
@@ -574,7 +564,7 @@ void Base::XMLReader::startElement(
     const XMLCh* const /*uri*/,
     const XMLCh* const localname,
     const XMLCh* const /*qname*/,
-    const XERCES_CPP_NAMESPACE_QUALIFIER Attributes& attrs
+    const XERCES_CPP_NAMESPACE::Attributes& attrs
 )
 {
     Level++;  // new scope
@@ -636,7 +626,7 @@ void Base::XMLReader::resetDocument()
 // ---------------------------------------------------------------------------
 //  Base::XMLReader: Overrides of the SAX ErrorHandler interface
 // ---------------------------------------------------------------------------
-void Base::XMLReader::error(const XERCES_CPP_NAMESPACE_QUALIFIER SAXParseException& e)
+void Base::XMLReader::error(const XERCES_CPP_NAMESPACE::SAXParseException& e)
 {
     // print some details to error output and throw an
     // exception to abort the parsing
@@ -645,7 +635,7 @@ void Base::XMLReader::error(const XERCES_CPP_NAMESPACE_QUALIFIER SAXParseExcepti
     throw e;
 }
 
-void Base::XMLReader::fatalError(const XERCES_CPP_NAMESPACE_QUALIFIER SAXParseException& e)
+void Base::XMLReader::fatalError(const XERCES_CPP_NAMESPACE::SAXParseException& e)
 {
     // print some details to error output and throw an
     // exception to abort the parsing
@@ -654,7 +644,7 @@ void Base::XMLReader::fatalError(const XERCES_CPP_NAMESPACE_QUALIFIER SAXParseEx
     throw e;
 }
 
-void Base::XMLReader::warning(const XERCES_CPP_NAMESPACE_QUALIFIER SAXParseException& e)
+void Base::XMLReader::warning(const XERCES_CPP_NAMESPACE::SAXParseException& e)
 {
     // print some details to error output and throw an
     // exception to abort the parsing
