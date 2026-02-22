@@ -1,0 +1,151 @@
+/* Material 3 Dark Theme for VoidCad */
+QWidget {
+    font-family: "Segoe UI Variable", "Segoe UI", "Inter", "Roboto", sans-serif;
+    font-size: 10pt;
+    background-color: #121212; /* M3 background */
+    color: #e3e3e3; /* M3 on-surface */
+}
+
+QScrollArea, QScrollArea > QWidget > QWidget, QMdiSubWindow, QFrame, QListView {
+    background-color: transparent;
+    border: none;
+}
+
+QLabel {
+    background-color: transparent;
+    color: #e3e3e3;
+}
+
+QLabel#titleLabel {
+    font-size: 14pt;
+    font-weight: 600;
+}
+
+/* Toolbars */
+QToolBar {
+    background-color: #121212;
+    border: none;
+    padding: 4px;
+    spacing: 6px;
+}
+
+QToolButton {
+    background-color: transparent;
+    border-radius: 8px;
+    padding: 6px 8px;
+    color: #c4c7c5;
+}
+
+QToolButton:hover {
+    background-color: #282a2f; /* Surface variant hover */
+    color: #e2e2e6;
+}
+
+QToolButton:pressed, QToolButton:checked {
+    background-color: #3f4756;
+    color: #a8c7fa; /* Primary color */
+}
+
+/* PushButtons and Cards (FreeCAD Start cards use QPushButton) */
+QPushButton {
+    background-color: #1e1e20; /* Surface Container */
+    color: #e3e3e3;
+    border: 1px solid #444746; /* Outline */
+    border-radius: 12px; /* M3 Card radius */
+    padding: 12px 16px;
+    font-weight: 500;
+}
+
+QPushButton:hover {
+    background-color: #282a2f; /* Surface Container High */
+    border: 1px solid #8e918f;
+}
+
+QPushButton:pressed {
+    background-color: #33353a; /* Surface Container Highest */
+    border: 1px solid #a8c7fa;
+}
+
+/* Special styling for smaller UI buttons if needed */
+QComboBox, QSpinBox, QLineEdit {
+    background-color: #1e1e20;
+    color: #e3e3e3;
+    border: 1px solid #444746;
+    border-radius: 8px;
+    padding: 6px 12px;
+}
+
+QComboBox:hover, QSpinBox:hover, QLineEdit:hover {
+    background-color: #282a2f;
+    border: 1px solid #8e918f;
+}
+
+QComboBox:focus, QSpinBox:focus, QLineEdit:focus {
+    border: 2px solid #a8c7fa; /* Primary focus ring */
+}
+
+/* QListView Items (Recent files, Examples) */
+QListView {
+    outline: none; /* Remove focus dotted line */
+}
+
+QListView::item {
+    background-color: #1e1e20;
+    border-radius: 12px;
+    padding: 10px;
+    margin: 6px;
+    border: 1px solid #444746;
+}
+
+QListView::item:hover {
+    background-color: #282a2f;
+    border: 1px solid #8e918f;
+}
+
+QListView::item:selected {
+    background-color: #3b4253;
+    border: 1px solid #a8c7fa;
+}
+
+/* Docks */
+QDockWidget {
+    background-color: #121212;
+    color: #e3e3e3;
+    border: 1px solid #444746;
+    border-radius: 12px;
+}
+
+QDockWidget::title {
+    background-color: #1e1e20;
+    padding: 12px;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+/* Menus */
+QMenuBar {
+    background-color: #121212;
+    color: #e3e3e3;
+}
+
+QMenuBar::item:selected {
+    background-color: #1e1e20;
+    border-radius: 6px;
+}
+
+QMenu {
+    background-color: #1e1e20;
+    color: #e3e3e3;
+    border: 1px solid #444746;
+    border-radius: 8px;
+    padding: 4px;
+}
+
+QMenu::item {
+    padding: 6px 24px 6px 12px;
+    border-radius: 6px;
+}
+
+QMenu::item:selected {
+    background-color: #282a2f;
+}

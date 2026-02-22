@@ -2,6 +2,7 @@ if(BUILD_GUI)
     set(VoidCad_SRCS
         Init.py
         InitGui.py
+        VoidCad.qss
     )
 
     install(
