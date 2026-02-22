@@ -154,6 +154,11 @@ private:
         TopoDS_Shape shape;
         // The intended parametric type for the shape.
         PrimitiveType type = PrimitiveType::None;
+
+        GeometryBuilder(const TopoDS_Shape& s, PrimitiveType t = PrimitiveType::None)
+            : shape(s)
+            , type(t)
+        {}
     };
 
     ImportMode m_importMode = ImportMode::IndividualShapes;

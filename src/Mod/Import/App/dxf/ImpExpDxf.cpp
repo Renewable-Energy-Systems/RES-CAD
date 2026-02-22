@@ -958,19 +958,13 @@ void ImpExpDxfRead::OnReadLine(const Base::Vector3d& start, const Base::Vector3d
     TopoDS_Edge edge = BRepBuilderAPI_MakeEdge(p0, p1).Edge();
     GeometryBuilder builder(edge);
 
-    // CORRECTED: Set PrimitiveType conditionally based on m_importMode
-    switch (m_importMode) {
-        case ImportMode::EditableDraft:
-        case ImportMode::EditablePrimitives:
-            // For these modes, we want a specific Part primitive (Part::Line)
-            builder.type = GeometryBuilder::PrimitiveType::Line;
-            break;
-        case ImportMode::IndividualShapes:
-        case ImportMode::FusedShapes:
-            // For these modes, we want a generic Part::Feature wrapping the TopoDS_Shape.
-            // PrimitiveType::None will lead to a generic Part::Feature in AddGeometry.
-            builder.type = GeometryBuilder::PrimitiveType::None;
-            break;
+    if (m_importMode == ImportMode::EditableDraft || m_importMode == ImportMode::EditablePrimitives) {
+        // For these modes, we want a specific Part primitive (Part::Line)
+        builder.type = GeometryBuilder::PrimitiveType::Line;
+    } else {
+        // For these modes, we want a generic Part::Feature wrapping the TopoDS_Shape.
+        // PrimitiveType::None will lead to a generic Part::Feature in AddGeometry.
+        builder.type = GeometryBuilder::PrimitiveType::None;
     }
 
     Collector->AddGeometry(builder);
@@ -985,15 +979,10 @@ void ImpExpDxfRead::OnReadPoint(const Base::Vector3d& start)
     TopoDS_Vertex vertex = BRepBuilderAPI_MakeVertex(makePoint(start)).Vertex();
     GeometryBuilder builder(vertex);
 
-    switch (m_importMode) {
-        case ImportMode::EditableDraft:
-        case ImportMode::EditablePrimitives:
-            builder.type = GeometryBuilder::PrimitiveType::Point;
-            break;
-        case ImportMode::IndividualShapes:
-        case ImportMode::FusedShapes:
-            builder.type = GeometryBuilder::PrimitiveType::None;  // Generic Part::Feature
-            break;
+    if (m_importMode == ImportMode::EditableDraft || m_importMode == ImportMode::EditablePrimitives) {
+        builder.type = GeometryBuilder::PrimitiveType::Point;
+    } else {
+        builder.type = GeometryBuilder::PrimitiveType::None;  // Generic Part::Feature
     }
     Collector->AddGeometry(builder);
 }
@@ -1027,15 +1016,10 @@ void ImpExpDxfRead::OnReadArc(
     TopoDS_Edge edge = BRepBuilderAPI_MakeEdge(circle, p0, p1).Edge();
     GeometryBuilder builder(edge);  // Instantiate builder once
 
-    switch (m_importMode) {
-        case ImportMode::EditableDraft:
-        case ImportMode::EditablePrimitives:
-            builder.type = GeometryBuilder::PrimitiveType::Arc;
-            break;
-        case ImportMode::IndividualShapes:
-        case ImportMode::FusedShapes:
-            builder.type = GeometryBuilder::PrimitiveType::None;  // Generic Part::Feature
-            break;
+    if (m_importMode == ImportMode::EditableDraft || m_importMode == ImportMode::EditablePrimitives) {
+        builder.type = GeometryBuilder::PrimitiveType::Arc;
+    } else {
+        builder.type = GeometryBuilder::PrimitiveType::None;  // Generic Part::Feature
     }
     Collector->AddGeometry(builder);
 }
@@ -1062,15 +1046,10 @@ void ImpExpDxfRead::OnReadCircle(const Base::Vector3d& start, const Base::Vector
     TopoDS_Edge edge = BRepBuilderAPI_MakeEdge(circle).Edge();
     GeometryBuilder builder(edge);  // Instantiate builder once
 
-    switch (m_importMode) {
-        case ImportMode::EditableDraft:
-        case ImportMode::EditablePrimitives:
-            builder.type = GeometryBuilder::PrimitiveType::Circle;
-            break;
-        case ImportMode::IndividualShapes:
-        case ImportMode::FusedShapes:
-            builder.type = GeometryBuilder::PrimitiveType::None;  // Generic Part::Feature
-            break;
+    if (m_importMode == ImportMode::EditableDraft || m_importMode == ImportMode::EditablePrimitives) {
+        builder.type = GeometryBuilder::PrimitiveType::Circle;
+    } else {
+        builder.type = GeometryBuilder::PrimitiveType::None;  // Generic Part::Feature
     }
     Collector->AddGeometry(builder);
 }
@@ -1189,15 +1168,10 @@ void ImpExpDxfRead::OnReadSpline(struct SplineData& sd)
             TopoDS_Edge edge = BRepBuilderAPI_MakeEdge(geom).Edge();
             GeometryBuilder builder(edge);  // Instantiate builder once
 
-            switch (m_importMode) {
-                case ImportMode::EditableDraft:
-                case ImportMode::EditablePrimitives:
-                    builder.type = GeometryBuilder::PrimitiveType::Spline;
-                    break;
-                case ImportMode::IndividualShapes:
-                case ImportMode::FusedShapes:
-                    builder.type = GeometryBuilder::PrimitiveType::None;  // Generic Part::Feature
-                    break;
+            if (m_importMode == ImportMode::EditableDraft || m_importMode == ImportMode::EditablePrimitives) {
+                builder.type = GeometryBuilder::PrimitiveType::Spline;
+            } else {
+                builder.type = GeometryBuilder::PrimitiveType::None;  // Generic Part::Feature
             }
             Collector->AddGeometry(builder);
         }
@@ -1238,19 +1212,13 @@ void ImpExpDxfRead::OnReadEllipse(
     TopoDS_Edge edge = BRepBuilderAPI_MakeEdge(ellipse).Edge();
     GeometryBuilder builder(edge);  // Pass the shape to the builder
 
-    switch (m_importMode) {
-        case ImportMode::EditableDraft:
-        case ImportMode::EditablePrimitives:
-            // Tag this geometry so the collector knows to create a Part::Ellipse primitive
-            builder.type = GeometryBuilder::PrimitiveType::Ellipse;
-            break;
-        case ImportMode::IndividualShapes:
-        case ImportMode::FusedShapes:
-        default:
-            // For other modes, create a generic shape (Part:Feature), which is the existing
-            // behavior.
-            builder.type = GeometryBuilder::PrimitiveType::None;
-            break;
+    if (m_importMode == ImportMode::EditableDraft || m_importMode == ImportMode::EditablePrimitives) {
+        // Tag this geometry so the collector knows to create a Part::Ellipse primitive
+        builder.type = GeometryBuilder::PrimitiveType::Ellipse;
+    } else {
+        // For other modes, create a generic shape (Part:Feature), which is the existing
+        // behavior.
+        builder.type = GeometryBuilder::PrimitiveType::None;
     }
     Collector->AddGeometry(builder);
 }
