@@ -142,6 +142,12 @@ INSTALL(TARGETS Path DESTINATION ${CMAKE_INSTALL_LIBDIR})
 add_library(tsp_solver SHARED tsp_solver_pybind.cpp tsp_solver.cpp)
 target_include_directories(tsp_solver PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${pybind11_INCLUDE_DIR})
 target_link_libraries(tsp_solver PRIVATE pybind11::module Python3::Python)
+if(WIN32)
+    # forcefully prevent /NODEFAULTLIB by appending /DEFAULTLIB
+    # or actually let's just intercept the string in link flags. But we can't easily intercept INTERFACE_LINK_OPTIONS.
+    # Instead, we just pass the necessary libs to offset /NODEFAULTLIB
+    target_link_libraries(tsp_solver PRIVATE msvcrt msvcprt oldnames ucrt vcruntime)
+endif()
 if (FREECAD_WARN_ERROR)
     target_compile_warn_error(tsp_solver)
 endif()
