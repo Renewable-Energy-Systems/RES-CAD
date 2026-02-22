@@ -172,8 +172,8 @@ configure-debug = { cmd = [ "cmake", "--preset", "conda-macos-debug" ], depends-
 configure-release = { cmd = [ "cmake", "--preset", "conda-macos-release" ], depends-on = ["initialize"], env={ CFLAGS="", CXXFLAGS="", DEBUG_CFLAGS="", DEBUG_CXXFLAGS="" }}
 
 [target.win-64.tasks]
-configure-debug = { cmd = [ "cmake", "--preset", "conda-windows-debug", "-DCMAKE_GENERATOR_PLATFORM=", "-DCMAKE_GENERATOR_TOOLSET=" ], depends-on = ["initialize"], env={ CFLAGS="", CXXFLAGS="", DEBUG_CFLAGS="", DEBUG_CXXFLAGS="" }}
-configure-release = { cmd = [ "cmake", "--preset", "conda-windows-release", "-DCMAKE_GENERATOR_PLATFORM=", "-DCMAKE_GENERATOR_TOOLSET=" ], depends-on = ["initialize"], env={ CFLAGS="", CXXFLAGS="", DEBUG_CFLAGS="", DEBUG_CXXFLAGS="" }}
+configure-debug = { cmd = [ "cmake", "--preset", "conda-windows-debug", "-DCMAKE_GENERATOR_PLATFORM=", "-DCMAKE_GENERATOR_TOOLSET=" ], depends-on = ["initialize"], env={ CFLAGS="", CXXFLAGS="", DEBUG_CFLAGS="", DEBUG_CXXFLAGS="", LDFLAGS="" }}
+configure-release = { cmd = [ "cmake", "--preset", "conda-windows-release", "-DCMAKE_GENERATOR_PLATFORM=", "-DCMAKE_GENERATOR_TOOLSET=" ], depends-on = ["initialize"], env={ CFLAGS="", CXXFLAGS="", DEBUG_CFLAGS="", DEBUG_CXXFLAGS="", LDFLAGS="" }}
 freecad-debug = { cmd = [ ".pixi/envs/default/Library/bin/FreeCAD.exe" ], depends-on = ["install-debug"]}
 freecad-release = { cmd = [ ".pixi/envs/default/Library/bin/FreeCAD.exe" ], depends-on = ["install-release"]}
 
@@ -190,7 +190,7 @@ build-debug = { cmd = ["cmake", "--build", "build/debug"]}
 build-release = { cmd = ["cmake", "--build", "build/release"]}
 install-debug = { cmd = ["cmake", "--install", "build/debug"]}
 install-release = { cmd = ["cmake", "--install", "build/release"]}
-test-debug = { cmd = ["ctest", "--test-dir", "build/debug"]}
-test-release = { cmd = ["ctest", "--test-dir", "build/release"]}
-freecad-debug = "build/debug/bin/FreeCAD"
-freecad-release = "build/release/bin/FreeCAD"
+test-debug = { cmd = ["cmd", "/C", "set PATH=%PATH%;build\\debug\\bin;build\\debug\\Mod\\Material;build\\debug\\Mod\\CAM && ctest --test-dir build/debug"] }
+test-release = { cmd = ["cmd", "/C", "set PATH=%PATH%;build\\release\\bin;build\\release\\Mod\\Material;build\\release\\Mod\\CAM && ctest --test-dir build/release"] }
+freecad-debug = "build/debug/bin/FreeCAD.exe"
+freecad-release = "build/release/bin/FreeCAD.exe"
